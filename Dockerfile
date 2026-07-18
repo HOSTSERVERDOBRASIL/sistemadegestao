@@ -1,4 +1,16 @@
-FROM node:22-alpine AS builder
+# ─── Stage 1: build frontend ─────────────────────────────────────────────────
+FROM node:22-alpine AS frontend-builder
+
+WORKDIR /app/frontend
+
+COPY frontend/package*.json ./
+RUN npm ci
+
+COPY frontend/ ./
+RUN npm run build
+
+# ─── Stage 2: build backend ───────────────────────────────────────────────────
+FROM node:22-alpine AS backend-builder
 
 WORKDIR /app
 
@@ -10,17 +22,20 @@ COPY src/ ./src/
 
 RUN npm run build
 
-# ─── Runtime image ────────────────────────────────────────────────────────────
+# ─── Stage 3: runtime ─────────────────────────────────────────────────────────
 FROM node:22-alpine AS runtime
 
 RUN addgroup -S atlasX && adduser -S atlasX -G atlasX
 
 WORKDIR /app
 
-COPY package*.json ./
-RUN npm ci --omit=dev
+# Backend compilado
+COPY --from=backend-builder /app/dist ./dist
+COPY --from=backend-builder /app/node_modules ./node_modules
+COPY package.json ./
 
-COPY --from=builder /app/dist ./dist
+# Frontend buildado — Express serve em produção
+COPY --from=frontend-builder /app/frontend/dist ./frontend/dist
 
 RUN mkdir -p /app/uploads /app/certs && chown -R atlasX:atlasX /app
 

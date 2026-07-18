@@ -56,11 +56,6 @@ app.use(globalRateLimit);
 // ─── Timeout de request (30s) — exceto SSE e uploads ─────────────────────────
 app.use(requestTimeout);
 
-// ─── Arquivos estáticos (com autenticação básica — ver middleware abaixo) ────
-// Nota: arquivos servidos acessíveis somente via rotas autenticadas de /uploads/files
-// O static serve apenas como fallback; a segurança está nas rotas de upload.
-app.use('/uploads', express.static(path.resolve(env.UPLOAD_DIR)));
-
 // ─── Health check ─────────────────────────────────────────────────────────────
 app.get('/health', (_req, res) => {
   const dbOk = mongoose.connection.readyState === 1;
@@ -73,27 +68,42 @@ app.get('/health', (_req, res) => {
   });
 });
 
-// ─── Rotas ────────────────────────────────────────────────────────────────────
-app.use('/auth/login', loginRateLimit); // rate limit estrito só no login
-app.use('/auth', authRouter);
-app.use('/clientes', clientesRouter);
-app.use('/produtos', produtosRouter);
-app.use('/parceiros', parceirosRouter);
-app.use('/contratos', contratosRouter);
-app.use('/pedidos', pedidosRouter);
-app.use('/financeiro', financeiroRouter);
-app.use('/relatorios', relatoriosRouter);
-app.use('/usuarios', usuariosRouter);
-app.use('/events', eventsRouter);
-app.use('/uploads/files', uploadsRouter);
-app.use('/exportar', exportarRouter);
-app.use('/cobrancas', cobrancasRouter);
-app.use('/tiny', tinyRouter);
-app.use('/cupons', cuponsRouter);
-app.use('/admin', adminRouter);
-app.use('/fretes', fretesRouter);
-app.use('/configuracoes', configuracoesRouter);
-app.use('/conciliacao', conciliacaoRouter);
+// ─── Rotas API (prefixo /api em produção Railway, sem prefixo em dev) ────────
+// Em produção: Railway expõe tudo em uma porta. O frontend faz fetch para /api/*
+// Em dev: Vite proxy redireciona /api → localhost:3000 removendo o prefixo
+const apiPrefix = env.isProd ? '/api' : '';
+app.use(`${apiPrefix}/auth/login`, loginRateLimit);
+app.use(`${apiPrefix}/auth`, authRouter);
+app.use(`${apiPrefix}/clientes`, clientesRouter);
+app.use(`${apiPrefix}/produtos`, produtosRouter);
+app.use(`${apiPrefix}/parceiros`, parceirosRouter);
+app.use(`${apiPrefix}/contratos`, contratosRouter);
+app.use(`${apiPrefix}/pedidos`, pedidosRouter);
+app.use(`${apiPrefix}/financeiro`, financeiroRouter);
+app.use(`${apiPrefix}/relatorios`, relatoriosRouter);
+app.use(`${apiPrefix}/usuarios`, usuariosRouter);
+app.use(`${apiPrefix}/events`, eventsRouter);
+app.use(`${apiPrefix}/uploads/files`, uploadsRouter);
+app.use(`${apiPrefix}/exportar`, exportarRouter);
+app.use(`${apiPrefix}/cobrancas`, cobrancasRouter);
+app.use(`${apiPrefix}/tiny`, tinyRouter);
+app.use(`${apiPrefix}/cupons`, cuponsRouter);
+app.use(`${apiPrefix}/admin`, adminRouter);
+app.use(`${apiPrefix}/fretes`, fretesRouter);
+app.use(`${apiPrefix}/configuracoes`, configuracoesRouter);
+app.use(`${apiPrefix}/conciliacao`, conciliacaoRouter);
+// uploads públicos (sem prefixo /api)
+app.use('/uploads', express.static(path.resolve(env.UPLOAD_DIR)));
+
+// ─── Frontend estático em produção ───────────────────────────────────────────
+if (env.isProd) {
+  const frontendDist = path.resolve('frontend/dist');
+  app.use(express.static(frontendDist));
+  // SPA fallback — todas as rotas não-API devolvem o index.html
+  app.get('*', (_req, res) => {
+    res.sendFile(path.join(frontendDist, 'index.html'));
+  });
+}
 
 // ─── Error handler ───────────────────────────────────────────────────────────
 app.use(errorHandler);
