@@ -76,6 +76,7 @@ export const clientes = {
   get: (id: string) => get<Cliente>(`/clientes/${id}`),
   create: (body: ClientePayload) => post<Cliente>('/clientes', body),
   update: (id: string, body: Partial<ClientePayload>) => put<Cliente>(`/clientes/${id}`, body),
+  toggleAtivo: (id: string, ativo: boolean) => patch<Cliente>(`/clientes/${id}/ativo`, { ativo }),
   remove: (id: string) => del<{ message: string; cliente: Cliente }>(`/clientes/${id}`),
   pedidos: (id: string) => get<import('./types').Pedido[]>(`/clientes/${id}/pedidos`),
 }

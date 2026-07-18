@@ -1,0 +1,189 @@
+/* ── Status chips ─────────────────────────────────────────────── */
+.statsRow {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 14px;
+  flex-wrap: wrap;
+}
+
+.statChip {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  border: 1.5px solid #e2e8f0;
+  background: #fff;
+  color: #374151;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.statChip:hover { background: #f8fafc; }
+
+.statChipActive {
+  border-color: #1e40af;
+  background: #eff6ff;
+  color: #1e40af;
+}
+
+.statChipGreen.statChipActive {
+  border-color: #15803d;
+  background: #f0fdf4;
+  color: #15803d;
+}
+
+.statChipRed.statChipActive {
+  border-color: #b91c1c;
+  background: #fef2f2;
+  color: #b91c1c;
+}
+
+.statNum {
+  background: #e2e8f0;
+  color: #374151;
+  border-radius: 10px;
+  padding: 1px 7px;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.statChipActive .statNum { background: #bfdbfe; color: #1e40af; }
+.statChipGreen.statChipActive .statNum { background: #bbf7d0; color: #15803d; }
+.statChipRed.statChipActive .statNum { background: #fecaca; color: #b91c1c; }
+
+/* ── Row dimming for inactive ─────────────────────────────────── */
+.inativo {
+  opacity: 0.45;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.inativoTag {
+  font-size: 0.68rem;
+  font-weight: 600;
+  background: #f1f5f9;
+  color: #94a3b8;
+  border-radius: 4px;
+  padding: 1px 5px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+/* ── Action buttons ───────────────────────────────────────────── */
+.btnDesativar {
+  background: #fff7ed;
+  color: #c2410c;
+  border: 1px solid #fed7aa;
+  padding: 5px 10px;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+  white-space: nowrap;
+}
+
+.btnDesativar:hover:not(:disabled) { background: #ffedd5; }
+.btnDesativar:disabled { opacity: 0.5; cursor: default; }
+
+.btnReativar {
+  background: #f0fdf4;
+  color: #15803d;
+  border: 1px solid #bbf7d0;
+  padding: 5px 10px;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+  white-space: nowrap;
+}
+
+.btnReativar:hover:not(:disabled) { background: #dcfce7; }
+.btnReativar:disabled { opacity: 0.5; cursor: default; }
+
+/* ── Side drawer ──────────────────────────────────────────────── */
+.drawerOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.35);
+  z-index: 200;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.drawer {
+  width: 360px;
+  max-width: 92vw;
+  background: #fff;
+  height: 100%;
+  box-shadow: -8px 0 32px rgba(0,0,0,0.12);
+  display: flex;
+  flex-direction: column;
+  padding: 28px 24px;
+  gap: 20px;
+  animation: slideIn 0.2s ease;
+}
+
+@keyframes slideIn {
+  from { transform: translateX(60px); opacity: 0; }
+  to   { transform: translateX(0);    opacity: 1; }
+}
+
+.drawerHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.drawerNome {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0 0 6px;
+}
+
+.drawerClose {
+  background: none;
+  border: none;
+  font-size: 1.1rem;
+  color: #94a3b8;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+
+.drawerClose:hover { background: #f1f5f9; color: #374151; }
+
+.drawerInfo {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 8px 14px;
+  margin: 0;
+  font-size: 0.85rem;
+}
+
+.drawerInfo dt {
+  font-weight: 600;
+  color: #64748b;
+  white-space: nowrap;
+}
+
+.drawerInfo dd {
+  margin: 0;
+  color: #0f172a;
+  word-break: break-word;
+}
+
+.drawerActions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: auto;
+}

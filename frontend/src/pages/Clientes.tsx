@@ -8,6 +8,7 @@ import { clientes as api } from '../api'
 import type { Cliente, ClientePayload } from '../types'
 import { email as validateEmail, documento as validateDoc, required, hasErrors, type FieldErrors } from '../utils/validate'
 import styles from './Page.module.css'
+import cStyles from './Clientes.module.css'
 
 const BLANK: ClientePayload = { nome: '', email: '', documento: '', tipo: 'pessoa-juridica', ativo: true }
 
@@ -28,6 +29,7 @@ export default function Clientes() {
   const [loading, setLoading] = useState(true)
   const [busca, setBusca] = useState('')
   const [filtroTipo, setFiltroTipo] = useState('')
+  const [filtroAtivo, setFiltroAtivo] = useState<'todos' | 'ativos' | 'inativos'>('todos')
   const [showModal, setShowModal] = useState(false)
   const [editing, setEditing] = useState<Cliente | null>(null)
   const [form, setForm] = useState<ClientePayload>(BLANK)
@@ -35,13 +37,17 @@ export default function Clientes() {
   const [touched, setTouched] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  const [toggling, setToggling] = useState<string | null>(null)
+  const [detalhe, setDetalhe] = useState<Cliente | null>(null)
+
+  const ativoQuery = filtroAtivo === 'ativos' ? 'true' : filtroAtivo === 'inativos' ? 'false' : undefined
 
   const load = useCallback(() => {
     setLoading(true)
-    api.list({ page, busca, tipo: filtroTipo })
+    api.list({ page, busca, tipo: filtroTipo, ativo: ativoQuery })
       .then(res => { setRows(res.data); setTotal(res.total) })
       .finally(() => setLoading(false))
-  }, [page, busca, filtroTipo])
+  }, [page, busca, filtroTipo, ativoQuery])
 
   useEffect(() => { load() }, [load])
 
@@ -74,28 +80,60 @@ export default function Clientes() {
     } finally { setSaving(false) }
   }
 
-  async function handleDelete(id: string) {
-    if (!confirm('Desativar este cliente?')) return
-    await api.remove(id).catch(() => {})
-    load()
+  async function handleToggle(cliente: Cliente, e: React.MouseEvent) {
+    e.stopPropagation()
+    const novoStatus = !cliente.ativo
+    if (!confirm(`${novoStatus ? 'Reativar' : 'Desativar'} o cliente "${cliente.nome}"?`)) return
+    setToggling(cliente._id)
+    try {
+      const atualizado = await api.toggleAtivo(cliente._id, novoStatus)
+      setRows(prev => prev.map(r => r._id === cliente._id ? atualizado : r))
+      if (detalhe?._id === cliente._id) setDetalhe(atualizado)
+    } catch {
+      // silencioso — o load() restaura o estado
+      load()
+    } finally { setToggling(null) }
   }
 
   const columns = [
-    { key: 'nome', header: 'Nome', render: (r: Cliente) => <strong>{r.nome}</strong> },
-    { key: 'email', header: 'E-mail' },
-    { key: 'documento', header: 'Documento' },
-    { key: 'tipo', header: 'Tipo', render: (r: Cliente) => <Badge label={r.tipo === 'pessoa-juridica' ? 'PJ' : 'PF'} variant="default" /> },
-    { key: 'ativo', header: 'Status', render: (r: Cliente) => <Badge label={r.ativo ? 'Ativo' : 'Inativo'} variant={r.ativo ? 'success' : 'default'} /> },
     {
-      key: '_actions', header: '', width: '120px',
+      key: 'nome', header: 'Nome',
+      render: (r: Cliente) => (
+        <span className={!r.ativo ? cStyles.inativo : ''}>
+          <strong>{r.nome}</strong>
+          {!r.ativo && <span className={cStyles.inativoTag}>Inativo</span>}
+        </span>
+      )
+    },
+    { key: 'email', header: 'E-mail', render: (r: Cliente) => <span className={!r.ativo ? cStyles.inativo : ''}>{r.email}</span> },
+    { key: 'documento', header: 'Documento', render: (r: Cliente) => <span className={!r.ativo ? cStyles.inativo : ''}>{r.documento}</span> },
+    {
+      key: 'tipo', header: 'Tipo',
+      render: (r: Cliente) => <Badge label={r.tipo === 'pessoa-juridica' ? 'PJ' : 'PF'} variant="default" />
+    },
+    {
+      key: 'ativo', header: 'Status',
+      render: (r: Cliente) => <Badge label={r.ativo ? 'Ativo' : 'Inativo'} variant={r.ativo ? 'success' : 'default'} />
+    },
+    {
+      key: '_actions', header: '', width: '160px',
       render: (r: Cliente) => (
         <div className={styles.rowActions}>
           <button className={styles.btnLink} onClick={e => { e.stopPropagation(); openEdit(r) }}>Editar</button>
-          <button className={styles.btnDanger} onClick={e => { e.stopPropagation(); handleDelete(r._id) }}>✕</button>
+          <button
+            className={r.ativo ? cStyles.btnDesativar : cStyles.btnReativar}
+            disabled={toggling === r._id}
+            onClick={e => handleToggle(r, e)}
+          >
+            {toggling === r._id ? '...' : r.ativo ? 'Desativar' : 'Reativar'}
+          </button>
         </div>
       )
     },
   ]
+
+  const totalAtivos = rows.filter(r => r.ativo).length
+  const totalInativos = rows.filter(r => !r.ativo).length
 
   return (
     <div className={styles.page}>
@@ -104,17 +142,83 @@ export default function Clientes() {
         subtitle={`${total} registro(s)`}
         action={<button className={styles.btnPrimary} onClick={openCreate}>+ Novo Cliente</button>}
       />
+
+      <div className={cStyles.statsRow}>
+        <button
+          className={`${cStyles.statChip} ${filtroAtivo === 'todos' ? cStyles.statChipActive : ''}`}
+          onClick={() => { setFiltroAtivo('todos'); setPage(1) }}
+        >
+          Todos <span className={cStyles.statNum}>{total}</span>
+        </button>
+        <button
+          className={`${cStyles.statChip} ${cStyles.statChipGreen} ${filtroAtivo === 'ativos' ? cStyles.statChipActive : ''}`}
+          onClick={() => { setFiltroAtivo('ativos'); setPage(1) }}
+        >
+          Ativos <span className={cStyles.statNum}>{totalAtivos}</span>
+        </button>
+        <button
+          className={`${cStyles.statChip} ${cStyles.statChipRed} ${filtroAtivo === 'inativos' ? cStyles.statChipActive : ''}`}
+          onClick={() => { setFiltroAtivo('inativos'); setPage(1) }}
+        >
+          Inativos <span className={cStyles.statNum}>{totalInativos}</span>
+        </button>
+      </div>
+
       <div className={styles.filters}>
-        <input className={styles.search} placeholder="Buscar por nome, e-mail ou documento..." value={busca}
-          onChange={e => { setBusca(e.target.value); setPage(1) }} />
+        <input
+          className={styles.search}
+          placeholder="Buscar por nome, e-mail ou documento..."
+          value={busca}
+          onChange={e => { setBusca(e.target.value); setPage(1) }}
+        />
         <select value={filtroTipo} onChange={e => { setFiltroTipo(e.target.value); setPage(1) }}>
           <option value="">Todos os tipos</option>
           <option value="pessoa-juridica">Pessoa Jurídica</option>
           <option value="pessoa-fisica">Pessoa Física</option>
         </select>
       </div>
-      <Table columns={columns} rows={rows} loading={loading} empty="Nenhum cliente encontrado" />
+
+      <Table
+        columns={columns}
+        rows={rows}
+        loading={loading}
+        empty="Nenhum cliente encontrado"
+        onRowClick={r => setDetalhe(r)}
+      />
       <Pagination page={page} total={total} limit={20} onChange={setPage} />
+
+      {/* Painel de detalhe */}
+      {detalhe && (
+        <div className={cStyles.drawerOverlay} onClick={() => setDetalhe(null)}>
+          <div className={cStyles.drawer} onClick={e => e.stopPropagation()}>
+            <div className={cStyles.drawerHeader}>
+              <div>
+                <h3 className={cStyles.drawerNome}>{detalhe.nome}</h3>
+                <Badge label={detalhe.ativo ? 'Ativo' : 'Inativo'} variant={detalhe.ativo ? 'success' : 'default'} />
+              </div>
+              <button className={cStyles.drawerClose} onClick={() => setDetalhe(null)}>✕</button>
+            </div>
+            <dl className={cStyles.drawerInfo}>
+              <dt>E-mail</dt><dd>{detalhe.email}</dd>
+              <dt>Documento</dt><dd>{detalhe.documento}</dd>
+              <dt>Tipo</dt><dd>{detalhe.tipo === 'pessoa-juridica' ? 'Pessoa Jurídica' : 'Pessoa Física'}</dd>
+              {detalhe.telefone && <><dt>Telefone</dt><dd>{detalhe.telefone}</dd></>}
+            </dl>
+            <div className={cStyles.drawerActions}>
+              <button className={styles.btnPrimary} onClick={() => { openEdit(detalhe); setDetalhe(null) }}>
+                Editar dados
+              </button>
+              <button
+                className={detalhe.ativo ? cStyles.btnDesativar : cStyles.btnReativar}
+                disabled={toggling === detalhe._id}
+                onClick={e => { handleToggle(detalhe, e) }}
+              >
+                {toggling === detalhe._id ? 'Aguarde...' : detalhe.ativo ? 'Desativar cliente' : 'Reativar cliente'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {showModal && (
         <Modal title={editing ? 'Editar Cliente' : 'Novo Cliente'} onClose={() => setShowModal(false)}>

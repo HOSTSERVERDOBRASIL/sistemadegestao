@@ -63,6 +63,18 @@ router.put('/:id', authenticate, authorize('admin', 'operador'), async (req, res
   }
 });
 
+router.patch('/:id/ativo', authenticate, authorize('admin', 'operador'), async (req, res, next) => {
+  try {
+    const { ativo } = req.body as { ativo: boolean };
+    if (typeof ativo !== 'boolean') return res.status(400).json({ message: 'Campo ativo deve ser boolean' });
+    const cliente = await ClienteModel.findByIdAndUpdate(req.params.id, { ativo }, { new: true });
+    if (!cliente) return res.status(404).json({ message: 'Cliente não encontrado' });
+    res.json(cliente);
+  } catch (error) {
+    next(error);
+  }
+});
+
 router.delete('/:id', authenticate, authorize('admin'), async (req, res, next) => {
   try {
     const cliente = await ClienteModel.findByIdAndUpdate(req.params.id, { ativo: false }, { new: true });
