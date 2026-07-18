@@ -1,0 +1,41 @@
+{
+  "name": "sistema-gestao-site-ecommerce",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/server.js",
+    "seed": "tsx src/seed.ts",
+    "test": "node --test --import tsx --test-reporter spec --test-timeout=60000 src/test/auth.test.ts src/test/faturamento.test.ts src/test/pedidos-etapas.test.ts src/test/contratos.test.ts src/test/autorizacao.test.ts src/test/cupons.test.ts src/test/cobrancas.test.ts src/test/tiny.test.ts src/test/conciliacao.test.ts"
+  },
+  "dependencies": {
+    "@types/multer": "^2.2.0",
+    "axios": "^1.18.1",
+    "bcryptjs": "^2.4.3",
+    "cors": "^2.8.0",
+    "dotenv": "^16.4.1",
+    "express": "^4.21.1",
+    "express-rate-limit": "^8.6.0",
+    "helmet": "^8.3.0",
+    "jsonwebtoken": "^9.0.1",
+    "mongoose": "^8.5.1",
+    "multer": "^2.2.0",
+    "pino": "^10.3.1",
+    "pino-http": "^11.0.0",
+    "sdk-node-apis-efi": "^1.4.0"
+  },
+  "devDependencies": {
+    "@types/bcryptjs": "^2.4.0",
+    "@types/cors": "^2.8.0",
+    "@types/express": "^5.0.1",
+    "@types/jsonwebtoken": "^9.0.2",
+    "@types/node": "^22.20.1",
+    "@types/pino-http": "^5.8.4",
+    "mongodb-memory-server": "^10.0.1",
+    "pino-pretty": "^13.1.3",
+    "tsx": "^4.19.0",
+    "typescript": "^5.7.3"
+  }
+}

@@ -1,0 +1,47 @@
+.card {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 20px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.card.accent {
+  background: linear-gradient(135deg, #1e40af, #3b82f6);
+  border-color: transparent;
+  color: #fff;
+}
+
+.label {
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: #64748b;
+  font-weight: 600;
+}
+
+.accent .label {
+  color: rgba(255,255,255,0.75);
+}
+
+.value {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: #0f172a;
+  line-height: 1.1;
+}
+
+.accent .value {
+  color: #fff;
+}
+
+.sub {
+  font-size: 0.78rem;
+  color: #94a3b8;
+}
+
+.accent .sub {
+  color: rgba(255,255,255,0.65);
+}

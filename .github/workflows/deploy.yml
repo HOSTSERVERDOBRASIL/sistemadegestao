@@ -1,0 +1,92 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # Re-run CI as a gate before deploying.
+  # The `needs` key below ensures deploy only starts when this job passes.
+  test-and-build:
+    name: Test & Build (gate)
+    runs-on: ubuntu-latest
+
+    env:
+      NODE_ENV: test
+      JWT_SECRET: test-secret-atlasX-2026
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Cache root npm dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.npm
+          key: npm-root-${{ hashFiles('package-lock.json') }}
+          restore-keys: |
+            npm-root-
+
+      - name: Install root dependencies
+        run: npm ci
+
+      - name: Cache frontend npm dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.npm
+          key: npm-frontend-${{ hashFiles('frontend/package-lock.json') }}
+          restore-keys: |
+            npm-frontend-
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Type-check backend (tsc --noEmit)
+        run: npx tsc --noEmit
+
+      - name: Run backend tests
+        run: npm test
+
+      - name: Type-check frontend (tsc --noEmit)
+        working-directory: frontend
+        run: npx tsc --noEmit
+
+      - name: Build frontend
+        working-directory: frontend
+        run: npm run build
+
+  deploy:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    needs: test-and-build
+
+    env:
+      DEPLOY_PATH: ${{ secrets.DEPLOY_PATH || '/opt/atlasX' }}
+
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          port: ${{ secrets.SSH_PORT || 22 }}
+          script: |
+            set -e
+            DEPLOY_PATH="${{ env.DEPLOY_PATH }}"
+            cd "$DEPLOY_PATH"
+            git pull origin main
+            npm ci --omit=dev
+            cd frontend && npm ci && npm run build && cd ..
+            npx tsc -p tsconfig.json
+            pm2 reload atlasX --update-env

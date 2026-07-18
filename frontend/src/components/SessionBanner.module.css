@@ -1,0 +1,41 @@
+.banner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 20px;
+  background: #fef3c7;
+  border-bottom: 2px solid #f59e0b;
+  font-size: 0.875rem;
+  color: #78350f;
+}
+
+.banner span {
+  flex: 1;
+}
+
+.dismiss,
+.logout {
+  padding: 4px 12px;
+  border-radius: 6px;
+  border: none;
+  cursor: pointer;
+  font-size: 0.8rem;
+  font-weight: 600;
+  transition: opacity 0.15s;
+}
+
+.dismiss {
+  background: #f59e0b;
+  color: #fff;
+}
+
+.logout {
+  background: transparent;
+  color: #b45309;
+  text-decoration: underline;
+}
+
+.dismiss:hover,
+.logout:hover {
+  opacity: 0.8;
+}

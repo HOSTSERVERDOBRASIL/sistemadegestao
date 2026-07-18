@@ -1,0 +1,72 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test-and-build:
+    name: Test & Build
+    runs-on: ubuntu-latest
+
+    env:
+      NODE_ENV: test
+      JWT_SECRET: test-secret-atlasX-2026
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      # ── Root (backend) dependency cache ──────────────────────────────────
+      - name: Cache root npm dependencies
+        uses: actions/cache@v4
+        id: cache-root
+        with:
+          path: ~/.npm
+          key: npm-root-${{ hashFiles('package-lock.json') }}
+          restore-keys: |
+            npm-root-
+
+      - name: Install root dependencies
+        run: npm ci
+
+      # ── Frontend dependency cache ─────────────────────────────────────────
+      - name: Cache frontend npm dependencies
+        uses: actions/cache@v4
+        id: cache-frontend
+        with:
+          path: ~/.npm
+          key: npm-frontend-${{ hashFiles('frontend/package-lock.json') }}
+          restore-keys: |
+            npm-frontend-
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+
+      # ── Backend checks ────────────────────────────────────────────────────
+      - name: Type-check backend (tsc --noEmit)
+        run: npx tsc --noEmit
+
+      - name: Run backend tests
+        run: npm test
+
+      # ── Frontend checks ───────────────────────────────────────────────────
+      - name: Type-check frontend (tsc --noEmit)
+        working-directory: frontend
+        run: npx tsc --noEmit
+
+      - name: Build frontend
+        working-directory: frontend
+        run: npm run build

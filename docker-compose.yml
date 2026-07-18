@@ -1,0 +1,101 @@
+version: '3.9'
+
+# MongoDB Replica Set de 3 nós — elimina SPOF, habilita transactions e oplog
+# Para inicializar pela primeira vez: docker compose up -d && docker compose exec mongo1 mongosh --eval "$(cat scripts/rs-init.js)"
+
+x-mongo-common: &mongo-common
+  image: mongo:7
+  restart: unless-stopped
+  networks:
+    - mongo-net
+  volumes:
+    - ./certs/mongo:/etc/mongo/certs:ro   # TLS interno (opcional, adicionar se quiser)
+
+services:
+  # ─── Replica Set primário ────────────────────────────────────────────────────
+  mongo1:
+    <<: *mongo-common
+    container_name: atlasX-mongo1
+    command: mongod --replSet rs0 --bind_ip_all --port 27017
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_USER:-atlasX}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASSWORD:?MONGO_PASSWORD obrigatório}
+      MONGO_INITDB_DATABASE: atlasX
+    ports:
+      - '127.0.0.1:27017:27017'
+    volumes:
+      - mongo1_data:/data/db
+    healthcheck:
+      test: ['CMD', 'mongosh', '--quiet', '--eval',
+        "try { rs.status().ok } catch(e) { rs.initiate({_id:'rs0',members:[{_id:0,host:'mongo1:27017'},{_id:1,host:'mongo2:27017'},{_id:2,host:'mongo3:27017',priority:0,votes:0}]}).ok }"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
+
+  # ─── Replica Set secundário 1 ────────────────────────────────────────────────
+  mongo2:
+    <<: *mongo-common
+    container_name: atlasX-mongo2
+    command: mongod --replSet rs0 --bind_ip_all --port 27017
+    volumes:
+      - mongo2_data:/data/db
+    depends_on:
+      - mongo1
+    healthcheck:
+      test: ['CMD', 'mongosh', '--quiet', '--eval', "db.adminCommand('ping').ok"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+  # ─── Replica Set secundário 2 (priority 0 — não vira primary) ────────────────
+  mongo3:
+    <<: *mongo-common
+    container_name: atlasX-mongo3
+    command: mongod --replSet rs0 --bind_ip_all --port 27017
+    volumes:
+      - mongo3_data:/data/db
+    depends_on:
+      - mongo1
+    healthcheck:
+      test: ['CMD', 'mongosh', '--quiet', '--eval', "db.adminCommand('ping').ok"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+  # ─── API Node.js ─────────────────────────────────────────────────────────────
+  api:
+    build: .
+    container_name: atlasX-api
+    restart: unless-stopped
+    depends_on:
+      mongo1:
+        condition: service_healthy
+    env_file: .env
+    environment:
+      # Replica set connection string — usa todos os 3 nós + readPreference secundário
+      MONGODB_URI: >-
+        mongodb://${MONGO_USER:-atlasX}:${MONGO_PASSWORD}@mongo1:27017,mongo2:27017,mongo3:27017/atlasX?authSource=admin&replicaSet=rs0&readPreference=secondaryPreferred&retryWrites=true&w=majority
+      NODE_ENV: production
+    ports:
+      - '3000:3000'
+    volumes:
+      - uploads_data:/app/uploads
+      - ./certs:/app/certs:ro
+    healthcheck:
+      test: ['CMD', 'wget', '-qO-', 'http://localhost:3000/health']
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    networks:
+      - mongo-net
+
+networks:
+  mongo-net:
+    driver: bridge
+
+volumes:
+  mongo1_data:
+  mongo2_data:
+  mongo3_data:
+  uploads_data:

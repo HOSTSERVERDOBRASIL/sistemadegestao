@@ -1,0 +1,64 @@
+.statusGrid {
+  display: flex;
+  gap: 14px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+
+.statusCard {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 14px 20px;
+  flex: 1;
+  min-width: 140px;
+}
+
+.statusIcon {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: #f1f5f9;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 1rem;
+  flex-shrink: 0;
+}
+
+.statusLabel { font-size: 0.75rem; color: #64748b; font-weight: 600; }
+.statusVal { font-size: 1.2rem; font-weight: 700; color: #0f172a; }
+
+.statusCard.ok .statusIcon { background: #dcfce7; color: #15803d; }
+.statusCard.warn .statusIcon { background: #fef9c3; color: #854d0e; }
+.statusCard.ok { border-color: #bbf7d0; }
+.statusCard.warn { border-color: #fde68a; }
+
+.resultado {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 18px;
+  border-radius: 10px;
+  margin-bottom: 16px;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.resultado.ok { background: #dcfce7; color: #15803d; border: 1px solid #bbf7d0; }
+.resultado.error { background: #fee2e2; color: #b91c1c; border: 1px solid #fecaca; }
+
+.fechar {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: inherit;
+  opacity: 0.6;
+  font-size: 0.875rem;
+  padding: 0 4px;
+}
+.fechar:hover { opacity: 1; background: none; }

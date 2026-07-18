@@ -1,0 +1,222 @@
+.page {
+  padding: 28px 32px;
+  max-width: 1400px;
+}
+
+.cards {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.grid2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  margin-bottom: 20px;
+}
+
+.panel {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  padding: 20px 24px;
+  margin-bottom: 20px;
+}
+
+.panelTitle {
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0 0 16px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.panelHeaderRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 14px;
+}
+
+.panelHeaderRow .panelTitle {
+  margin-bottom: 0;
+}
+
+.linkBtn {
+  background: none;
+  border: none;
+  color: #1d4ed8;
+  font-size: 0.8rem;
+  cursor: pointer;
+  padding: 0;
+  font-weight: 600;
+}
+
+.linkBtn:hover {
+  text-decoration: underline;
+  background: none;
+}
+
+.empty {
+  color: #94a3b8;
+  font-size: 0.875rem;
+  text-align: center;
+  padding: 20px 0;
+  margin: 0;
+}
+
+/* Bar chart */
+.barChart {
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+  height: 140px;
+  padding-bottom: 4px;
+}
+
+.barGroup {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  height: 100%;
+  justify-content: flex-end;
+}
+
+.barWrap {
+  width: 100%;
+  display: flex;
+  align-items: flex-end;
+  height: 90px;
+}
+
+.bar {
+  width: 100%;
+  background: linear-gradient(180deg, #3b82f6, #1e40af);
+  border-radius: 4px 4px 0 0;
+  min-height: 4px;
+  transition: height 0.3s;
+}
+
+.barLabel {
+  font-size: 0.68rem;
+  color: #64748b;
+  margin-top: 4px;
+  text-transform: uppercase;
+}
+
+.barValue {
+  font-size: 0.65rem;
+  color: #94a3b8;
+  white-space: nowrap;
+}
+
+/* Status list */
+.statusList {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.statusRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.statusCount {
+  margin-left: auto;
+  font-weight: 700;
+  font-size: 0.9rem;
+  color: #0f172a;
+  min-width: 30px;
+  text-align: right;
+}
+
+.statusValor {
+  font-size: 0.8rem;
+  color: #64748b;
+  min-width: 100px;
+  text-align: right;
+}
+
+/* Etapas */
+.etapas {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.etapa {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.etapaNum {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: #1e40af;
+  color: #fff;
+  font-size: 0.75rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.etapaLabel {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #374151;
+}
+
+.etapaArrow {
+  color: #cbd5e1;
+  font-size: 1.2rem;
+  margin-left: 4px;
+}
+
+/* Mini table */
+.miniTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+
+.miniTable th {
+  padding: 6px 10px;
+  text-align: left;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.miniTable td {
+  padding: 10px;
+  border-bottom: 1px solid #f8fafc;
+  color: #0f172a;
+  vertical-align: middle;
+}
+
+.miniTable tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.clickable {
+  cursor: pointer;
+}
+
+.clickable:hover td {
+  background: #f8fafc;
+}

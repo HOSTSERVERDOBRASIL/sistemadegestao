@@ -1,0 +1,35 @@
+# Dependências
+node_modules/
+frontend/node_modules/
+
+# Build
+dist/
+frontend/dist/
+
+# Ambiente e segredos — NUNCA commitar
+.env
+.env.local
+.env.*.local
+certs/
+
+# Uploads e dados locais
+uploads/
+data/
+
+# Logs
+*.log
+logs/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDEs
+.vscode/
+.idea/
+*.suo
+*.user
+
+# TypeScript incremental
+*.tsbuildinfo
+.claude/
