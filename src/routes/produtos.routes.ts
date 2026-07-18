@@ -60,6 +60,18 @@ router.put('/:id', authenticate, authorize('admin', 'operador'), async (req, res
   }
 });
 
+router.patch('/:id/ativo', authenticate, authorize('admin', 'operador'), async (req, res, next) => {
+  try {
+    const { ativo } = req.body as { ativo: boolean };
+    if (typeof ativo !== 'boolean') return res.status(400).json({ message: 'Campo ativo deve ser boolean' });
+    const produto = await ProdutoModel.findByIdAndUpdate(req.params.id, { ativo }, { new: true });
+    if (!produto) return res.status(404).json({ message: 'Produto não encontrado' });
+    res.json(produto);
+  } catch (error) {
+    next(error);
+  }
+});
+
 router.delete('/:id', authenticate, authorize('admin'), async (req, res, next) => {
   try {
     const produto = await ProdutoModel.findByIdAndUpdate(req.params.id, { ativo: false }, { new: true });

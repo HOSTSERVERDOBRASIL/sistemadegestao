@@ -4,21 +4,52 @@ import Notifications from './Notifications'
 import styles from './Layout.module.css'
 import sessionStyles from './SessionBanner.module.css'
 
-const NAV = [
-  { to: '/', label: 'Dashboard', icon: '▦' },
-  { to: '/pedidos', label: 'Pedidos', icon: '📋' },
-  { to: '/contratos', label: 'Contratos', icon: '📄' },
-  { to: '/clientes', label: 'Clientes', icon: '👤' },
-  { to: '/produtos', label: 'Produtos', icon: '📦' },
-  { to: '/parceiros', label: 'Parceiros', icon: '🤝' },
-  { to: '/financeiro', label: 'Financeiro', icon: '💰' },
-  { to: '/cobrancas', label: 'Cobranças', icon: '⚡' },
-  { to: '/cupons', label: 'Cupons', icon: '🏷️', adminOnly: true },
-  { to: '/relatorios', label: 'Relatórios', icon: '📊' },
-  { to: '/integracao-tiny', label: 'Tiny/Olist', icon: '🔗', adminOnly: true },
-  { to: '/usuarios', label: 'Usuários', icon: '⚙️', adminOnly: true },
-  { to: '/configuracoes', label: 'Configurações', icon: '🔧', adminOnly: true },
-  { to: '/conciliacao', label: 'Conciliação', icon: '⚖️', adminOnly: true },
+const NAV_GROUPS = [
+  {
+    label: null,
+    items: [
+      { to: '/', label: 'Dashboard', icon: '▦' },
+    ],
+  },
+  {
+    label: 'Operações',
+    items: [
+      { to: '/pedidos',   label: 'Pedidos',   icon: '📋' },
+      { to: '/contratos', label: 'Contratos', icon: '📄' },
+    ],
+  },
+  {
+    label: 'Cadastros',
+    items: [
+      { to: '/clientes',  label: 'Clientes',  icon: '👤' },
+      { to: '/produtos',  label: 'Produtos',  icon: '📦' },
+      { to: '/parceiros', label: 'Parceiros', icon: '🤝' },
+    ],
+  },
+  {
+    label: 'Financeiro',
+    items: [
+      { to: '/financeiro',  label: 'Notas Fiscais', icon: '💰' },
+      { to: '/cobrancas',   label: 'Cobranças',     icon: '⚡' },
+      { to: '/conciliacao', label: 'Conciliação',   icon: '⚖️', adminOnly: true },
+      { to: '/cupons',      label: 'Cupons',        icon: '🏷️', adminOnly: true },
+    ],
+  },
+  {
+    label: 'Análise',
+    items: [
+      { to: '/relatorios', label: 'Relatórios', icon: '📊' },
+    ],
+  },
+  {
+    label: 'Administração',
+    adminOnly: true,
+    items: [
+      { to: '/integracao-tiny', label: 'Tiny / Olist',   icon: '🔗' },
+      { to: '/usuarios',        label: 'Usuários',        icon: '👥' },
+      { to: '/configuracoes',   label: 'Configurações',   icon: '🔧' },
+    ],
+  },
 ]
 
 export default function Layout() {
@@ -30,7 +61,7 @@ export default function Layout() {
     navigate('/login')
   }
 
-  const visibleNav = NAV.filter(item => !item.adminOnly || user?.role === 'admin')
+  const isAdmin = user?.role === 'admin'
 
   return (
     <div className={styles.shell}>
@@ -45,17 +76,27 @@ export default function Layout() {
           </div>
         </div>
         <nav className={styles.nav}>
-          {visibleNav.map(item => (
-            <NavLink
-              key={item.to}
-              to={item.to}
-              end={item.to === '/'}
-              className={({ isActive }) => `${styles.navItem} ${isActive ? styles.active : ''}`}
-            >
-              <span className={styles.navIcon}>{item.icon}</span>
-              <span>{item.label}</span>
-            </NavLink>
-          ))}
+          {NAV_GROUPS.map((group, gi) => {
+            if (group.adminOnly && !isAdmin) return null
+            const visibleItems = group.items.filter(item => !(item as { adminOnly?: boolean }).adminOnly || isAdmin)
+            if (visibleItems.length === 0) return null
+            return (
+              <div key={gi} className={styles.navGroup}>
+                {group.label && <span className={styles.navGroupLabel}>{group.label}</span>}
+                {visibleItems.map(item => (
+                  <NavLink
+                    key={item.to}
+                    to={item.to}
+                    end={item.to === '/'}
+                    className={({ isActive }) => `${styles.navItem} ${isActive ? styles.active : ''}`}
+                  >
+                    <span className={styles.navIcon}>{item.icon}</span>
+                    <span>{item.label}</span>
+                  </NavLink>
+                ))}
+              </div>
+            )
+          })}
         </nav>
         <div className={styles.userInfo}>
           <div className={styles.userAvatar}>{user?.nome?.charAt(0).toUpperCase()}</div>

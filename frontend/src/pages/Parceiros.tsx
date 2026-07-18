@@ -12,6 +12,7 @@ import styles from './Page.module.css'
 const BLANK: ParceiroPayload = { nome: '', documento: '', email: '', emissorNFPadrao: 'XDigital', ativo: true }
 
 type Errs = FieldErrors<ParceiroPayload>
+type FiltroAtivo = 'todos' | 'ativos' | 'inativos'
 
 function validate(f: ParceiroPayload): Errs {
   return {
@@ -27,6 +28,7 @@ export default function Parceiros() {
   const [rows, setRows] = useState<Parceiro[]>([])
   const [loading, setLoading] = useState(true)
   const [busca, setBusca] = useState('')
+  const [filtroAtivo, setFiltroAtivo] = useState<FiltroAtivo>('todos')
   const [showModal, setShowModal] = useState(false)
   const [editing, setEditing] = useState<Parceiro | null>(null)
   const [form, setForm] = useState<ParceiroPayload>(BLANK)
@@ -34,11 +36,17 @@ export default function Parceiros() {
   const [touched, setTouched] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  const [toggling, setToggling] = useState<string | null>(null)
+  const [detalhe, setDetalhe] = useState<Parceiro | null>(null)
+
+  const ativoParam = filtroAtivo === 'ativos' ? 'true' : filtroAtivo === 'inativos' ? 'false' : undefined
 
   const load = useCallback(() => {
     setLoading(true)
-    api.list({ page, busca }).then(res => { setRows(res.data); setTotal(res.total) }).finally(() => setLoading(false))
-  }, [page, busca])
+    api.list({ page, busca, ativo: ativoParam })
+      .then(res => { setRows(res.data); setTotal(res.total) })
+      .finally(() => setLoading(false))
+  }, [page, busca, ativoParam])
 
   useEffect(() => { load() }, [load])
 
@@ -58,9 +66,9 @@ export default function Parceiros() {
   async function handleSave(e: React.FormEvent) {
     e.preventDefault()
     setTouched(true)
-    const validation = validate(form)
-    setErrs(validation)
-    if (hasErrors(validation)) return
+    const v = validate(form)
+    setErrs(v)
+    if (hasErrors(v)) return
     setSaving(true); setError('')
     try {
       if (editing) await api.update(editing._id, form)
@@ -71,24 +79,48 @@ export default function Parceiros() {
     } finally { setSaving(false) }
   }
 
-  async function handleDelete(id: string) {
-    if (!confirm('Desativar este parceiro?')) return
-    await api.remove(id).catch(() => {})
-    load()
+  async function handleToggle(p: Parceiro, e: React.MouseEvent) {
+    e.stopPropagation()
+    const novo = !p.ativo
+    if (!confirm(`${novo ? 'Reativar' : 'Desativar'} "${p.nome}"?`)) return
+    setToggling(p._id)
+    try {
+      const updated = await api.toggleAtivo(p._id, novo)
+      setRows(prev => prev.map(r => r._id === p._id ? updated : r))
+      if (detalhe?._id === p._id) setDetalhe(updated)
+    } catch { load() }
+    finally { setToggling(null) }
   }
 
+  const ativos = rows.filter(r => r.ativo).length
+  const inativos = rows.filter(r => !r.ativo).length
+
   const columns = [
-    { key: 'nome', header: 'Nome', render: (r: Parceiro) => <strong>{r.nome}</strong> },
-    { key: 'email', header: 'E-mail' },
-    { key: 'documento', header: 'Documento' },
+    {
+      key: 'nome', header: 'Nome',
+      render: (r: Parceiro) => (
+        <span className={!r.ativo ? styles.rowInativo : ''}>
+          <strong>{r.nome}</strong>
+          {!r.ativo && <span className={styles.tagInativo}>inativo</span>}
+        </span>
+      )
+    },
+    { key: 'email', header: 'E-mail', render: (r: Parceiro) => <span className={!r.ativo ? styles.rowInativo : ''}>{r.email}</span> },
+    { key: 'documento', header: 'Documento', render: (r: Parceiro) => <span className={!r.ativo ? styles.rowInativo : ''}>{r.documento}</span> },
     { key: 'emissorNFPadrao', header: 'Emissor NF', render: (r: Parceiro) => <Badge label={r.emissorNFPadrao} /> },
     { key: 'ativo', header: 'Status', render: (r: Parceiro) => <Badge label={r.ativo ? 'Ativo' : 'Inativo'} variant={r.ativo ? 'success' : 'default'} /> },
     {
-      key: '_actions', header: '', width: '120px',
+      key: '_actions', header: '', width: '170px',
       render: (r: Parceiro) => (
         <div className={styles.rowActions}>
           <button className={styles.btnLink} onClick={e => { e.stopPropagation(); openEdit(r) }}>Editar</button>
-          <button className={styles.btnDanger} onClick={e => { e.stopPropagation(); handleDelete(r._id) }}>✕</button>
+          <button
+            className={r.ativo ? styles.btnDesativar : styles.btnReativar}
+            disabled={toggling === r._id}
+            onClick={e => handleToggle(r, e)}
+          >
+            {toggling === r._id ? '...' : r.ativo ? 'Desativar' : 'Reativar'}
+          </button>
         </div>
       )
     },
@@ -96,44 +128,75 @@ export default function Parceiros() {
 
   return (
     <div className={styles.page}>
-      <PageHeader title="Parceiros / Revendedores" subtitle={`${total} registro(s)`}
+      <PageHeader
+        title="Parceiros / Revendedores"
+        subtitle={`${total} registro(s)`}
         action={<button className={styles.btnPrimary} onClick={openCreate}>+ Novo Parceiro</button>}
       />
+
+      <div className={styles.statusRow}>
+        <button className={`${styles.chip} ${filtroAtivo === 'todos' ? styles.chipActive : ''}`} onClick={() => { setFiltroAtivo('todos'); setPage(1) }}>
+          Todos <span className={styles.chipCount}>{total}</span>
+        </button>
+        <button className={`${styles.chip} ${styles.chipGreen} ${filtroAtivo === 'ativos' ? styles.chipActive : ''}`} onClick={() => { setFiltroAtivo('ativos'); setPage(1) }}>
+          Ativos <span className={styles.chipCount}>{ativos}</span>
+        </button>
+        <button className={`${styles.chip} ${styles.chipRed} ${filtroAtivo === 'inativos' ? styles.chipActive : ''}`} onClick={() => { setFiltroAtivo('inativos'); setPage(1) }}>
+          Inativos <span className={styles.chipCount}>{inativos}</span>
+        </button>
+      </div>
+
       <div className={styles.filters}>
         <input className={styles.search} placeholder="Buscar por nome, e-mail ou documento..." value={busca}
           onChange={e => { setBusca(e.target.value); setPage(1) }} />
       </div>
-      <Table columns={columns} rows={rows} loading={loading} empty="Nenhum parceiro encontrado" />
+
+      <Table columns={columns} rows={rows} loading={loading} empty="Nenhum parceiro encontrado" onRowClick={setDetalhe} />
       <Pagination page={page} total={total} limit={20} onChange={setPage} />
+
+      {detalhe && (
+        <div className={styles.drawerOverlay} onClick={() => setDetalhe(null)}>
+          <aside className={styles.drawer} onClick={e => e.stopPropagation()}>
+            <div className={styles.drawerHead}>
+              <div>
+                <h3 className={styles.drawerTitle}>{detalhe.nome}</h3>
+                <Badge label={detalhe.ativo ? 'Ativo' : 'Inativo'} variant={detalhe.ativo ? 'success' : 'default'} />
+              </div>
+              <button className={styles.drawerClose} onClick={() => setDetalhe(null)}>✕</button>
+            </div>
+            <dl className={styles.drawerDl}>
+              <dt>E-mail</dt><dd>{detalhe.email}</dd>
+              <dt>Documento</dt><dd>{detalhe.documento}</dd>
+              <dt>Emissor NF</dt><dd><Badge label={detalhe.emissorNFPadrao} /></dd>
+            </dl>
+            <div className={styles.drawerFooter}>
+              <button className={styles.btnPrimary} onClick={() => { openEdit(detalhe); setDetalhe(null) }}>Editar dados</button>
+              <button
+                className={detalhe.ativo ? styles.btnDesativar : styles.btnReativar}
+                disabled={toggling === detalhe._id}
+                onClick={e => handleToggle(detalhe, e)}
+              >
+                {toggling === detalhe._id ? 'Aguarde...' : detalhe.ativo ? 'Desativar parceiro' : 'Reativar parceiro'}
+              </button>
+            </div>
+          </aside>
+        </div>
+      )}
 
       {showModal && (
         <Modal title={editing ? 'Editar Parceiro' : 'Novo Parceiro'} onClose={() => setShowModal(false)}>
           <form onSubmit={handleSave} noValidate className={styles.form}>
             <div className={styles.formGrid2}>
               <label>Nome *
-                <input
-                  value={form.nome}
-                  onChange={e => update({ nome: e.target.value })}
-                  className={errs.nome ? styles.inputError : ''}
-                />
+                <input value={form.nome} onChange={e => update({ nome: e.target.value })} className={errs.nome ? styles.inputError : ''} />
                 {errs.nome && <span className={styles.fieldError}>{errs.nome}</span>}
               </label>
               <label>Documento (CNPJ/CPF) *
-                <input
-                  value={form.documento}
-                  onChange={e => update({ documento: e.target.value })}
-                  placeholder="Somente números"
-                  className={errs.documento ? styles.inputError : ''}
-                />
+                <input value={form.documento} onChange={e => update({ documento: e.target.value })} placeholder="Somente números" className={errs.documento ? styles.inputError : ''} />
                 {errs.documento && <span className={styles.fieldError}>{errs.documento}</span>}
               </label>
               <label>E-mail *
-                <input
-                  type="email"
-                  value={form.email}
-                  onChange={e => update({ email: e.target.value })}
-                  className={errs.email ? styles.inputError : ''}
-                />
+                <input type="email" value={form.email} onChange={e => update({ email: e.target.value })} className={errs.email ? styles.inputError : ''} />
                 {errs.email && <span className={styles.fieldError}>{errs.email}</span>}
               </label>
               <label>Emissor NF Padrão

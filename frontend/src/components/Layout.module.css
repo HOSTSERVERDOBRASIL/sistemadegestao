@@ -68,10 +68,33 @@
 
 .nav {
   flex: 1;
-  padding: 12px 8px;
+  padding: 10px 8px;
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 0;
+  overflow-y: auto;
+}
+
+.navGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding-bottom: 6px;
+  margin-bottom: 2px;
+  border-bottom: 1px solid #1e293b;
+}
+
+.navGroup:last-child {
+  border-bottom: none;
+}
+
+.navGroupLabel {
+  font-size: 0.62rem;
+  font-weight: 700;
+  color: #475569;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  padding: 8px 12px 4px;
 }
 
 .navItem {

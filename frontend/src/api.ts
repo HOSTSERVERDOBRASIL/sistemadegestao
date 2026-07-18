@@ -89,6 +89,7 @@ export const produtos = {
   get: (id: string) => get<Produto>(`/produtos/${id}`),
   create: (body: ProdutoPayload) => post<Produto>('/produtos', body),
   update: (id: string, body: Partial<ProdutoPayload>) => put<Produto>(`/produtos/${id}`, body),
+  toggleAtivo: (id: string, ativo: boolean) => patch<Produto>(`/produtos/${id}/ativo`, { ativo }),
   remove: (id: string) => del<{ message: string; produto: Produto }>(`/produtos/${id}`),
 }
 
@@ -100,6 +101,7 @@ export const parceiros = {
   get: (id: string) => get<Parceiro>(`/parceiros/${id}`),
   create: (body: ParceiroPayload) => post<Parceiro>('/parceiros', body),
   update: (id: string, body: Partial<ParceiroPayload>) => put<Parceiro>(`/parceiros/${id}`, body),
+  toggleAtivo: (id: string, ativo: boolean) => patch<Parceiro>(`/parceiros/${id}/ativo`, { ativo }),
   remove: (id: string) => del<{ message: string; parceiro: Parceiro }>(`/parceiros/${id}`),
 }
 
@@ -114,7 +116,7 @@ export const contratos = {
   remove: (id: string) => del<{ message: string; contrato: Contrato }>(`/contratos/${id}`),
   faturarTotal: (id: string) => post<Contrato>(`/contratos/${id}/faturar-total`, {}),
   ordens: (id: string) => get<OrdemFornecimento[]>(`/contratos/${id}/ordens-fornecimento`),
-  criarOrdem: (id: string, body: { numero: string; valor: number }) =>
+  criarOrdem: (id: string, body: { numero: string; valor: number; dataEmissao?: string; dataFim?: string; observacoes?: string }) =>
     post<OrdemFornecimento>(`/contratos/${id}/ordens-fornecimento`, body),
   pedidos: (id: string) => get<import('./types').Pedido[]>(`/contratos/${id}/pedidos`),
 }
