@@ -48,6 +48,7 @@ const NAV_GROUPS = [
     adminOnly: true,
     items: [
       { to: '/integracao-tiny', label: 'Tiny / Olist',   icon: '🔗' },
+      { to: '/integracao-clm',  label: 'CLM',             icon: '🔄' },
       { to: '/usuarios',        label: 'Usuários',        icon: '👥' },
       { to: '/configuracoes',   label: 'Configurações',   icon: '🔧' },
       { to: '/logs',            label: 'Logs',            icon: '🪵' },

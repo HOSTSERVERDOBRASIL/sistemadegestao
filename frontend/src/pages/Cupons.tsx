@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
-import { cupons as cuponsApi } from '../api'
-import type { Cupom, CupomPayload, TipoDesconto } from '../types'
+import { cupons as cuponsApi, produtos as produtosApi, clientes as clientesApi } from '../api'
+import type { Cupom, CupomPayload, TipoDesconto, Produto, Cliente } from '../types'
 import styles from './Cupons.module.css'
 
 const EMPTY_FORM: CupomPayload = {
@@ -44,6 +44,8 @@ export default function Cupons() {
   const [formError, setFormError] = useState('')
 
   const [showDetail, setShowDetail] = useState<Cupom | null>(null)
+  const [produtosList, setProdutosList] = useState<Produto[]>([])
+  const [clientesList, setClientesList] = useState<Cliente[]>([])
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -60,6 +62,12 @@ export default function Cupons() {
   }, [page, busca, filtroStatus, filtroTipo])
 
   useEffect(() => { void load() }, [load])
+
+  useEffect(() => {
+    if (!showModal) return
+    produtosApi.list({ limit: 200, ativo: 'true' }).then(r => setProdutosList(r.data)).catch(() => null)
+    clientesApi.list({ limit: 200, ativo: 'true' }).then(r => setClientesList(r.data)).catch(() => null)
+  }, [showModal])
 
   function openCreate() {
     setEditando(null)
@@ -334,6 +342,54 @@ export default function Cupons() {
                   <input className={styles.input} type="date" value={form.validoAte || ''} onChange={e => setForm(f => ({ ...f, validoAte: e.target.value || undefined }))} />
                 </label>
               </div>
+
+              {produtosList.length > 0 && (
+                <label className={styles.field}>
+                  <span>Restringir a produtos (opcional — sem seleção = todos)</span>
+                  <select
+                    className={styles.input}
+                    multiple
+                    size={Math.min(produtosList.length, 5)}
+                    value={form.produtoIds ?? []}
+                    onChange={e => {
+                      const selected = Array.from(e.target.selectedOptions, o => o.value)
+                      setForm(f => ({ ...f, produtoIds: selected }))
+                    }}
+                    style={{ height: 'auto' }}
+                  >
+                    {produtosList.map(p => <option key={p._id} value={p._id}>{p.nome}</option>)}
+                  </select>
+                  {(form.produtoIds?.length ?? 0) > 0 && (
+                    <small style={{ color: '#64748b' }}>
+                      {form.produtoIds!.length} produto(s) selecionado(s) — Ctrl+clique para desmarcar
+                    </small>
+                  )}
+                </label>
+              )}
+
+              {clientesList.length > 0 && (
+                <label className={styles.field}>
+                  <span>Restringir a clientes (opcional — sem seleção = todos)</span>
+                  <select
+                    className={styles.input}
+                    multiple
+                    size={Math.min(clientesList.length, 5)}
+                    value={form.clienteIds ?? []}
+                    onChange={e => {
+                      const selected = Array.from(e.target.selectedOptions, o => o.value)
+                      setForm(f => ({ ...f, clienteIds: selected }))
+                    }}
+                    style={{ height: 'auto' }}
+                  >
+                    {clientesList.map(c => <option key={c._id} value={c._id}>{c.nome} — {c.documento}</option>)}
+                  </select>
+                  {(form.clienteIds?.length ?? 0) > 0 && (
+                    <small style={{ color: '#64748b' }}>
+                      {form.clienteIds!.length} cliente(s) selecionado(s) — Ctrl+clique para desmarcar
+                    </small>
+                  )}
+                </label>
+              )}
             </div>
 
             <div className={styles.modalFooter}>

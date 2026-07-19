@@ -152,6 +152,12 @@ export const pedidos = {
   enviarClm: (id: string) => post<{ eventId: string; requestId?: string; status: string }>(`/integracoes/clm/pedidos/${id}/enviar`, {}),
 }
 
+export const clm = {
+  resumo: () => get<{ porStatus: Record<string, number>; ultimos: import('./types').ClmEvent[] }>('/integracoes/clm/resumo'),
+  eventosPedido: (pedidoId: string) => get<import('./types').ClmEvent[]>(`/integracoes/clm/pedidos/${pedidoId}/eventos`),
+  retentar: (eventId: string) => post<{ ok: boolean; message?: string }>(`/integracoes/clm/eventos/${eventId}/retentar`, {}),
+}
+
 // Financeiro
 import type { NotaFiscal } from './types'
 export const financeiro = {

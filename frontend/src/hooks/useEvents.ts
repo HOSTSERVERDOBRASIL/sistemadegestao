@@ -19,7 +19,8 @@ export function useEvents(handlers: Partial<Record<EventType, Handler>>, enabled
     const token = localStorage.getItem('token')
     if (!token) return
 
-    const url = `/api/events`
+    const base = (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? '/api'
+    const url = `${base}/events`
     const es = new EventSource(url + `?token=${encodeURIComponent(token)}`)
 
     const types: EventType[] = ['pedido:etapa', 'pedido:nf_emitida', 'nota:cancelada', 'contrato:faturado', 'ping']

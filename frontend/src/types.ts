@@ -468,13 +468,23 @@ export interface LogEntry {
 
 export interface AuditoriaEntry {
   _id: string
-  entidade: 'Cliente' | 'Contrato' | 'Pedido' | 'NotaFiscal' | 'Integracao'
+  entidade: string
   entidadeId: string
   acao: string
   usuarioId?: string | { _id: string; nome: string; email: string }
   origem: 'Painel' | 'Loja' | 'CLM' | 'Sistema'
   detalhes?: Record<string, unknown>
   createdAt: string
+}
+
+export interface ClmEvent {
+  _id: string
+  type: string
+  status: 'pending' | 'sent' | 'processed' | 'failed' | 'retrying'
+  retries: number
+  error?: string
+  createdAt: string
+  updatedAt: string
 }
 
 export interface LogStats {

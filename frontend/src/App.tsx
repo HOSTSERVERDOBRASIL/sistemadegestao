@@ -22,6 +22,7 @@ import Conciliacao from './pages/Conciliacao'
 import NotasEmpenho from './pages/NotasEmpenho'
 import Logs from './pages/Logs'
 import Auditoria from './pages/Auditoria'
+import IntegracaoCLM from './pages/IntegracaoCLM'
 
 function PrivateRoute({ children, adminOnly = false }: { children: React.ReactNode; adminOnly?: boolean }) {
   const { user, loading } = useAuth()
@@ -58,6 +59,7 @@ function AppRoutes() {
         <Route path="conciliacao" element={<PrivateRoute adminOnly><Conciliacao /></PrivateRoute>} />
         <Route path="logs" element={<PrivateRoute adminOnly><Logs /></PrivateRoute>} />
         <Route path="auditoria" element={<Auditoria />} />
+        <Route path="integracao-clm" element={<PrivateRoute adminOnly><IntegracaoCLM /></PrivateRoute>} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

@@ -40,6 +40,10 @@ export default function NotasEmpenho() {
   const [loadingPedidos, setLoadingPedidos] = useState(false)
   const [clientesList, setClientesList] = useState<Cliente[]>([])
   const [contratosList, setContratosList] = useState<Contrato[]>([])
+  const [editando, setEditando] = useState<NotaEmpenho | null>(null)
+  const [editForm, setEditForm] = useState<{ numero: string; descricao: string; dataVencimento: string; observacoes: string }>({ numero: '', descricao: '', dataVencimento: '', observacoes: '' })
+  const [editSaving, setEditSaving] = useState(false)
+  const [editError, setEditError] = useState('')
 
   const load = useCallback(() => {
     setLoading(true)
@@ -95,6 +99,36 @@ export default function NotasEmpenho() {
     } finally { setSaving(false) }
   }
 
+  function abrirEdicao(nota: NotaEmpenho) {
+    setEditando(nota)
+    setEditForm({
+      numero: nota.numero,
+      descricao: nota.descricao || '',
+      dataVencimento: nota.dataVencimento ? nota.dataVencimento.slice(0, 10) : '',
+      observacoes: nota.observacoes || '',
+    })
+    setEditError('')
+  }
+
+  async function handleEditSave(e: React.FormEvent) {
+    e.preventDefault()
+    if (!editando) return
+    setEditSaving(true); setEditError('')
+    try {
+      const updated = await api.update(editando._id, {
+        numero: editForm.numero || undefined,
+        descricao: editForm.descricao || undefined,
+        dataVencimento: editForm.dataVencimento || undefined,
+        observacoes: editForm.observacoes || undefined,
+      })
+      setEditando(null)
+      load()
+      if (detalhe?._id === updated._id) setDetalhe(updated)
+    } catch (err) {
+      setEditError(err instanceof Error ? err.message : 'Erro ao salvar')
+    } finally { setEditSaving(false) }
+  }
+
   async function handleEncerrar(nota: NotaEmpenho) {
     if (!confirm(`Encerrar nota de empenho "${nota.numero}"?`)) return
     try {
@@ -131,14 +165,23 @@ export default function NotasEmpenho() {
       render: (r: NotaEmpenho) => <Badge label={r.status} variant={statusVariant(r.status)} />
     },
     {
-      key: '_actions', header: '', width: '120px',
-      render: (r: NotaEmpenho) => r.status !== 'Encerrado' ? (
-        <button
-          className={styles.btnDesativar}
-          style={{ fontSize: '0.72rem' }}
-          onClick={e => { e.stopPropagation(); handleEncerrar(r) }}
-        >Encerrar</button>
-      ) : null
+      key: '_actions', header: '', width: '160px',
+      render: (r: NotaEmpenho) => (
+        <div style={{ display: 'flex', gap: 6 }}>
+          <button
+            className={styles.btnSecondary}
+            style={{ fontSize: '0.72rem', padding: '4px 8px' }}
+            onClick={e => { e.stopPropagation(); abrirEdicao(r) }}
+          >Editar</button>
+          {r.status !== 'Encerrado' && (
+            <button
+              className={styles.btnDesativar}
+              style={{ fontSize: '0.72rem' }}
+              onClick={e => { e.stopPropagation(); handleEncerrar(r) }}
+            >Encerrar</button>
+          )}
+        </div>
+      )
     },
   ]
 
@@ -234,6 +277,9 @@ export default function NotasEmpenho() {
             </div>
 
             <div className={styles.drawerFooter}>
+              <button className={styles.btnSecondary} onClick={() => abrirEdicao(detalhe)}>
+                Editar
+              </button>
               {detalhe.status !== 'Encerrado' && (
                 <button className={styles.btnDesativar} onClick={() => handleEncerrar(detalhe)}>
                   Encerrar empenho
@@ -242,6 +288,33 @@ export default function NotasEmpenho() {
             </div>
           </aside>
         </div>
+      )}
+
+      {/* Modal de edição */}
+      {editando && (
+        <Modal title={`Editar — ${editando.numero}`} onClose={() => setEditando(null)} size="md">
+          <form onSubmit={handleEditSave} noValidate className={styles.form}>
+            <div className={styles.formGrid2}>
+              <label style={{ gridColumn: 'span 2' }}>Número do empenho *
+                <input value={editForm.numero} onChange={e => setEditForm(f => ({ ...f, numero: e.target.value }))} />
+              </label>
+              <label>Data de vencimento
+                <input type="date" value={editForm.dataVencimento} onChange={e => setEditForm(f => ({ ...f, dataVencimento: e.target.value }))} />
+              </label>
+              <label>Descrição
+                <input value={editForm.descricao} onChange={e => setEditForm(f => ({ ...f, descricao: e.target.value }))} placeholder="Objeto do empenho..." />
+              </label>
+              <label style={{ gridColumn: 'span 2' }}>Observações
+                <textarea value={editForm.observacoes} onChange={e => setEditForm(f => ({ ...f, observacoes: e.target.value }))} rows={2} />
+              </label>
+            </div>
+            {editError && <p className={styles.error}>{editError}</p>}
+            <div className={styles.formActions}>
+              <button type="button" className={styles.btnSecondary} onClick={() => setEditando(null)}>Cancelar</button>
+              <button type="submit" className={styles.btnPrimary} disabled={editSaving}>{editSaving ? 'Salvando...' : 'Salvar'}</button>
+            </div>
+          </form>
+        </Modal>
       )}
 
       {/* Modal de criação */}
