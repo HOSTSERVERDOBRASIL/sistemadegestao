@@ -13,7 +13,10 @@ import styles from './Layout.module.css'
 import sessionStyles from './SessionBanner.module.css'
 import AtlasLogo from './AtlasLogo'
 
-const NAV_GROUPS = [
+type NavItem = { to: string; label: string; Icon: React.ElementType; adminOnly?: boolean; roles?: string[] }
+type NavGroup = { label: string | null; items: NavItem[]; adminOnly?: boolean }
+
+const NAV_GROUPS: NavGroup[] = [
   {
     label: null,
     items: [
