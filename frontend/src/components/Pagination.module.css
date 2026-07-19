@@ -7,18 +7,18 @@
 }
 
 .pagination button {
-  background: #fff;
-  border: 1px solid #e2e8f0;
-  color: #0f172a;
+  background: var(--btn-secondary-bg);
+  border: 1px solid var(--btn-secondary-border);
+  color: var(--btn-secondary-text);
   padding: 6px 14px;
   border-radius: 8px;
   font-size: 0.8rem;
   cursor: pointer;
-  transition: background 0.15s;
+  transition: background 0.12s;
 }
 
 .pagination button:hover:not(:disabled) {
-  background: #f1f5f9;
+  background: var(--btn-secondary-hover);
 }
 
 .pagination button:disabled {
@@ -28,5 +28,5 @@
 
 .info {
   font-size: 0.8rem;
-  color: #64748b;
+  color: var(--text-secondary);
 }

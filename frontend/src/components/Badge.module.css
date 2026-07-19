@@ -9,9 +9,9 @@
   white-space: nowrap;
 }
 
-.default  { background: #f1f5f9; color: #475569; }
-.success  { background: #dcfce7; color: #15803d; }
-.warning  { background: #fef9c3; color: #a16207; }
-.danger   { background: #fee2e2; color: #b91c1c; }
-.info     { background: #dbeafe; color: #1d4ed8; }
-.purple   { background: #ede9fe; color: #6d28d9; }
+.default  { background: var(--surface-2); color: var(--text-secondary); }
+.success  { background: var(--success-bg); color: var(--success); }
+.warning  { background: rgba(245, 158, 11, 0.12); color: #d97706; }
+.danger   { background: var(--danger-bg);  color: var(--danger); }
+.info     { background: rgba(59, 130, 246, 0.12); color: #3b82f6; }
+.purple   { background: rgba(109, 40, 217, 0.12); color: #7c3aed; }
