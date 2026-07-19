@@ -25,6 +25,10 @@ import { adminRouter } from './routes/admin.routes.js';
 import { fretesRouter } from './routes/fretes.routes.js';
 import { configuracoesRouter } from './routes/configuracoes.routes.js';
 import { conciliacaoRouter } from './routes/conciliacao.routes.js';
+import { notasEmpenhoRouter } from './routes/notas-empenho.routes.js';
+import { lojaBridgeRouter } from './routes/loja-bridge.routes.js';
+import { auditoriaRouter } from './routes/auditoria.routes.js';
+import { clmIntegrationRouter } from './routes/clm-integration.routes.js';
 import { errorHandler } from './middleware/error.middleware.js';
 
 const app = express();
@@ -47,7 +51,10 @@ app.use(pinoHttp({
 }));
 
 // ─── Body parsing com limite de tamanho ──────────────────────────────────────
-app.use(express.json({ limit: '100kb' }));
+app.use(express.json({
+  limit: '100kb',
+  verify: (req, _res, buffer) => { (req as Request & { rawBody?: Buffer }).rawBody = Buffer.from(buffer); },
+}));
 app.use(express.urlencoded({ extended: true, limit: '100kb' }));
 
 // ─── Rate limiting global ─────────────────────────────────────────────────────
@@ -92,6 +99,10 @@ app.use(`${apiPrefix}/admin`, adminRouter);
 app.use(`${apiPrefix}/fretes`, fretesRouter);
 app.use(`${apiPrefix}/configuracoes`, configuracoesRouter);
 app.use(`${apiPrefix}/conciliacao`, conciliacaoRouter);
+app.use(`${apiPrefix}/notas-empenho`, notasEmpenhoRouter);
+app.use(`${apiPrefix}`, lojaBridgeRouter);
+app.use(`${apiPrefix}/auditoria`, auditoriaRouter);
+app.use(`${apiPrefix}/integracoes/clm`, clmIntegrationRouter);
 // uploads públicos (sem prefixo /api)
 app.use('/uploads', express.static(path.resolve(env.UPLOAD_DIR)));
 

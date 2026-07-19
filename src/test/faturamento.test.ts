@@ -161,7 +161,7 @@ describe('Emissão de NF', () => {
     assert.equal(contratoAtualizado?.valorFaturado, 10000);
   });
 
-  it('rejeita segunda NF em Contrato Total já faturado (409)', async () => {
+  it('rejeita segundo pedido em Contrato Total já faturado (422)', async () => {
     const { token, cliente, produto } = await seedBase();
 
     const contrato = await ContratoModel.create({
@@ -173,8 +173,7 @@ describe('Emissão de NF', () => {
       dataFim: new Date(Date.now() + 86400000 * 365),
     });
 
-    const criarPedido = async (num: string) => {
-      const r = await fetch(`${getBaseUrl()}/pedidos`, {
+    const criarPedido = (num: string) => fetch(`${getBaseUrl()}/pedidos`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({
@@ -187,19 +186,15 @@ describe('Emissão de NF', () => {
           vinculo: { tipo: 'Contrato' },
         }),
       });
-      return (await r.json() as { _id: string })._id;
-    };
 
-    const id1 = await criarPedido('P-006');
+    const primeiro = await criarPedido('P-006');
+    const { _id: id1 } = await primeiro.json() as { _id: string };
     await fetch(`${getBaseUrl()}/pedidos/${id1}/emitir-nf`, {
       method: 'POST', headers: { Authorization: `Bearer ${token}` },
     });
 
-    const id2 = await criarPedido('P-007');
-    const res2 = await fetch(`${getBaseUrl()}/pedidos/${id2}/emitir-nf`, {
-      method: 'POST', headers: { Authorization: `Bearer ${token}` },
-    });
-    assert.equal(res2.status, 409);
+    const res2 = await criarPedido('P-007');
+    assert.equal(res2.status, 422);
   });
 
   // ── Modalidade: Contrato Parcial ──────────────────────────────────────────
@@ -240,7 +235,7 @@ describe('Emissão de NF', () => {
     assert.equal(contratoAtualizado?.valorFaturado, 7000);
   });
 
-  it('rejeita NF parcial quando excede saldo do contrato (409)', async () => {
+  it('rejeita pedido parcial quando excede saldo do contrato (422)', async () => {
     const { token, cliente, produto } = await seedBase();
 
     const contrato = await ContratoModel.create({
@@ -266,12 +261,7 @@ describe('Emissão de NF', () => {
         vinculo: { tipo: 'Contrato' },
       }),
     });
-    const pedido = await pedidoRes.json() as { _id: string };
-
-    const nfRes = await fetch(`${getBaseUrl()}/pedidos/${pedido._id}/emitir-nf`, {
-      method: 'POST', headers: { Authorization: `Bearer ${token}` },
-    });
-    assert.equal(nfRes.status, 409);
+    assert.equal(pedidoRes.status, 422);
   });
 
   // ── Modalidade: Ordem de Fornecimento ────────────────────────────────────
@@ -302,6 +292,7 @@ describe('Emissão de NF', () => {
         clienteId: cliente._id,
         produtoId: produto._id,
         contratoId: contrato._id,
+        ordemFornecimentoId: ordem._id,
         valorTotal: 10000,
         valorTabela: 10000,
         vinculo: { tipo: 'Contrato' },
@@ -317,6 +308,8 @@ describe('Emissão de NF', () => {
     const ordemAtualizada = await OrdemFornecimentoModel.findById(ordem._id);
     assert.equal(ordemAtualizada?.valorFaturado, 10000);
     assert.equal(ordemAtualizada?.status, 'Fechada');
+    const contratoAtualizado = await ContratoModel.findById(contrato._id);
+    assert.equal(contratoAtualizado?.valorFaturado, 10000);
   });
 
   // ── Modalidade: Revenda ───────────────────────────────────────────────────

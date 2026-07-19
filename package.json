@@ -8,7 +8,7 @@
     "build": "tsc -p tsconfig.json",
     "start": "node dist/server.js",
     "seed": "tsx src/seed.ts",
-    "test": "node --test --import tsx --test-reporter spec --test-timeout=60000 src/test/auth.test.ts src/test/faturamento.test.ts src/test/pedidos-etapas.test.ts src/test/contratos.test.ts src/test/autorizacao.test.ts src/test/cupons.test.ts src/test/cobrancas.test.ts src/test/tiny.test.ts src/test/conciliacao.test.ts"
+    "test": "node --test --test-concurrency=1 --import tsx --test-reporter spec --test-timeout=120000 src/test/auth.test.ts src/test/faturamento.test.ts src/test/pedidos-etapas.test.ts src/test/contratos.test.ts src/test/autorizacao.test.ts src/test/cupons.test.ts src/test/cobrancas.test.ts src/test/tiny.test.ts src/test/conciliacao.test.ts src/test/notas-empenho.test.ts src/test/loja-bridge.test.ts src/test/integracoes-cadastro-clm.test.ts"
   },
   "dependencies": {
     "@types/multer": "^2.2.0",

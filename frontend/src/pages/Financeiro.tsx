@@ -34,6 +34,8 @@ export default function Financeiro() {
   const [cancelObs, setCancelObs] = useState('')
   const [canceling, setCanceling] = useState(false)
   const [error, setError] = useState('')
+  const [retentando, setRetentando] = useState<string | null>(null)
+  const [baixando, setBaixando] = useState<string | null>(null)
   const [dataInicio, setDataInicio] = useState('')
   const [dataFim, setDataFim] = useState('')
   const [exportando, setExportando] = useState(false)
@@ -65,6 +67,30 @@ export default function Financeiro() {
     try { await exportar.notas(params) } catch { /* silent */ } finally { setExportando(false) }
   }
 
+  async function handleRetentar(nota: NotaFiscal) {
+    setRetentando(nota._id)
+    try {
+      const r = await api.retentar(nota._id)
+      if (r.ok) {
+        loadNotas(); loadResumo()
+      } else {
+        alert(`Erro SEFAZ: ${r.erro ?? 'falha desconhecida'}`)
+      }
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Erro ao retentar emissão')
+    } finally { setRetentando(null) }
+  }
+
+  async function handleDownload(nota: NotaFiscal, tipo: 'pdf' | 'xml') {
+    setBaixando(`${nota._id}-${tipo}`)
+    try {
+      if (tipo === 'pdf') await api.downloadPdf(nota._id)
+      else await api.downloadXml(nota._id)
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Erro ao baixar arquivo')
+    } finally { setBaixando(null) }
+  }
+
   async function handleCancelar(e: React.FormEvent) {
     e.preventDefault()
     if (!cancelNota) return
@@ -89,10 +115,67 @@ export default function Financeiro() {
     { key: 'status', header: 'Status', render: (r: NotaFiscal) => <Badge label={r.status} /> },
     { key: 'createdAt', header: 'Data', render: (r: NotaFiscal) => fmt(r.createdAt) },
     {
-      key: '_actions', header: '', width: '100px',
-      render: (r: NotaFiscal) => r.status !== 'Cancelada' ? (
-        <button className={styles.btnDanger} onClick={e => { e.stopPropagation(); setCancelNota(r); setShowCancelModal(true) }}>Cancelar</button>
-      ) : null
+      key: 'situacaoTiny', header: 'SEFAZ',
+      render: (r: NotaFiscal) => {
+        if (!r.situacaoTiny) return <span style={{ color: '#94a3b8', fontSize: '0.75rem' }}>—</span>
+        const map: Record<string, 'success' | 'warning' | 'danger' | 'default'> = {
+          Autorizada: 'success', Erro: 'danger', Rascunho: 'warning', Cancelada: 'default',
+        }
+        return <Badge label={r.situacaoTiny} variant={map[r.situacaoTiny] ?? 'default'} />
+      }
+    },
+    {
+      key: '_actions', header: '', width: '210px',
+      render: (r: NotaFiscal) => (
+        <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+          {r.situacaoTiny === 'Autorizada' && (
+            <>
+              <button
+                className={styles.btnSecondary}
+                style={{ fontSize: '0.72rem', padding: '3px 7px' }}
+                disabled={baixando === `${r._id}-pdf`}
+                onClick={e => { e.stopPropagation(); handleDownload(r, 'pdf') }}
+                title="Baixar DANFE/PDF"
+              >
+                {baixando === `${r._id}-pdf` ? '...' : 'PDF'}
+              </button>
+              <button
+                className={styles.btnSecondary}
+                style={{ fontSize: '0.72rem', padding: '3px 7px' }}
+                disabled={baixando === `${r._id}-xml`}
+                onClick={e => { e.stopPropagation(); handleDownload(r, 'xml') }}
+                title="Baixar XML NF-e"
+              >
+                {baixando === `${r._id}-xml` ? '...' : 'XML'}
+              </button>
+            </>
+          )}
+          {(r.situacaoTiny === 'Erro' || r.situacaoTiny === 'Rascunho' || (!r.situacaoTiny && r.status === 'Pendente')) && r.status !== 'Cancelada' && (
+            <button
+              className={styles.btnSecondary}
+              style={{ fontSize: '0.72rem', padding: '3px 7px', color: '#7c3aed', borderColor: '#c4b5fd' }}
+              disabled={retentando === r._id}
+              onClick={e => { e.stopPropagation(); handleRetentar(r) }}
+              title="Retentar emissão SEFAZ"
+            >
+              {retentando === r._id ? '...' : '↺ Retentar'}
+            </button>
+          )}
+          {r.situacaoTiny === 'Erro' && r.erroEmissao && (
+            <span
+              title={r.erroEmissao}
+              style={{ fontSize: '0.7rem', color: '#b91c1c', cursor: 'help', alignSelf: 'center' }}
+            >⚠</span>
+          )}
+          {r.status !== 'Cancelada' && (
+            <button
+              className={styles.btnDanger}
+              style={{ fontSize: '0.72rem', padding: '3px 7px' }}
+              onClick={e => { e.stopPropagation(); setCancelNota(r); setShowCancelModal(true) }}
+            >Cancelar</button>
+          )}
+        </div>
+      )
     },
   ]
 

@@ -4,6 +4,9 @@ export interface INotaFiscal extends Document {
   numero: string;
   pedidoId: Types.ObjectId;
   valor: number;
+  tipo: 'Fiscal' | 'Credito';
+  notaOriginalId?: Types.ObjectId;
+  aprovacaoEstornoSaldo?: 'Pendente' | 'Aprovado' | 'Negado';
   emissor: 'XDigital' | 'Revendedor';
   status: 'Emitida' | 'Pendente' | 'Cancelada';
   observacoes?: string;
@@ -18,7 +21,10 @@ export interface INotaFiscal extends Document {
 const notaSchema = new Schema<INotaFiscal>({
   numero: { type: String, required: true, unique: true },
   pedidoId: { type: Schema.Types.ObjectId, ref: 'Pedido', required: true },
-  valor: { type: Number, required: true, min: 0 },
+  valor: { type: Number, required: true },
+  tipo: { type: String, enum: ['Fiscal', 'Credito'], default: 'Fiscal' },
+  notaOriginalId: { type: Schema.Types.ObjectId, ref: 'NotaFiscal' },
+  aprovacaoEstornoSaldo: { type: String, enum: ['Pendente', 'Aprovado', 'Negado'] },
   emissor: { type: String, enum: ['XDigital', 'Revendedor'], required: true },
   status: { type: String, enum: ['Emitida', 'Pendente', 'Cancelada'], default: 'Emitida' },
   observacoes: String,
@@ -32,5 +38,6 @@ const notaSchema = new Schema<INotaFiscal>({
 notaSchema.index({ pedidoId: 1 });
 notaSchema.index({ status: 1 });
 notaSchema.index({ emissor: 1 });
+notaSchema.index({ tipo: 1, aprovacaoEstornoSaldo: 1 });
 
 export const NotaFiscalModel: Model<INotaFiscal> = mongoose.model<INotaFiscal>('NotaFiscal', notaSchema);

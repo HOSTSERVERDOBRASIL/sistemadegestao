@@ -19,6 +19,9 @@ import IntegracaoTiny from './pages/IntegracaoTiny'
 import Cupons from './pages/Cupons'
 import Configuracoes from './pages/Configuracoes'
 import Conciliacao from './pages/Conciliacao'
+import NotasEmpenho from './pages/NotasEmpenho'
+import Logs from './pages/Logs'
+import Auditoria from './pages/Auditoria'
 
 function PrivateRoute({ children, adminOnly = false }: { children: React.ReactNode; adminOnly?: boolean }) {
   const { user, loading } = useAuth()
@@ -51,7 +54,10 @@ function AppRoutes() {
         <Route path="integracao-tiny" element={<PrivateRoute adminOnly><IntegracaoTiny /></PrivateRoute>} />
         <Route path="usuarios" element={<PrivateRoute adminOnly><Usuarios /></PrivateRoute>} />
         <Route path="configuracoes" element={<PrivateRoute adminOnly><Configuracoes /></PrivateRoute>} />
+        <Route path="notas-empenho" element={<NotasEmpenho />} />
         <Route path="conciliacao" element={<PrivateRoute adminOnly><Conciliacao /></PrivateRoute>} />
+        <Route path="logs" element={<PrivateRoute adminOnly><Logs /></PrivateRoute>} />
+        <Route path="auditoria" element={<Auditoria />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

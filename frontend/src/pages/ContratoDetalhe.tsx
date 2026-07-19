@@ -5,7 +5,7 @@ import Badge from '../components/Badge'
 import Table from '../components/Table'
 import Modal from '../components/Modal'
 import { contratos as api, uploads, exportar } from '../api'
-import type { Contrato, OrdemFornecimento, Pedido } from '../types'
+import type { Contrato, OrdemFornecimento, Pedido, ResumoFinanceiroContrato } from '../types'
 import styles from './ContratoDetalhe.module.css'
 import pageStyles from './Page.module.css'
 
@@ -22,9 +22,12 @@ export default function ContratoDetalhe() {
   const [contrato, setContrato] = useState<Contrato | null>(null)
   const [ordens, setOrdens] = useState<OrdemFornecimento[]>([])
   const [pedidosVinculados, setPedidosVinculados] = useState<Pedido[]>([])
+  const [resumo, setResumo] = useState<ResumoFinanceiroContrato | null>(null)
   const [loading, setLoading] = useState(true)
   const [showOrdemModal, setShowOrdemModal] = useState(false)
-  const [ordemForm, setOrdemForm] = useState({ numero: '', valor: 0 })
+  const [showAditivoModal, setShowAditivoModal] = useState(false)
+  const [ordemForm, setOrdemForm] = useState({ numero: '', valor: 0, dataEmissao: '', dataFim: '', observacoes: '' })
+  const [aditivoForm, setAditivoForm] = useState({ numero: '', valor: 0, motivo: '', dataAssinatura: '', vigenciaAte: '' })
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [faturando, setFaturando] = useState(false)
@@ -39,10 +42,12 @@ export default function ContratoDetalhe() {
       api.get(id),
       api.ordens(id),
       api.pedidos(id),
-    ]).then(([c, o, p]) => {
+      api.resumoFinanceiro(id),
+    ]).then(([c, o, p, r]) => {
       setContrato(c)
       setOrdens(o)
       setPedidosVinculados(p)
+      setResumo(r)
     }).finally(() => setLoading(false))
   }
 
@@ -87,19 +92,33 @@ export default function ContratoDetalhe() {
     try {
       await api.criarOrdem(id, ordemForm)
       setShowOrdemModal(false)
-      setOrdemForm({ numero: '', valor: 0 })
+      setOrdemForm({ numero: '', valor: 0, dataEmissao: '', dataFim: '', observacoes: '' })
       load()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erro ao criar OF')
     } finally { setSaving(false) }
   }
 
+  async function handleCriarAditivo(e: React.FormEvent) {
+    e.preventDefault()
+    if (!id) return
+    setSaving(true); setError('')
+    try {
+      await api.criarAditivo(id, { ...aditivoForm, vigenciaAte: aditivoForm.vigenciaAte || undefined })
+      setShowAditivoModal(false)
+      setAditivoForm({ numero: '', valor: 0, motivo: '', dataAssinatura: '', vigenciaAte: '' })
+      load()
+    } catch (err) { setError(err instanceof Error ? err.message : 'Erro ao criar aditivo') }
+    finally { setSaving(false) }
+  }
+
   if (loading) return <div className={pageStyles.page}><p style={{ color: '#94a3b8', padding: 40 }}>Carregando...</p></div>
   if (!contrato) return <div className={pageStyles.page}><p>Contrato não encontrado.</p></div>
 
   const cliente = typeof contrato.clienteId === 'object' ? contrato.clienteId : null
-  const saldo = contrato.valorTotal - contrato.valorFaturado
-  const percFaturado = contrato.valorTotal > 0 ? Math.min(100, (contrato.valorFaturado / contrato.valorTotal) * 100) : 0
+  const totalComDireito = resumo?.valorTotalComDireito ?? contrato.valorTotal
+  const saldo = resumo?.disponivel ?? totalComDireito - contrato.valorFaturado
+  const percFaturado = totalComDireito > 0 ? Math.min(100, (contrato.valorFaturado / totalComDireito) * 100) : 0
 
   const ordemColumns = [
     { key: 'numero', header: 'Número', render: (r: OrdemFornecimento) => <strong>{r.numero}</strong> },
@@ -113,7 +132,7 @@ export default function ContratoDetalhe() {
       }
     },
     { key: 'status', header: 'Status', render: (r: OrdemFornecimento) => <Badge label={r.status} /> },
-    { key: 'createdAt', header: 'Criada em', render: (r: OrdemFornecimento) => fmt(r.createdAt) },
+    { key: 'dataFim', header: 'Vigência', render: (r: OrdemFornecimento) => r.dataFim ? `até ${fmt(r.dataFim)}` : 'Sem limite próprio' },
   ]
 
   const pedidoColumns = [
@@ -139,6 +158,7 @@ export default function ContratoDetalhe() {
             <button className={pageStyles.btnSecondary} onClick={handleExportar} disabled={exportando}>
               {exportando ? 'Exportando...' : '⬇ CSV'}
             </button>
+            {contrato.ativo && <button className={pageStyles.btnSecondary} onClick={() => { setError(''); setShowAditivoModal(true) }}>+ Aditivo</button>}
             <label className={pageStyles.btnSecondary} style={{ cursor: 'pointer' }}>
               {uploadingVersao ? 'Enviando...' : '📄 Nova Versão'}
               <input
@@ -150,7 +170,7 @@ export default function ContratoDetalhe() {
                 disabled={uploadingVersao}
               />
             </label>
-            {contrato.ativo && saldo > 0 && (
+            {contrato.ativo && saldo > 0 && contrato.modalidade === 'Total' && (
               <button className={pageStyles.btnPrimary} onClick={handleFaturarTotal} disabled={faturando}>
                 {faturando ? 'Faturando...' : '⚡ Faturar Total'}
               </button>
@@ -168,7 +188,11 @@ export default function ContratoDetalhe() {
             <dd><strong>{cliente?.nome ?? '—'}</strong>{cliente && <><br /><span style={{ fontSize: '0.78rem', color: '#64748b' }}>{cliente.documento}</span></>}</dd>
             <dt>Modalidade</dt><dd><Badge label={contrato.modalidade} variant="info" /></dd>
             <dt>Status</dt><dd><Badge label={contrato.ativo ? 'Ativo' : 'Encerrado'} variant={contrato.ativo ? 'success' : 'default'} /></dd>
-            <dt>Valor Total</dt><dd><strong>{moeda(contrato.valorTotal)}</strong></dd>
+            <dt>Valor Original</dt><dd>{moeda(contrato.valorTotal)}</dd>
+            <dt>Aditivos</dt><dd>{moeda(resumo?.valorAditivos ?? 0)}</dd>
+            <dt>Total com Direito</dt><dd><strong>{moeda(totalComDireito)}</strong></dd>
+            <dt>Reservado</dt><dd>{moeda(resumo?.reservado ?? 0)}</dd>
+            <dt>Confirmado (protocolo)</dt><dd>{moeda(resumo?.confirmado ?? 0)}</dd>
             <dt>Faturado</dt><dd>{moeda(contrato.valorFaturado)}</dd>
             <dt>Saldo Disponível</dt>
             <dd><strong style={{ color: saldo > 0 ? '#15803d' : '#94a3b8' }}>{moeda(saldo)}</strong></dd>
@@ -206,6 +230,15 @@ export default function ContratoDetalhe() {
           )}
         </div>
       </div>
+
+      {(contrato.aditivos?.length ?? 0) > 0 && <div className={pageStyles.panel}>
+        <h3 className={pageStyles.panelTitle}>Aditivos ({contrato.aditivos.length})</h3>
+        {contrato.aditivos.map(aditivo => <div key={aditivo.numero} style={{ display: 'grid', gridTemplateColumns: '1fr auto auto', gap: 16, padding: '10px 0', borderBottom: '1px solid #e2e8f0' }}>
+          <span><strong>{aditivo.numero}</strong><br /><small>{aditivo.motivo}</small></span>
+          <span>{fmt(aditivo.dataAssinatura)}{aditivo.vigenciaAte ? ` · vigência até ${fmt(aditivo.vigenciaAte)}` : ''}</span>
+          <strong style={{ color: '#15803d' }}>+ {moeda(aditivo.valor)}</strong>
+        </div>)}
+      </div>}
 
       {/* Ordens de Fornecimento */}
       {contrato.modalidade === 'Por Ordem de Fornecimento' && (
@@ -251,6 +284,15 @@ export default function ContratoDetalhe() {
               <input type="number" min="1" step="0.01" required value={ordemForm.valor}
                 onChange={e => setOrdemForm({ ...ordemForm, valor: Number(e.target.value) })} />
             </label>
+            <label>Data de Emissão
+              <input type="date" value={ordemForm.dataEmissao} onChange={e => setOrdemForm({ ...ordemForm, dataEmissao: e.target.value })} />
+            </label>
+            <label>Válida até
+              <input type="date" max={contrato.dataFim.slice(0, 10)} value={ordemForm.dataFim} onChange={e => setOrdemForm({ ...ordemForm, dataFim: e.target.value })} />
+            </label>
+            <label>Observações
+              <textarea rows={3} value={ordemForm.observacoes} onChange={e => setOrdemForm({ ...ordemForm, observacoes: e.target.value })} />
+            </label>
             {error && <p className={pageStyles.error}>{error}</p>}
             <div className={pageStyles.formActions}>
               <button type="button" className={pageStyles.btnSecondary} onClick={() => setShowOrdemModal(false)}>Cancelar</button>
@@ -259,6 +301,17 @@ export default function ContratoDetalhe() {
           </form>
         </Modal>
       )}
+      {showAditivoModal && <Modal title="Novo Aditivo" onClose={() => setShowAditivoModal(false)} size="sm">
+        <form onSubmit={handleCriarAditivo} className={pageStyles.form}>
+          <label>Número *<input required value={aditivoForm.numero} onChange={e => setAditivoForm({ ...aditivoForm, numero: e.target.value })} /></label>
+          <label>Valor *<input required type="number" min="0.01" step="0.01" value={aditivoForm.valor} onChange={e => setAditivoForm({ ...aditivoForm, valor: Number(e.target.value) })} /></label>
+          <label>Data de assinatura *<input required type="date" value={aditivoForm.dataAssinatura} onChange={e => setAditivoForm({ ...aditivoForm, dataAssinatura: e.target.value })} /></label>
+          <label>Prorrogar vigência até<input type="date" value={aditivoForm.vigenciaAte} onChange={e => setAditivoForm({ ...aditivoForm, vigenciaAte: e.target.value })} /></label>
+          <label>Motivo *<textarea required rows={3} value={aditivoForm.motivo} onChange={e => setAditivoForm({ ...aditivoForm, motivo: e.target.value })} /></label>
+          {error && <p className={pageStyles.error}>{error}</p>}
+          <div className={pageStyles.formActions}><button type="button" className={pageStyles.btnSecondary} onClick={() => setShowAditivoModal(false)}>Cancelar</button><button type="submit" className={pageStyles.btnPrimary} disabled={saving}>{saving ? 'Salvando...' : 'Criar Aditivo'}</button></div>
+        </form>
+      </Modal>}
     </div>
   )
 }

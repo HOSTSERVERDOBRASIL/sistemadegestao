@@ -9,7 +9,7 @@ import type { Cliente, ClientePayload } from '../types'
 import { email as validateEmail, documento as validateDoc, required, hasErrors, type FieldErrors } from '../utils/validate'
 import styles from './Page.module.css'
 
-const BLANK: ClientePayload = { nome: '', email: '', documento: '', tipo: 'pessoa-juridica', ativo: true }
+const BLANK: ClientePayload = { nome: '', email: '', documento: '', tipo: 'pessoa-juridica', esferaPublica: false, ativo: true }
 
 type Errs = FieldErrors<ClientePayload>
 
@@ -40,6 +40,8 @@ export default function Clientes() {
   const [error, setError] = useState('')
   const [toggling, setToggling] = useState<string | null>(null)
   const [detalhe, setDetalhe] = useState<Cliente | null>(null)
+  const [consultandoDocumento, setConsultandoDocumento] = useState(false)
+  const [revalidando, setRevalidando] = useState(false)
 
   const ativoParam = filtroAtivo === 'ativos' ? 'true' : filtroAtivo === 'inativos' ? 'false' : undefined
 
@@ -55,7 +57,7 @@ export default function Clientes() {
   function openCreate() { setEditing(null); setForm(BLANK); setErrs({}); setTouched(false); setShowModal(true) }
   function openEdit(c: Cliente) {
     setEditing(c)
-    setForm({ nome: c.nome, email: c.email, documento: c.documento, tipo: c.tipo, telefone: c.telefone, ativo: c.ativo })
+    setForm({ nome: c.nome, email: c.email, documento: c.documento, tipo: c.tipo, telefone: c.telefone, esferaPublica: c.esferaPublica, ativo: c.ativo })
     setErrs({}); setTouched(false); setShowModal(true)
   }
 
@@ -94,6 +96,47 @@ export default function Clientes() {
     finally { setToggling(null) }
   }
 
+  async function handleConsultarDocumento() {
+    const documento = form.documento.replace(/\D/g, '')
+    if (![11, 14].includes(documento.length)) {
+      setError('Informe um CPF ou CNPJ válido antes da consulta.')
+      return
+    }
+    setConsultandoDocumento(true); setError('')
+    try {
+      const cadastro = await api.consultarDocumento(documento)
+      update({
+        nome: cadastro.nome || form.nome,
+        tipo: documento.length === 14 ? 'pessoa-juridica' : 'pessoa-fisica',
+        esferaPublica: cadastro.esferaPublica ?? form.esferaPublica,
+      })
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Não foi possível consultar o documento')
+    } finally { setConsultandoDocumento(false) }
+  }
+
+  async function handleRevalidar(cliente: Cliente) {
+    setRevalidando(true)
+    try {
+      const atualizado = await api.revalidarCadastro(cliente._id)
+      setDetalhe(atualizado)
+      setRows(prev => prev.map(item => item._id === atualizado._id ? atualizado : item))
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Não foi possível revalidar o cadastro')
+    } finally { setRevalidando(false) }
+  }
+
+  async function handleLgpd(cliente: Cliente) {
+    const tipo = prompt('Tipo da solicitação: Acesso, Correcao, Exclusao ou Portabilidade', 'Acesso')?.trim() as 'Acesso' | 'Correcao' | 'Exclusao' | 'Portabilidade' | undefined
+    if (!tipo) return
+    const motivo = prompt('Motivo ou observação da solicitação (opcional):', '')?.trim()
+    try {
+      const atualizado = await api.registrarLgpd(cliente._id, { tipo, motivo: motivo || undefined })
+      setDetalhe(atualizado)
+      setRows(prev => prev.map(item => item._id === atualizado._id ? atualizado : item))
+    } catch (err) { alert(err instanceof Error ? err.message : 'Não foi possível registrar a solicitação LGPD') }
+  }
+
   const ativos = rows.filter(r => r.ativo).length
   const inativos = rows.filter(r => !r.ativo).length
 
@@ -110,6 +153,12 @@ export default function Clientes() {
     { key: 'email', header: 'E-mail', render: (r: Cliente) => <span className={!r.ativo ? styles.rowInativo : ''}>{r.email}</span> },
     { key: 'documento', header: 'Documento', render: (r: Cliente) => <span className={!r.ativo ? styles.rowInativo : ''}>{r.documento}</span> },
     { key: 'tipo', header: 'Tipo', render: (r: Cliente) => <Badge label={r.tipo === 'pessoa-juridica' ? 'PJ' : 'PF'} variant="default" /> },
+    {
+      key: 'esferaPublica', header: 'Esfera',
+      render: (r: Cliente) => r.esferaPublica
+        ? <Badge label="Pública" variant="warning" />
+        : <span style={{ color: '#94a3b8', fontSize: '0.75rem' }}>—</span>
+    },
     { key: 'ativo', header: 'Status', render: (r: Cliente) => <Badge label={r.ativo ? 'Ativo' : 'Inativo'} variant={r.ativo ? 'success' : 'default'} /> },
     {
       key: '_actions', header: '', width: '170px',
@@ -177,9 +226,21 @@ export default function Clientes() {
               <dt>Documento</dt><dd>{detalhe.documento}</dd>
               <dt>Tipo</dt><dd>{detalhe.tipo === 'pessoa-juridica' ? 'Pessoa Jurídica' : 'Pessoa Física'}</dd>
               {detalhe.telefone && <><dt>Telefone</dt><dd>{detalhe.telefone}</dd></>}
+              <dt>Esfera Pública</dt>
+              <dd>{detalhe.esferaPublica
+                ? <Badge label="Esfera Pública" variant="warning" />
+                : <span style={{ color: '#94a3b8' }}>Privada / não classificada</span>
+              }</dd>
+              {detalhe.situacaoCadastral && <><dt>Situação Serpro</dt><dd><Badge label={detalhe.situacaoCadastral} variant={detalhe.situacaoCadastral.toUpperCase() === 'ATIVA' ? 'success' : 'warning'} /></dd></>}
+              {detalhe.naturezaJuridicaDescricao && <><dt>Natureza jurídica</dt><dd>{detalhe.naturezaJuridicaCodigo} — {detalhe.naturezaJuridicaDescricao}</dd></>}
+              {detalhe.esferaPublicaRevisao && <><dt>Classificação</dt><dd><Badge label="Revisão manual" variant="warning" /></dd></>}
+              {detalhe.validadoSerproEm && <><dt>Última validação</dt><dd>{new Date(detalhe.validadoSerproEm).toLocaleString('pt-BR')}</dd></>}
+              {(detalhe.solicitacoesLgpd?.length ?? 0) > 0 && <><dt>LGPD</dt><dd>{detalhe.solicitacoesLgpd!.slice(-3).reverse().map(item => <div key={item._id} style={{ marginBottom: 5 }}><Badge label={`${item.tipo}: ${item.status}`} variant={item.status === 'Atendida' ? 'success' : 'warning'} /><br /><small>{new Date(item.solicitadaEm).toLocaleDateString('pt-BR')}</small></div>)}</dd></>}
             </dl>
             <div className={styles.drawerFooter}>
               <button className={styles.btnPrimary} onClick={() => { openEdit(detalhe); setDetalhe(null) }}>Editar dados</button>
+              {detalhe.tipo === 'pessoa-juridica' && <button className={styles.btnSecondary} onClick={() => handleRevalidar(detalhe)} disabled={revalidando}>{revalidando ? 'Consultando...' : 'Revalidar Serpro'}</button>}
+              <button className={styles.btnSecondary} onClick={() => handleLgpd(detalhe)}>Registrar LGPD</button>
               <button
                 className={detalhe.ativo ? styles.btnDesativar : styles.btnReativar}
                 disabled={toggling === detalhe._id}
@@ -207,6 +268,9 @@ export default function Clientes() {
               <label>Documento (CPF/CNPJ) *
                 <input value={form.documento} onChange={e => update({ documento: e.target.value })} placeholder="Somente números" className={errs.documento ? styles.inputError : ''} />
                 {errs.documento && <span className={styles.fieldError}>{errs.documento}</span>}
+                <button type="button" className={styles.btnSecondary} onClick={handleConsultarDocumento} disabled={consultandoDocumento} style={{ marginTop: 6 }}>
+                  {consultandoDocumento ? 'Consultando...' : 'Consultar cadastro oficial'}
+                </button>
               </label>
               <label>Telefone
                 <input value={form.telefone || ''} onChange={e => update({ telefone: e.target.value })} />
@@ -222,6 +286,21 @@ export default function Clientes() {
                   <option value="true">Ativo</option>
                   <option value="false">Inativo</option>
                 </select>
+              </label>
+              <label style={{ gridColumn: 'span 2' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 4 }}>
+                  <input
+                    type="checkbox"
+                    id="esferaPublica"
+                    checked={!!form.esferaPublica}
+                    onChange={e => update({ esferaPublica: e.target.checked })}
+                    style={{ width: 16, height: 16, cursor: 'pointer' }}
+                  />
+                  <span style={{ fontWeight: 500 }}>Esfera Pública</span>
+                  <span style={{ fontSize: '0.75rem', color: '#64748b' }}>
+                    (Lei 4.320/64 — exige empenho nos pedidos)
+                  </span>
+                </div>
               </label>
             </div>
             {error && <p className={styles.error}>{error}</p>}

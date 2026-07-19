@@ -10,6 +10,7 @@ import {
   getEfiConfigurationStatus,
 } from '../services/efi.service.js';
 import { env } from '../config/env.js';
+import { IntegrationEventModel } from '../models/integration-event.model.js';
 
 const router = Router();
 
@@ -76,6 +77,23 @@ const SERVICOS: Record<string, { label: string; campos: Array<{ key: string; lab
       { key: 'BRADESCO_SANDBOX',       label: 'Sandbox',       placeholder: 'true ou false' },
     ],
   },
+  serpro: {
+    label: 'Serpro (CPF + CNPJ)',
+    campos: [
+      { key: 'SERPRO_BASIC_TOKEN', label: 'Token Basic', secret: true, placeholder: 'Base64 client_id:client_secret' },
+      { key: 'SERPRO_TIMEOUT', label: 'Timeout (ms)', placeholder: '15000' },
+      { key: 'VIACEP_TIMEOUT', label: 'Timeout ViaCEP (ms)', placeholder: '8000' },
+    ],
+  },
+  clm: {
+    label: 'Atlas CLM',
+    campos: [
+      { key: 'CLM_BASE_URL', label: 'URL do CLM', placeholder: 'https://clm.seudominio.com.br' },
+      { key: 'CLM_API_TOKEN', label: 'Token interno', secret: true, placeholder: 'Token compartilhado ERP/CLM' },
+      { key: 'CLM_HMAC_SECRET', label: 'Segredo HMAC', secret: true, placeholder: 'Segredo forte compartilhado' },
+      { key: 'CLM_TIMEOUT', label: 'Timeout (ms)', placeholder: '20000' },
+    ],
+  },
 };
 
 function mascarar(valor: string): string {
@@ -103,6 +121,15 @@ function validarCampo(key: string, value: string): string | null {
     } catch {
       return 'EFI_WEBHOOK_URL inválida';
     }
+  }
+  if (key === 'CLM_BASE_URL') {
+    try {
+      const url = new URL(value);
+      if (!['http:', 'https:'].includes(url.protocol)) return 'CLM_BASE_URL deve ser uma URL HTTP(S)';
+    } catch { return 'CLM_BASE_URL inválida'; }
+  }
+  if (['SERPRO_TIMEOUT', 'VIACEP_TIMEOUT', 'CLM_TIMEOUT'].includes(key) && (!/^\d+$/.test(value) || Number(value) < 1000)) {
+    return `${key} deve ser um tempo em milissegundos maior ou igual a 1000`;
   }
   return null;
 }
@@ -265,6 +292,19 @@ router.get('/:servico/status', authenticate, authorize('admin'), async (req, res
       case 'bradesco': {
         const ok = !!(process.env.BRADESCO_CLIENT_ID && process.env.BRADESCO_CLIENT_SECRET);
         return res.json({ configurado: ok, sandbox: process.env.BRADESCO_SANDBOX !== 'false' });
+      }
+      case 'serpro': {
+        return res.json({ configurado: Boolean(process.env.SERPRO_BASIC_TOKEN || process.env.BASECTOKEN_SERPRO), viaCep: true });
+      }
+      case 'clm': {
+        const falhos = await IntegrationEventModel.countDocuments({ status: { $in: ['failed', 'dead_letter'] } });
+        const pendentes = await IntegrationEventModel.countDocuments({ status: { $in: ['pending', 'retrying'] } });
+        return res.json({
+          configurado: Boolean(process.env.CLM_BASE_URL && process.env.CLM_API_TOKEN && process.env.CLM_HMAC_SECRET),
+          url: process.env.CLM_BASE_URL ? new URL(process.env.CLM_BASE_URL).origin : null,
+          eventosPendentes: pendentes,
+          eventosComErro: falhos,
+        });
       }
       default:
         return res.status(404).json({ message: `Serviço desconhecido: ${servico}` });

@@ -21,7 +21,7 @@ const BANCO_COR: Record<string, string> = {
   BB: '#f8e71c', Bradesco: '#cc0000', Manual: '#64748b', Efi: '#7c3aed',
 }
 
-type Aba = 'lancamentos' | 'importar' | 'resumo'
+type Aba = 'lancamentos' | 'resumo'
 
 export default function Conciliacao() {
   const [aba, setAba]       = useState<Aba>('lancamentos')
@@ -163,10 +163,7 @@ export default function Conciliacao() {
 
   async function buscarParaConciliar() {
     if (!conciliarBusca.trim()) return
-    const [ped, _] = await Promise.all([
-      pedidosApi.list({ busca: conciliarBusca, limit: 8 }).then(r => r.data).catch(() => []),
-      Promise.resolve([]),
-    ])
+    const ped = await pedidosApi.list({ busca: conciliarBusca, limit: 8 }).then(r => r.data).catch(() => [])
     setConciliarPedidos(ped)
   }
 

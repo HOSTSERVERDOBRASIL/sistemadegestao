@@ -3,11 +3,15 @@ import {
   ContratoJaFaturadoError,
   SaldoInsuficienteError,
   DocumentoObrigatorioError,
+  PedidoJaFaturadoError,
 } from '../services/faturamento.service.js';
 import { CupomInvalidoError } from '../services/cupom.service.js';
 import { logger } from '../config/logger.js';
 import { env } from '../config/env.js';
 import { EfiIntegrationError } from '../services/efi.service.js';
+import { ContratoFluxoError } from '../services/contrato.service.js';
+import { CadastroPublicoError } from '../services/cadastro-publico.service.js';
+import { ClmIntegrationError } from '../services/clm-integration.service.js';
 
 function isSafeMessage(msg: string): boolean {
   // Bloqueia mensagens que expõem internos do MongoDB
@@ -22,7 +26,11 @@ export function errorHandler(err: unknown, req: Request, res: Response, _next: N
   if (err instanceof SaldoInsuficienteError)     return res.status(409).json({ message: err.message });
   if (err instanceof ContratoJaFaturadoError)    return res.status(409).json({ message: err.message });
   if (err instanceof DocumentoObrigatorioError)  return res.status(422).json({ message: err.message });
+  if (err instanceof PedidoJaFaturadoError)       return res.status(409).json({ message: err.message });
   if (err instanceof CupomInvalidoError)         return res.status(422).json({ message: err.message });
+  if (err instanceof ContratoFluxoError)          return res.status(err.statusCode).json({ message: err.message });
+  if (err instanceof CadastroPublicoError)        return res.status(err.statusCode).json({ message: err.message });
+  if (err instanceof ClmIntegrationError)         return res.status(err.statusCode).json({ message: err.message });
   if (err instanceof EfiIntegrationError) {
     logger.warn({ err, path: req.path, method: req.method }, 'Falha na integração Efí');
     return res.status(502).json({ message: err.message });

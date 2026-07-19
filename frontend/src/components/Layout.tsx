@@ -12,33 +12,35 @@ const NAV_GROUPS = [
     ],
   },
   {
-    label: 'Operações',
+    label: 'Comercial',
     items: [
-      { to: '/pedidos',   label: 'Pedidos',   icon: '📋' },
+      { to: '/clientes',  label: 'Clientes',  icon: '👤' },
       { to: '/contratos', label: 'Contratos', icon: '📄' },
+      { to: '/parceiros', label: 'Parceiros / Revendas', icon: '🤝' },
     ],
   },
   {
-    label: 'Cadastros',
+    label: 'Operações',
     items: [
-      { to: '/clientes',  label: 'Clientes',  icon: '👤' },
-      { to: '/produtos',  label: 'Produtos',  icon: '📦' },
-      { to: '/parceiros', label: 'Parceiros', icon: '🤝' },
+      { to: '/pedidos',  label: 'Pedidos',  icon: '📋' },
+      { to: '/produtos', label: 'Produtos', icon: '📦' },
     ],
   },
   {
     label: 'Financeiro',
     items: [
-      { to: '/financeiro',  label: 'Notas Fiscais', icon: '💰' },
-      { to: '/cobrancas',   label: 'Cobranças',     icon: '⚡' },
-      { to: '/conciliacao', label: 'Conciliação',   icon: '⚖️', adminOnly: true },
-      { to: '/cupons',      label: 'Cupons',        icon: '🏷️', adminOnly: true },
+      { to: '/financeiro',     label: 'Notas Fiscais',    icon: '💰' },
+      { to: '/notas-empenho',  label: 'Notas de Empenho', icon: '📑' },
+      { to: '/cobrancas',      label: 'Cobranças',        icon: '⚡' },
+      { to: '/conciliacao',    label: 'Conciliação',      icon: '⚖️', adminOnly: true },
+      { to: '/cupons',         label: 'Cupons',           icon: '🏷️', adminOnly: true },
     ],
   },
   {
     label: 'Análise',
     items: [
       { to: '/relatorios', label: 'Relatórios', icon: '📊' },
+      { to: '/auditoria', label: 'Auditoria', icon: '🔎', roles: ['admin', 'financeiro'] },
     ],
   },
   {
@@ -48,6 +50,7 @@ const NAV_GROUPS = [
       { to: '/integracao-tiny', label: 'Tiny / Olist',   icon: '🔗' },
       { to: '/usuarios',        label: 'Usuários',        icon: '👥' },
       { to: '/configuracoes',   label: 'Configurações',   icon: '🔧' },
+      { to: '/logs',            label: 'Logs',            icon: '🪵' },
     ],
   },
 ]
@@ -78,7 +81,11 @@ export default function Layout() {
         <nav className={styles.nav}>
           {NAV_GROUPS.map((group, gi) => {
             if (group.adminOnly && !isAdmin) return null
-            const visibleItems = group.items.filter(item => !(item as { adminOnly?: boolean }).adminOnly || isAdmin)
+            const visibleItems = group.items.filter(item => {
+              if ((item as { adminOnly?: boolean }).adminOnly && !isAdmin) return false
+              const roles = (item as { roles?: string[] }).roles
+              return !roles || roles.includes(user?.role ?? '')
+            })
             if (visibleItems.length === 0) return null
             return (
               <div key={gi} className={styles.navGroup}>

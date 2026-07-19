@@ -1,6 +1,8 @@
 import { Router } from 'express';
 import { ParceiroModel } from '../models/parceiro.model.js';
+import { PedidoModel } from '../models/pedido.model.js';
 import { authenticate, authorize } from '../middleware/auth.middleware.js';
+import { escapeRegex } from '../utils/query.js';
 
 const router = Router();
 
@@ -8,11 +10,14 @@ router.get('/', authenticate, authorize('admin', 'operador', 'financeiro'), asyn
   try {
     const { page = '1', limit = '20', busca, ativo, emissorNFPadrao } = req.query as Record<string, string>;
     const filter: Record<string, unknown> = {};
-    if (busca) filter.$or = [
-      { nome: { $regex: busca, $options: 'i' } },
-      { documento: { $regex: busca, $options: 'i' } },
-      { email: { $regex: busca, $options: 'i' } }
-    ];
+    if (busca) {
+      const safe = escapeRegex(busca);
+      filter.$or = [
+        { nome: { $regex: safe, $options: 'i' } },
+        { documento: { $regex: safe, $options: 'i' } },
+        { email: { $regex: safe, $options: 'i' } }
+      ];
+    }
     if (ativo !== undefined) filter.ativo = ativo === 'true';
     if (emissorNFPadrao) filter.emissorNFPadrao = emissorNFPadrao;
 
@@ -39,7 +44,11 @@ router.get('/:id', authenticate, authorize('admin', 'operador', 'financeiro'), a
 
 router.post('/', authenticate, authorize('admin', 'operador'), async (req, res, next) => {
   try {
-    const parceiro = await ParceiroModel.create(req.body);
+    const { nome, email, documento, telefone, emissorNFPadrao, comissaoPercentual, observacoes, ativo } = req.body as Record<string, unknown>;
+    if (!nome || !email || !documento) {
+      return res.status(400).json({ message: 'Campos obrigatórios: nome, email, documento' });
+    }
+    const parceiro = await ParceiroModel.create({ nome, email, documento, telefone, emissorNFPadrao, comissaoPercentual, observacoes, ativo });
     res.status(201).json(parceiro);
   } catch (error) {
     next(error);
@@ -48,7 +57,17 @@ router.post('/', authenticate, authorize('admin', 'operador'), async (req, res, 
 
 router.put('/:id', authenticate, authorize('admin', 'operador'), async (req, res, next) => {
   try {
-    const parceiro = await ParceiroModel.findByIdAndUpdate(req.params.id, req.body, { new: true, runValidators: true });
+    const { nome, documento, email, telefone, emissorNFPadrao, comissaoPercentual, observacoes, ativo } = req.body as Record<string, unknown>;
+    const allowed: Record<string, unknown> = {};
+    if (nome !== undefined) allowed.nome = nome;
+    if (documento !== undefined) allowed.documento = documento;
+    if (email !== undefined) allowed.email = email;
+    if (telefone !== undefined) allowed.telefone = telefone;
+    if (emissorNFPadrao !== undefined) allowed.emissorNFPadrao = emissorNFPadrao;
+    if (comissaoPercentual !== undefined) allowed.comissaoPercentual = Number(comissaoPercentual);
+    if (observacoes !== undefined) allowed.observacoes = observacoes;
+    if (ativo !== undefined) allowed.ativo = ativo;
+    const parceiro = await ParceiroModel.findByIdAndUpdate(req.params.id, allowed, { new: true, runValidators: true });
     if (!parceiro) return res.status(404).json({ message: 'Parceiro não encontrado' });
     res.json(parceiro);
   } catch (error) {
@@ -63,6 +82,18 @@ router.patch('/:id/ativo', authenticate, authorize('admin', 'operador'), async (
     const parceiro = await ParceiroModel.findByIdAndUpdate(req.params.id, { ativo }, { new: true });
     if (!parceiro) return res.status(404).json({ message: 'Parceiro não encontrado' });
     res.json(parceiro);
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.get('/:id/pedidos', authenticate, authorize('admin', 'operador', 'financeiro'), async (req, res, next) => {
+  try {
+    const pedidos = await PedidoModel.find({ parceiroId: req.params.id })
+      .populate('clienteId', 'nome documento')
+      .populate('produtoId', 'codigo nome')
+      .sort({ createdAt: -1 });
+    res.json(pedidos);
   } catch (error) {
     next(error);
   }

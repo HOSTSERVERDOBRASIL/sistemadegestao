@@ -54,6 +54,25 @@ O Pix exige um certificado de homologação ou produção emitido pela própria 
 
 O arquivo histórico citado no projeto anterior era `producao-280121-Site-novo.p12`, mas ele não existe no `website-main.zip`. Não use certificado ICP-Brasil/A1 de assinatura: a API Pix aceita o certificado mTLS gerado pela própria Efí para o ambiente correto.
 
+## Ponte da loja
+
+Configure `GESTAO_BRIDGE_API_KEY` com o mesmo segredo usado como `ATLAS_API_KEY` no backend do `website-main`.
+
+| Método | Rota | Função |
+|---|---|---|
+| POST | `/customers/find-or-create` | Localiza ou cria cliente sem duplicar documento |
+| POST | `/subscriptions/assign` | Cria pedido idempotente com itens completos, por compra direta ou contrato |
+| GET | `/lookup/contrato/:cnpj` | Retorna contratos vigentes, saldo e OFs abertas |
+| GET | `/lookup/cnpj/:cnpj` | Consulta cadastral oficial Serpro e classifica esfera pública |
+| GET | `/lookup/cpf/:cpf` | Consulta nome e situação do CPF no Serpro |
+| GET | `/lookup/cep/:cep` | Consulta endereço no ViaCEP |
+
+### Integração com o Atlas CLM
+
+O ERP envia o pedido técnico por `POST /integracoes/clm/pedidos/:id/enviar`. O CLM devolve eventos em `POST /integracoes/clm/eventos`, autenticados por Bearer token, origem e HMAC SHA-256. Eventos repetidos são idempotentes e a execução aparece dentro do próprio detalhe do Pedido.
+
+O acompanhamento da aplicação do pacote `entrega-codex` está em [docs/ENTREGA_CODEX_STATUS.md](docs/ENTREGA_CODEX_STATUS.md).
+
 ## Perfis de acesso
 
 | Perfil | Acesso |
@@ -104,6 +123,8 @@ O arquivo histórico citado no projeto anterior era `producao-280121-Site-novo.p
 | GET/POST | `/contratos/:id/ordens-fornecimento` |
 | GET | `/contratos/:id/pedidos` |
 
+Contratos e ordens respeitam vigência e saldo. Na modalidade **Por Ordem de Fornecimento**, a soma das OFs não pode ultrapassar o valor do contrato e cada pedido deve indicar explicitamente a sua `ordemFornecimentoId`.
+
 ### Pedidos
 | Método | Rota |
 |--------|------|
@@ -113,6 +134,10 @@ O arquivo histórico citado no projeto anterior era `producao-280121-Site-novo.p
 | POST | `/pedidos/:id/emitir-nf` |
 
 **Tipos de vínculo:** `Contrato`, `EmpenhoSF`, `CompraDireta`, `Revenda`
+
+Pedidos aceitam `itens: [{ produtoId, quantidade, precoUnitario, valorTabelaUnitario }]`. Os totais são recalculados pelo backend; `produtoId` continua sendo preenchido com o primeiro item para compatibilidade com integrações antigas.
+
+No vínculo `Contrato`, o backend valida cliente, vigência, modalidade, saldo já faturado e valores reservados por pedidos ainda não faturados. Pedidos sem NF são cancelados por soft-delete, preservando o histórico.
 
 **Fluxo operacional (7 etapas):**
 `Pedido → Pagamento → Validacao → Preparacao → Processamento → Entrega → Conclusao`

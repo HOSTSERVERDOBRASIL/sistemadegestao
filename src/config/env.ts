@@ -39,6 +39,20 @@ export const env = {
   get TINY_TIMEOUT() { return Number(optional('TINY_TIMEOUT', '15000')); },
   get TINY_WEBHOOK_SECRET() { return process.env.TINY_WEBHOOK_SECRET ?? ''; },
 
+  // Ponte autenticada website-main -> Gestão AtlasX
+  get GESTAO_BRIDGE_API_KEY() { return process.env.GESTAO_BRIDGE_API_KEY ?? ''; },
+
+  // Consultas cadastrais oficiais (compatível com o nome usado no Atlas legado)
+  get SERPRO_BASIC_TOKEN() { return process.env.SERPRO_BASIC_TOKEN || process.env.BASECTOKEN_SERPRO || ''; },
+  get SERPRO_TIMEOUT() { return Number(optional('SERPRO_TIMEOUT', '15000')); },
+  get VIACEP_TIMEOUT() { return Number(optional('VIACEP_TIMEOUT', '8000')); },
+
+  // Integração comercial ERP -> CLM e eventos técnicos CLM -> ERP
+  get CLM_BASE_URL() { return (process.env.CLM_BASE_URL ?? '').replace(/\/+$/, ''); },
+  get CLM_API_TOKEN() { return process.env.CLM_API_TOKEN ?? ''; },
+  get CLM_HMAC_SECRET() { return process.env.CLM_HMAC_SECRET ?? ''; },
+  get CLM_TIMEOUT() { return Number(optional('CLM_TIMEOUT', '20000')); },
+
   get isProd() { return this.NODE_ENV === 'production'; },
   get isDev() { return this.NODE_ENV === 'development'; },
 };

@@ -7,9 +7,11 @@
 .btnSecondary { background: #fff; color: #374151; border: 1px solid #d1d5db; padding: 8px 16px; border-radius: 8px; font-size: 0.85rem; font-weight: 600; cursor: pointer; }
 .btnSuccess { background: #15803d; color: #fff; border: none; padding: 8px 16px; border-radius: 8px; font-size: 0.85rem; font-weight: 600; cursor: pointer; }
 
+.btnDanger { background: #b91c1c; color: #fff; border: none; padding: 8px 16px; border-radius: 8px; font-size: 0.85rem; font-weight: 600; cursor: pointer; }
 .btnPrimary:hover:not(:disabled) { background: #1d4ed8; }
 .btnSecondary:hover { background: #f8fafc; }
 .btnSuccess:hover:not(:disabled) { background: #166534; }
+.btnDanger:hover:not(:disabled) { background: #991b1b; }
 .btnUpload {
   background: #f8fafc; color: #374151; border: 1px solid #d1d5db;
   padding: 8px 16px; border-radius: 8px; font-size: 0.85rem; font-weight: 600;

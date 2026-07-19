@@ -79,6 +79,12 @@ export const clientes = {
   toggleAtivo: (id: string, ativo: boolean) => patch<Cliente>(`/clientes/${id}/ativo`, { ativo }),
   remove: (id: string) => del<{ message: string; cliente: Cliente }>(`/clientes/${id}`),
   pedidos: (id: string) => get<import('./types').Pedido[]>(`/clientes/${id}/pedidos`),
+  consultarDocumento: (documento: string) => get<{
+    documento: string; nome: string; situacaoDescricao: string; esferaPublica?: boolean;
+    revisaoManual?: boolean; naturezaJuridicaCodigo?: string; naturezaJuridicaDescricao?: string;
+  }>(`/clientes/consulta/documento/${encodeURIComponent(documento)}`),
+  revalidarCadastro: (id: string) => post<Cliente>(`/clientes/${id}/revalidar-cadastro`, {}),
+  registrarLgpd: (id: string, body: { tipo: 'Acesso' | 'Correcao' | 'Exclusao' | 'Portabilidade'; motivo?: string }) => post<Cliente>(`/clientes/${id}/lgpd`, body),
 }
 
 // Produtos
@@ -103,10 +109,11 @@ export const parceiros = {
   update: (id: string, body: Partial<ParceiroPayload>) => put<Parceiro>(`/parceiros/${id}`, body),
   toggleAtivo: (id: string, ativo: boolean) => patch<Parceiro>(`/parceiros/${id}/ativo`, { ativo }),
   remove: (id: string) => del<{ message: string; parceiro: Parceiro }>(`/parceiros/${id}`),
+  pedidos: (id: string) => get<import('./types').Pedido[]>(`/parceiros/${id}/pedidos`),
 }
 
 // Contratos
-import type { Contrato, ContratoPayload, OrdemFornecimento } from './types'
+import type { Contrato, ContratoPayload, OrdemFornecimento, ResumoFinanceiroContrato } from './types'
 export const contratos = {
   list: (p?: { page?: number; limit?: number; clienteId?: string; ativo?: string; modalidade?: string; busca?: string }) =>
     get<Page<Contrato>>(`/contratos${qs({ page: 1, limit: 20, ...p })}`),
@@ -119,6 +126,9 @@ export const contratos = {
   criarOrdem: (id: string, body: { numero: string; valor: number; dataEmissao?: string; dataFim?: string; observacoes?: string }) =>
     post<OrdemFornecimento>(`/contratos/${id}/ordens-fornecimento`, body),
   pedidos: (id: string) => get<import('./types').Pedido[]>(`/contratos/${id}/pedidos`),
+  resumoFinanceiro: (id: string) => get<ResumoFinanceiroContrato>(`/contratos/${id}/resumo-financeiro`),
+  criarAditivo: (id: string, body: { numero: string; valor: number; motivo: string; dataAssinatura: string; vigenciaAte?: string }) =>
+    post<Contrato>(`/contratos/${id}/aditivos`, body),
 }
 
 // Pedidos
@@ -126,24 +136,36 @@ import type { Pedido, PedidoPayload, EtapaOperacional } from './types'
 export const pedidos = {
   list: (p?: {
     page?: number; limit?: number; clienteId?: string; contratoId?: string;
-    status?: string; etapa?: string; nfEmitida?: string; busca?: string
+    parceiroId?: string; status?: string; etapa?: string; nfEmitida?: string;
+    busca?: string; vinculoTipo?: string;
   }) => get<Page<Pedido>>(`/pedidos${qs({ page: 1, limit: 20, ...p })}`),
   get: (id: string) => get<Pedido>(`/pedidos/${id}`),
   create: (body: PedidoPayload) => post<Pedido>('/pedidos', body),
-  update: (id: string, body: Partial<PedidoPayload>) => put<Pedido>(`/pedidos/${id}`, body),
+  update: (id: string, body: { numero?: string; observacoes?: string; parceiroId?: string; valorRevenda?: number; vinculo?: Partial<PedidoPayload['vinculo']> }) => put<Pedido>(`/pedidos/${id}`, body),
   avancarEtapa: (id: string, etapa: EtapaOperacional, observacao?: string) =>
     patch<Pedido>(`/pedidos/${id}/etapa`, { etapa, observacao }),
+  confirmarProtocolo: (id: string, protocolo: string) => patch<Pedido>(`/pedidos/${id}/protocolo`, { protocolo }),
   emitirNF: (id: string) => post<import('./types').NotaFiscal>(`/pedidos/${id}/emitir-nf`, {}),
+  cancelar: (id: string) => del<{ message: string; pedido: Pedido }>(`/pedidos/${id}`),
+  solicitarCancelamento: (id: string, motivo: string) => post<{ message: string; pedido: Pedido }>(`/pedidos/${id}/solicitar-cancelamento`, { motivo }),
+  aprovarEstorno: (id: string) => post<{ message: string; pedido: Pedido }>(`/pedidos/${id}/aprovar-estorno`, {}),
+  enviarClm: (id: string) => post<{ eventId: string; requestId?: string; status: string }>(`/integracoes/clm/pedidos/${id}/enviar`, {}),
 }
 
 // Financeiro
 import type { NotaFiscal } from './types'
 export const financeiro = {
-  notas: (p?: { page?: number; limit?: number; status?: string; emissor?: string }) =>
+  notas: (p?: { page?: number; limit?: number; status?: string; emissor?: string; pedidoId?: string }) =>
     get<Page<NotaFiscal>>(`/financeiro/notas${qs({ page: 1, limit: 20, ...p })}`),
   nota: (id: string) => get<NotaFiscal>(`/financeiro/notas/${id}`),
   cancelarNota: (id: string, observacoes?: string) =>
     patch<NotaFiscal>(`/financeiro/notas/${id}/cancelar`, { observacoes }),
+  retentar: (id: string) =>
+    post<{ ok: boolean; chaveAcesso?: string; linkAcesso?: string; erro?: string }>(`/financeiro/notas/${id}/retentar`, {}),
+  downloadPdf: (id: string) =>
+    downloadCsv(`/financeiro/notas/${id}/pdf`, `NF-${id}.pdf`),
+  downloadXml: (id: string) =>
+    downloadCsv(`/financeiro/notas/${id}/xml`, `NF-${id}.xml`),
   conciliacao: (p?: { dataInicio?: string; dataFim?: string }) =>
     get<{
       por_emissor: { _id: string; total: number; quantidade: number }[]
@@ -166,7 +188,7 @@ export const relatorios = {
   porCliente: () => get<FaturamentoPorCliente[]>('/relatorios/faturamento-por-cliente'),
   porModalidade: () => get<FaturamentoPorModalidade[]>('/relatorios/faturamento-por-modalidade'),
   porStatus: () => get<PedidosPorStatus[]>('/relatorios/pedidos-por-status'),
-  contratosComSaldo: () => get<Contrato[]>('/relatorios/contratos-com-saldo'),
+  contratosComSaldo: () => get<(Contrato & { saldoDisponivel: number })[]>('/relatorios/contratos-com-saldo'),
   porMes: (meses?: number) =>
     get<FaturamentoPorMes[]>(`/relatorios/faturamento-por-mes${qs({ meses: meses || 12 })}`),
   clientesAtivos: () => get<ClientesAtivos>('/relatorios/clientes-ativos'),
@@ -263,6 +285,23 @@ async function uploadFile(path: string, file: File, fieldName = 'arquivo'): Prom
 export const uploads = {
   comprovante: (pedidoId: string, file: File) => uploadFile(`/uploads/files/pedidos/${pedidoId}/comprovante`, file),
   versaoContrato: (contratoId: string, file: File) => uploadFile(`/uploads/files/contratos/${contratoId}/versao`, file),
+  evidencia: (pedidoId: string, tipo: string, file: File | null, campos?: { origem?: string; observacao?: string }) => {
+    const fd = new FormData()
+    fd.append('tipo', tipo)
+    if (file) fd.append('arquivo', file)
+    if (campos?.origem) fd.append('origem', campos.origem)
+    if (campos?.observacao) fd.append('observacao', campos.observacao)
+    return fetch(`${BASE}/uploads/files/pedidos/${pedidoId}/evidencia`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token()}` },
+      body: fd,
+    }).then(async r => {
+      if (!r.ok) { const b = await r.json().catch(() => ({})); throw new Error((b as { message?: string }).message || `HTTP ${r.status}`) }
+      return r.json() as Promise<{ evidencia: import('./types').Evidencia }>
+    })
+  },
+  removerEvidencia: (pedidoId: string, evidenciaId: string) =>
+    request<{ ok: boolean }>(`/uploads/files/pedidos/${pedidoId}/evidencia/${evidenciaId}`, { method: 'DELETE' }),
 }
 
 // Configurações de integrações
@@ -304,6 +343,19 @@ export const cupons = {
   validar: (body: { codigo: string; valorPedido: number; produtoId?: string; clienteId?: string }) =>
     post<ValidacaoCupom>('/cupons/validar', body),
   pedidos: (id: string) => get<import('./types').Pedido[]>(`/cupons/${id}/pedidos`),
+}
+
+// Notas de Empenho
+import type { NotaEmpenho, NotaEmpenhoPayload } from './types'
+export const notasEmpenho = {
+  list: (p?: { page?: number; limit?: number; busca?: string; clienteId?: string; status?: string }) =>
+    get<Page<NotaEmpenho>>(`/notas-empenho${qs({ page: 1, limit: 20, ...p })}`),
+  get: (id: string) => get<NotaEmpenho>(`/notas-empenho/${id}`),
+  pedidos: (id: string) => get<import('./types').Pedido[]>(`/notas-empenho/${id}/pedidos`),
+  create: (body: NotaEmpenhoPayload) => post<NotaEmpenho>('/notas-empenho', body),
+  update: (id: string, body: { numero?: string; descricao?: string; dataVencimento?: string; status?: string; observacoes?: string }) =>
+    put<NotaEmpenho>(`/notas-empenho/${id}`, body),
+  remove: (id: string) => del<{ message: string; nota: NotaEmpenho }>(`/notas-empenho/${id}`),
 }
 
 // Conciliação Bancária
@@ -348,4 +400,21 @@ export const conciliacao = {
       return r.json() as Promise<{ ok: boolean; inseridos: number; duplicatas: number; total: number }>
     })
   },
+}
+
+import type { LogEntry, LogStats } from './types'
+export const admin = {
+  logs: (p?: { level?: string; de?: string; ate?: string; busca?: string; page?: number; limit?: number }) =>
+    get<{ data: LogEntry[]; total: number; page: number; limit: number; pages: number }>(`/admin/logs${qs({ limit: 50, ...p })}`),
+  logStats: (horas?: number) =>
+    get<LogStats>(`/admin/logs/stats${qs({ horas: horas ?? 24 })}`),
+  limparLogs: (diasAtras?: number) =>
+    del<{ message: string; deletedCount: number }>(`/admin/logs${qs({ diasAtras: diasAtras ?? 7 })}`),
+}
+
+import type { AuditoriaEntry } from './types'
+export const auditoria = {
+  list: (p?: { page?: number; limit?: number; entidade?: string; entidadeId?: string; usuarioId?: string; acao?: string; de?: string; ate?: string }) =>
+    get<Page<AuditoriaEntry>>(`/auditoria${qs({ page: 1, limit: 50, ...p })}`),
+  porPedido: (id: string) => get<AuditoriaEntry[]>(`/auditoria/pedido/${id}`),
 }

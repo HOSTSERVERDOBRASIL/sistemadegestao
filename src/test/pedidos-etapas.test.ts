@@ -1,6 +1,7 @@
 import { describe, it, before, after, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
 import { startTestServer, stopTestServer, clearDatabase, seedBase, getBaseUrl } from './setup.js';
+import { ProdutoModel } from '../models/produto.model.js';
 
 describe('Fluxo de etapas operacionais', () => {
   before(startTestServer);
@@ -22,6 +23,28 @@ describe('Fluxo de etapas operacionais', () => {
     });
     return (await res.json() as { _id: string; etapaOperacional: string });
   }
+
+  it('cria pedido com vários itens e calcula os totais no servidor', async () => {
+    const { token, cliente, produto } = await seedBase();
+    const segundo = await ProdutoModel.create({ codigo: 'PROD-002', nome: 'Segundo Produto', preco: 500, estoque: 10 });
+    const res = await fetch(`${getBaseUrl()}/pedidos`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({
+        numero: 'PE-MULTI', clienteId: cliente._id, produtoId: produto._id,
+        valorTotal: 1, valorTabela: 1, vinculo: { tipo: 'CompraDireta' },
+        itens: [
+          { produtoId: produto._id, quantidade: 2, precoUnitario: 100, valorTabelaUnitario: 120 },
+          { produtoId: segundo._id, quantidade: 1, precoUnitario: 500, valorTabelaUnitario: 550 },
+        ],
+      }),
+    });
+    assert.equal(res.status, 201);
+    const pedido = await res.json() as { itens: unknown[]; valorTotal: number; valorTabela: number };
+    assert.equal(pedido.itens.length, 2);
+    assert.equal(pedido.valorTotal, 700);
+    assert.equal(pedido.valorTabela, 790);
+  });
 
   it('pedido criado começa na etapa Pedido', async () => {
     const { token, cliente, produto } = await seedBase();

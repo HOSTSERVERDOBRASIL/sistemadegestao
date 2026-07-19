@@ -12,6 +12,8 @@ const ICONE: Record<string, string> = {
   olist:    '📦',
   bb:       '🏦',
   bradesco: '🏦',
+  serpro:   '🏛️',
+  clm:      '🔐',
 }
 
 const STATUS_LABEL: Record<string, { label: string; cor: string }> = {
@@ -32,6 +34,7 @@ export default function Configuracoes() {
   const [acao, setAcao] = useState('')
   const [certArquivo, setCertArquivo] = useState<File | null>(null)
   const [uploadandoCert, setUploadandoCert] = useState(false)
+  const [webhookEfi, setWebhookEfi] = useState<{ configurado: boolean; webhookUrl?: string; criacao?: string } | null>(null)
 
   function carregar() {
     setLoading(true)
@@ -40,7 +43,10 @@ export default function Configuracoes() {
       .finally(() => setLoading(false))
   }
 
-  useEffect(() => { carregar() }, [])
+  useEffect(() => {
+    carregar()
+    api.consultarWebhookEfi().then(setWebhookEfi).catch(() => null)
+  }, [])
 
   function abrirEdicao(s: ServicoConfig) {
     const inicial: Record<string, string> = {}
@@ -151,9 +157,16 @@ export default function Configuracoes() {
                     {acao === `status:${s.id}` ? 'Verificando...' : 'Verificar'}
                   </button>
                   {s.id === 'efi' && (
-                    <button className={styles.btnSecondary} onClick={registrarWebhook} disabled={acao !== ''}>
-                      {acao === 'webhook:efi' ? 'Registrando...' : 'Registrar webhook'}
-                    </button>
+                    <>
+                      <button className={styles.btnSecondary} onClick={registrarWebhook} disabled={acao !== ''}>
+                        {acao === 'webhook:efi' ? 'Registrando...' : 'Registrar webhook'}
+                      </button>
+                      {webhookEfi && (
+                        <span style={{ fontSize: '0.72rem', color: webhookEfi.configurado ? '#15803d' : '#94a3b8', alignSelf: 'center' }}>
+                          {webhookEfi.configurado ? `✔ webhook ativo` : '○ webhook não registrado'}
+                        </span>
+                      )}
+                    </>
                   )}
                   <button className={styles.btnPrimary} onClick={() => abrirEdicao(s)}>
                     Editar
@@ -167,7 +180,7 @@ export default function Configuracoes() {
                     <span className={cStyles.campoLabel}>{c.label}</span>
                     <span className={cStyles.campoValor} style={{ color: c.configurado ? '#374151' : '#94a3b8' }}>
                       {c.configurado
-                        ? (c.secret ? c.valor : c.valor)
+                        ? c.valor
                         : 'não configurado'}
                     </span>
                     <span className={`${cStyles.dot} ${c.configurado ? cStyles.dotOk : cStyles.dotVazio}`} />

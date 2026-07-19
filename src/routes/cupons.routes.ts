@@ -88,12 +88,22 @@ router.post('/', authenticate, authorize('admin', 'financeiro'), async (req, res
 // ─── Editar cupom ─────────────────────────────────────────────────────────────
 router.put('/:id', authenticate, authorize('admin', 'financeiro'), async (req, res, next) => {
   try {
-    const body = req.body as Record<string, unknown>;
-    if (body.codigo) body.codigo = (body.codigo as string).toUpperCase().trim();
-    if (body.validoDe) body.validoDe = new Date(body.validoDe as string);
-    if (body.validoAte) body.validoAte = new Date(body.validoAte as string);
+    const src = req.body as Record<string, unknown>;
+    const allowed: Record<string, unknown> = {};
+    if (src.codigo) allowed.codigo = (src.codigo as string).toUpperCase().trim();
+    if (src.descricao !== undefined) allowed.descricao = src.descricao;
+    if (src.tipo !== undefined) allowed.tipo = src.tipo;
+    if (src.valor !== undefined) allowed.valor = Number(src.valor);
+    if (src.valorMinimoPedido !== undefined) allowed.valorMinimoPedido = src.valorMinimoPedido !== null ? Number(src.valorMinimoPedido) : undefined;
+    if (src.valorMaximoDesconto !== undefined) allowed.valorMaximoDesconto = src.valorMaximoDesconto !== null ? Number(src.valorMaximoDesconto) : undefined;
+    if (src.usosMaximos !== undefined) allowed.usosMaximos = src.usosMaximos !== null ? Number(src.usosMaximos) : undefined;
+    if (src.validoDe !== undefined) allowed.validoDe = src.validoDe ? new Date(src.validoDe as string) : undefined;
+    if (src.validoAte !== undefined) allowed.validoAte = src.validoAte ? new Date(src.validoAte as string) : undefined;
+    if (src.produtoIds !== undefined) allowed.produtoIds = src.produtoIds;
+    if (src.clienteIds !== undefined) allowed.clienteIds = src.clienteIds;
+    if (src.ativo !== undefined) allowed.ativo = src.ativo;
 
-    const cupom = await CupomModel.findByIdAndUpdate(req.params.id, body, { new: true, runValidators: true });
+    const cupom = await CupomModel.findByIdAndUpdate(req.params.id, allowed, { new: true, runValidators: true });
     if (!cupom) return res.status(404).json({ message: 'Cupom não encontrado' });
     res.json(cupom);
   } catch (error) { next(error); }

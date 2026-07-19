@@ -6,6 +6,7 @@ import { ParceiroModel } from '../models/parceiro.model.js';
 import { nextSeq } from '../models/counter.model.js';
 import { TinySyncModel } from '../models/tiny-sync.model.js';
 import { tinyAdapter } from './tiny.service.js';
+import { contratoEstaVigente, valorTotalComDireito } from './contrato.service.js';
 
 async function gerarNumeroNF(): Promise<string> {
   const seq = await nextSeq('nota_fiscal');
@@ -74,10 +75,21 @@ export class DocumentoObrigatorioError extends Error {
   }
 }
 
+export class PedidoJaFaturadoError extends Error {
+  constructor(message = 'Este pedido já possui nota fiscal emitida') {
+    super(message);
+    this.name = 'PedidoJaFaturadoError';
+  }
+}
+
 export async function emitirNotaFiscal(pedidoId: string) {
   const pedido = await PedidoModel.findById(pedidoId);
   if (!pedido) {
     throw new Error('Pedido não encontrado');
+  }
+  if (pedido.nfEmitida) throw new PedidoJaFaturadoError();
+  if (pedido.status === 'Cancelado') {
+    throw new DocumentoObrigatorioError('Pedido cancelado não pode ser faturado');
   }
 
   const tipo = pedido.vinculo.tipo;
@@ -86,13 +98,18 @@ export async function emitirNotaFiscal(pedidoId: string) {
     if (!contrato) {
       throw new Error('Contrato não encontrado');
     }
+    if (!contrato.ativo) throw new DocumentoObrigatorioError('Contrato encerrado');
+    if (!contratoEstaVigente(contrato)) {
+      throw new DocumentoObrigatorioError('Contrato fora do período de vigência');
+    }
 
     const modalidade = contrato.modalidade as ModalidadeContrato;
+    const totalComDireito = valorTotalComDireito(contrato);
     if (modalidade === 'Total') {
       if (contrato.valorFaturado > 0) {
         throw new ContratoJaFaturadoError();
       }
-      contrato.valorFaturado = contrato.valorTotal;
+      contrato.valorFaturado = totalComDireito;
       await contrato.save();
       pedido.status = 'Faturado';
       pedido.nfEmitida = true;
@@ -110,7 +127,7 @@ export async function emitirNotaFiscal(pedidoId: string) {
     }
 
     if (modalidade === 'Parcial') {
-      const saldo = contrato.valorTotal - contrato.valorFaturado;
+      const saldo = totalComDireito - contrato.valorFaturado;
       if (saldo < pedido.valorTotal) {
         throw new SaldoInsuficienteError();
       }
@@ -132,23 +149,37 @@ export async function emitirNotaFiscal(pedidoId: string) {
     }
 
     if (modalidade === 'Por Ordem de Fornecimento') {
-      if (!pedido.contratoId) {
-        throw new Error('Contrato não informado para OF');
+      if (!pedido.ordemFornecimentoId) {
+        throw new DocumentoObrigatorioError('Ordem de fornecimento não informada');
       }
-      const ordem = await OrdemFornecimentoModel.findOne({ contratoId: pedido.contratoId });
+      const ordem = await OrdemFornecimentoModel.findOne({
+        _id: pedido.ordemFornecimentoId,
+        contratoId: pedido.contratoId,
+      });
       if (!ordem) {
         throw new Error('Ordem de fornecimento não encontrada');
       }
+      if (ordem.status === 'Fechada') {
+        throw new SaldoInsuficienteError('Ordem de fornecimento fechada');
+      }
+      if (ordem.dataFim && ordem.dataFim < new Date()) {
+        throw new DocumentoObrigatorioError('Ordem de fornecimento vencida');
+      }
       if (ordem.valorFaturado + pedido.valorTotal > ordem.valor) {
-        throw new SaldoInsuficienteError();
+        throw new SaldoInsuficienteError('Saldo insuficiente na ordem de fornecimento');
+      }
+      if (contrato.valorFaturado + pedido.valorTotal > totalComDireito) {
+        throw new SaldoInsuficienteError('Saldo insuficiente no contrato');
       }
       ordem.valorFaturado += pedido.valorTotal;
+      contrato.valorFaturado += pedido.valorTotal;
       if (ordem.valorFaturado >= ordem.valor) {
         ordem.status = 'Fechada';
       } else {
         ordem.status = 'Parcial';
       }
       await ordem.save();
+      await contrato.save();
       pedido.status = 'Faturado';
       pedido.nfEmitida = true;
       await pedido.save();
@@ -166,8 +197,8 @@ export async function emitirNotaFiscal(pedidoId: string) {
   }
 
   if (tipo === 'EmpenhoSF') {
-    if (!pedido.vinculo.empenho || !pedido.vinculo.sf) {
-      throw new DocumentoObrigatorioError('Empenho e solicitação de fornecimento são obrigatórios');
+    if (!pedido.vinculo.empenho) {
+      throw new DocumentoObrigatorioError('Número do empenho é obrigatório');
     }
     pedido.status = 'Faturado';
     pedido.nfEmitida = true;
@@ -178,7 +209,7 @@ export async function emitirNotaFiscal(pedidoId: string) {
       valor: pedido.valorTotal,
       emissor: 'XDigital',
       status: 'Emitida',
-      observacoes: `NF emitida referenciando empenho ${pedido.vinculo.empenho} e SF ${pedido.vinculo.sf}`
+      observacoes: `NF emitida referenciando empenho ${pedido.vinculo.empenho}`
     });
     await tentarEmissaoTiny(String(pedido._id), String(nf4._id));
     return NotaFiscalModel.findById(nf4._id);

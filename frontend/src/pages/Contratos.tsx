@@ -32,6 +32,10 @@ function moeda(v: number) {
   return v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
 }
 
+function totalComAditivos(contrato: Contrato) {
+  return contrato.valorTotal + (contrato.aditivos ?? []).reduce((total, aditivo) => total + aditivo.valor, 0)
+}
+
 function toDateInput(d: string) {
   return d ? d.slice(0, 10) : ''
 }
@@ -124,11 +128,11 @@ export default function Contratos() {
       key: 'clienteId', header: 'Cliente',
       render: (r: Contrato) => typeof r.clienteId === 'object' ? r.clienteId.nome : r.clienteId
     },
-    { key: 'valorTotal', header: 'Valor Total', render: (r: Contrato) => moeda(r.valorTotal) },
+    { key: 'valorTotal', header: 'Valor c/ aditivos', render: (r: Contrato) => moeda(totalComAditivos(r)) },
     {
       key: 'saldo', header: 'Saldo',
       render: (r: Contrato) => {
-        const saldo = r.valorTotal - r.valorFaturado
+        const saldo = totalComAditivos(r) - r.valorFaturado
         return <span style={{ color: saldo > 0 ? '#15803d' : '#64748b', fontWeight: 600 }}>{moeda(saldo)}</span>
       }
     },

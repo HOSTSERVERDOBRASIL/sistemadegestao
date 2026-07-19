@@ -6,6 +6,7 @@ import Pagination from '../components/Pagination'
 import Modal from '../components/Modal'
 import { tiny as api, pedidos as pedidosApi } from '../api'
 import type { TinySync, TinyStatus, Pedido } from '../types'
+import { useAuth } from '../context/AuthContext'
 import styles from './Page.module.css'
 import tStyles from './IntegracaoTiny.module.css'
 
@@ -21,6 +22,8 @@ const STATUS_VARIANT: Record<string, 'success' | 'danger' | 'warning'> = {
 }
 
 export default function IntegracaoTiny() {
+  const { user } = useAuth()
+  const isAdmin = user?.role === 'admin'
   const [status, setStatus] = useState<TinyStatus | null>(null)
   const [syncs, setSyncs] = useState<TinySync[]>([])
   const [total, setTotal] = useState(0)
@@ -39,6 +42,7 @@ export default function IntegracaoTiny() {
   const [importPagina, setImportPagina] = useState(1)
 
   function loadStatus() {
+    if (!isAdmin) return
     api.status().then(setStatus).catch(() => setStatus({ configurado: false, stats: { total: 0, sincronizados: 0, erros: 0, pendentes: 0 } }))
   }
 
