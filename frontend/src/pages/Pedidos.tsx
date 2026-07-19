@@ -261,29 +261,31 @@ export default function Pedidos() {
 
     <div className={styles.filters}>
       <input className={styles.search} placeholder="Buscar por número..." value={busca} onChange={e => { setBusca(e.target.value); setPage(1) }} />
-      <div className={styles.chipRow}>
-        <span className={styles.chipLabel}>Status:</span>
-        {[{ v: '', l: 'Todos' }, ...['Rascunho', 'Aprovado', 'Em processo', 'Faturado', 'Concluido', 'Cancelado'].map(s => ({ v: s, l: s }))].map(({ v, l }) => (
-          <button key={v} className={`${styles.chip} ${v === '' ? filtroStatus.length === 0 ? styles.chipActive : '' : filtroStatus.includes(v) ? styles.chipActive : ''}`} onClick={() => { setFiltroStatus(toggle(filtroStatus, v)); setPage(1) }}>{l}</button>
-        ))}
-      </div>
-      <div className={styles.chipRow}>
-        <span className={styles.chipLabel}>Etapa:</span>
-        {[{ v: '', l: 'Todas' }, ...ETAPAS.map(e => ({ v: e, l: e }))].map(({ v, l }) => (
-          <button key={v} className={`${styles.chip} ${v === '' ? filtroEtapa.length === 0 ? styles.chipActive : '' : filtroEtapa.includes(v) ? styles.chipActive : ''}`} onClick={() => { setFiltroEtapa(toggle(filtroEtapa, v)); setPage(1) }}>{l}</button>
-        ))}
-      </div>
-      <div className={styles.chipRow}>
-        <span className={styles.chipLabel}>Vínculo:</span>
-        {[{ v: '', l: 'Todos' }, ...VINCULOS.map(v => ({ v, l: v }))].map(({ v, l }) => (
-          <button key={v} className={`${styles.chip} ${v === '' ? filtroVinculo.length === 0 ? styles.chipActive : '' : filtroVinculo.includes(v) ? styles.chipActive : ''}`} onClick={() => { setFiltroVinculo(toggle(filtroVinculo, v)); setPage(1) }}>{l}</button>
-        ))}
-      </div>
-      <div className={styles.chipRow}>
-        <span className={styles.chipLabel}>NF:</span>
-        {[{ v: '', l: 'Todas' }, { v: 'true', l: 'Emitida' }, { v: 'false', l: 'Pendente' }].map(({ v, l }) => (
-          <button key={v} className={`${styles.chip} ${filtroNF === v ? styles.chipActive : ''}`} onClick={() => { setFiltroNF(v); setPage(1) }}>{l}</button>
-        ))}
+      <div className={styles.filtersGrid}>
+        <div className={styles.chipRow}>
+          <span className={styles.chipLabel}>Status:</span>
+          {[{ v: '', l: 'Todos' }, ...['Rascunho', 'Aprovado', 'Em processo', 'Faturado', 'Concluido', 'Cancelado'].map(s => ({ v: s, l: s }))].map(({ v, l }) => (
+            <button key={v} className={`${styles.chip} ${v === '' ? filtroStatus.length === 0 ? styles.chipActive : '' : filtroStatus.includes(v) ? styles.chipActive : ''}`} onClick={() => { setFiltroStatus(toggle(filtroStatus, v)); setPage(1) }}>{l}</button>
+          ))}
+        </div>
+        <div className={styles.chipRow}>
+          <span className={styles.chipLabel}>Vínculo:</span>
+          {[{ v: '', l: 'Todos' }, ...VINCULOS.map(v => ({ v, l: v }))].map(({ v, l }) => (
+            <button key={v} className={`${styles.chip} ${v === '' ? filtroVinculo.length === 0 ? styles.chipActive : '' : filtroVinculo.includes(v) ? styles.chipActive : ''}`} onClick={() => { setFiltroVinculo(toggle(filtroVinculo, v)); setPage(1) }}>{l}</button>
+          ))}
+        </div>
+        <div className={styles.chipRow}>
+          <span className={styles.chipLabel}>Etapa:</span>
+          {[{ v: '', l: 'Todas' }, ...ETAPAS.map(e => ({ v: e, l: e }))].map(({ v, l }) => (
+            <button key={v} className={`${styles.chip} ${v === '' ? filtroEtapa.length === 0 ? styles.chipActive : '' : filtroEtapa.includes(v) ? styles.chipActive : ''}`} onClick={() => { setFiltroEtapa(toggle(filtroEtapa, v)); setPage(1) }}>{l}</button>
+          ))}
+        </div>
+        <div className={styles.chipRow}>
+          <span className={styles.chipLabel}>NF:</span>
+          {[{ v: '', l: 'Todas' }, { v: 'true', l: 'Emitida' }, { v: 'false', l: 'Pendente' }].map(({ v, l }) => (
+            <button key={v} className={`${styles.chip} ${filtroNF === v ? styles.chipActive : ''}`} onClick={() => { setFiltroNF(v); setPage(1) }}>{l}</button>
+          ))}
+        </div>
       </div>
     </div>
 

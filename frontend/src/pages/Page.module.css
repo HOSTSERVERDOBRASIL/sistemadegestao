@@ -8,6 +8,12 @@
   flex-direction: column;
 }
 
+.filtersGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px 12px;
+}
+
 .chipRow {
   display: flex;
   gap: 5px;
