@@ -1,0 +1,422 @@
+/* ── Page layout ───────────────────────────────────────── */
+.page {
+  padding: 28px 32px;
+  max-width: 1400px;
+}
+
+.backBtn {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 0.83rem;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 4px 0;
+  margin-bottom: 14px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: color 0.15s;
+}
+
+.backBtn:hover { color: var(--text-primary); }
+
+/* ── Page header ───────────────────────────────────────── */
+.pageHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 4px;
+}
+
+.headerLeft { display: flex; flex-direction: column; gap: 4px; }
+
+.clienteName {
+  font-size: 1.55rem;
+  font-weight: 800;
+  color: var(--text-primary);
+  margin: 0;
+  line-height: 1.2;
+}
+
+.breadcrumb {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex-wrap: wrap;
+}
+
+.breadcrumb a {
+  color: var(--text-muted);
+  text-decoration: none;
+  transition: color 0.12s;
+}
+
+.breadcrumb a:hover { color: var(--accent); }
+
+.breadcrumb span { color: var(--text-muted); opacity: 0.6; }
+
+/* ── Status dropdown ───────────────────────────────────── */
+.statusDropdown {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.statusTrigger {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  border-radius: 8px;
+  transition: background 0.12s;
+}
+
+.statusTrigger:hover { opacity: 0.8; }
+
+.chevron {
+  font-size: 0.65rem;
+  color: var(--text-muted);
+}
+
+.statusMenu {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 6px);
+  background: var(--surface);
+  border: 1px solid var(--surface-border);
+  border-radius: 10px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.18);
+  min-width: 180px;
+  z-index: 50;
+  overflow: hidden;
+  animation: menuIn 0.12s ease;
+}
+
+@keyframes menuIn {
+  from { transform: translateY(-6px); opacity: 0; }
+  to   { transform: translateY(0);   opacity: 1; }
+}
+
+.statusMenuItem {
+  display: block;
+  width: 100%;
+  background: none;
+  border: none;
+  padding: 10px 16px;
+  text-align: left;
+  font-size: 0.83rem;
+  font-weight: 600;
+  cursor: pointer;
+  color: var(--text-primary);
+  transition: background 0.12s;
+}
+
+.statusMenuItem:hover { background: var(--surface-2); }
+
+.statusMenuItem.danger { color: var(--danger); }
+.statusMenuItem.success { color: var(--success); }
+
+/* ── Tabs ──────────────────────────────────────────────── */
+.tabs {
+  display: flex;
+  gap: 0;
+  border-bottom: 2px solid var(--surface-border);
+  margin-top: 24px;
+  margin-bottom: 0;
+  overflow-x: auto;
+}
+
+.tab {
+  background: none;
+  border: none;
+  border-bottom: 2.5px solid transparent;
+  margin-bottom: -2px;
+  padding: 10px 20px;
+  font-size: 0.86rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  cursor: pointer;
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  transition: color 0.15s, border-color 0.15s;
+}
+
+.tab:hover { color: var(--text-primary); }
+
+.tab.tabActive {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+
+.tabBadge {
+  background: var(--surface-2);
+  color: var(--text-muted);
+  border-radius: 20px;
+  padding: 1px 7px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  min-width: 18px;
+  text-align: center;
+}
+
+.tab.tabActive .tabBadge {
+  background: var(--accent-muted);
+  color: var(--accent);
+}
+
+/* ── Tab content ───────────────────────────────────────── */
+.tabContent {
+  padding: 24px 0 0;
+}
+
+/* ── Info grid (Dados de Cadastro) ─────────────────────── */
+.infoGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px 24px;
+  background: var(--surface);
+  border: 1px solid var(--surface-border);
+  border-radius: 12px;
+  padding: 22px 24px;
+  margin-bottom: 20px;
+}
+
+@media (max-width: 640px) {
+  .infoGrid { grid-template-columns: 1fr; }
+}
+
+.infoItem {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.infoLabel {
+  font-size: 0.73rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.infoValue {
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--text-primary);
+  word-break: break-word;
+}
+
+.infoValueMuted {
+  font-size: 0.9rem;
+  color: var(--text-muted);
+}
+
+/* Full-width info item */
+.infoItemFull {
+  grid-column: span 2;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+/* ── Section title ─────────────────────────────────────── */
+.sectionTitle {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin: 0 0 12px;
+}
+
+/* ── LGPD history ──────────────────────────────────────── */
+.lgpdList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background: var(--surface);
+  border: 1px solid var(--surface-border);
+  border-radius: 12px;
+  padding: 18px 20px;
+  margin-bottom: 20px;
+}
+
+.lgpdItem {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--surface-border);
+  font-size: 0.84rem;
+}
+
+.lgpdItem:last-child { border-bottom: none; }
+
+.lgpdMeta {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-left: auto;
+  white-space: nowrap;
+}
+
+/* ── Action buttons row ────────────────────────────────── */
+.actionsRow {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 24px;
+}
+
+/* ── Loading / empty states ────────────────────────────── */
+.loading {
+  padding: 40px 0;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 0.875rem;
+}
+
+.empty {
+  padding: 48px 0;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 0.875rem;
+}
+
+/* ── Button styles (copied from Page.module.css pattern) ── */
+.btnPrimary {
+  background: var(--btn-primary-bg);
+  color: #fff;
+  border: none;
+  padding: 9px 18px;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s;
+}
+
+.btnPrimary:hover:not(:disabled) { background: var(--btn-primary-hover); }
+.btnPrimary:disabled { opacity: 0.65; cursor: default; }
+
+.btnSecondary {
+  background: var(--btn-secondary-bg);
+  color: var(--btn-secondary-text);
+  border: 1px solid var(--btn-secondary-border);
+  padding: 9px 18px;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.btnSecondary:hover:not(:disabled) { background: var(--btn-secondary-hover); }
+.btnSecondary:disabled { opacity: 0.65; cursor: default; }
+
+.btnDesativar {
+  background: rgba(194, 65, 12, 0.1);
+  color: #c2410c;
+  border: 1px solid rgba(194, 65, 12, 0.2);
+  padding: 9px 18px;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+  white-space: nowrap;
+}
+
+.btnDesativar:hover:not(:disabled) { background: rgba(194, 65, 12, 0.16); }
+.btnDesativar:disabled { opacity: 0.45; cursor: default; }
+
+/* ── Form (modal) ──────────────────────────────────────── */
+.form { display: flex; flex-direction: column; gap: 14px; }
+
+.formGrid2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.form label, .formGrid2 label {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.form input, .form select, .form textarea,
+.formGrid2 input, .formGrid2 select, .formGrid2 textarea {
+  padding: 9px 12px;
+  border: 1px solid var(--input-border);
+  border-radius: 8px;
+  font-size: 0.875rem;
+  color: var(--input-text);
+  outline: none;
+  background: var(--input-bg);
+  transition: border-color 0.15s;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.form input:focus, .form select:focus, .form textarea:focus,
+.formGrid2 input:focus, .formGrid2 select:focus, .formGrid2 textarea:focus {
+  border-color: var(--input-focus);
+}
+
+.formActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.error {
+  background: var(--danger-bg);
+  color: var(--danger);
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 0.82rem;
+  margin: 0;
+}
+
+.fieldError {
+  color: var(--danger);
+  font-size: 0.75rem;
+  font-weight: 500;
+  margin-top: -2px;
+}
+
+.inputError {
+  border-color: var(--danger) !important;
+}
+
+/* ── Table action link ─────────────────────────────────── */
+.btnLink {
+  background: none;
+  border: none;
+  color: var(--accent);
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 5px 10px;
+  border-radius: 6px;
+  transition: background 0.12s;
+  white-space: nowrap;
+}
+
+.btnLink:hover { background: var(--accent-muted); }

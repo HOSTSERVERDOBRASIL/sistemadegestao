@@ -1,11 +1,15 @@
 // Auth
-export type Role = 'admin' | 'operador' | 'financeiro' | 'cliente'
+export type Role = 'admin' | 'operador' | 'financeiro' | 'cliente' | 'revenda'
 
 export interface User {
   _id: string
   nome: string
   email: string
   role: Role
+  clienteId?: string
+  parceiroId?: string
+  isMasterCliente?: boolean
+  primeiroAcesso?: boolean
   ativo: boolean
   createdAt: string
   updatedAt: string
@@ -18,7 +22,7 @@ export interface LoginPayload {
 
 export interface LoginResponse {
   token: string
-  user: { id: string; email: string; role: Role }
+  user: { id: string; email: string; role: Role; parceiroId?: string }
 }
 
 // Paginação
@@ -44,6 +48,7 @@ export interface Cliente {
   naturezaJuridicaCodigo?: string
   naturezaJuridicaDescricao?: string
   validadoSerproEm?: string
+  usuarioMasterId?: string | Pick<User, '_id' | 'nome' | 'email' | 'role' | 'ativo' | 'primeiroAcesso'>
   solicitacoesLgpd?: Array<{
     _id: string
     tipo: 'Acesso' | 'Correcao' | 'Exclusao' | 'Portabilidade'
@@ -56,7 +61,7 @@ export interface Cliente {
   createdAt: string
 }
 
-export type ClientePayload = Omit<Cliente, '_id' | 'createdAt' | 'solicitacoesLgpd' | 'situacaoCadastral' | 'naturezaJuridicaCodigo' | 'naturezaJuridicaDescricao' | 'validadoSerproEm' | 'esferaPublicaRevisao'>
+export type ClientePayload = Omit<Cliente, '_id' | 'createdAt' | 'solicitacoesLgpd' | 'situacaoCadastral' | 'naturezaJuridicaCodigo' | 'naturezaJuridicaDescricao' | 'validadoSerproEm' | 'esferaPublicaRevisao' | 'usuarioMasterId'>
 
 // Produto
 export interface Produto {
@@ -76,6 +81,17 @@ export interface Produto {
 export type ProdutoPayload = Omit<Produto, '_id' | 'createdAt'>
 
 // Parceiro
+export type FormaPagamentoRevenda = 'Pre-pago' | 'Pos-pago' | 'Por pedido'
+export type ModeloCobrancaCertificado = 'Por emissao' | 'Por pedido' | 'Fatura mensal'
+
+export interface RegraCobrancaRevenda {
+  formaPagamento: FormaPagamentoRevenda
+  certificadosInternacionais: ModeloCobrancaCertificado
+  certificadosIcpBrasil: ModeloCobrancaCertificado
+  diaVencimento: number
+  limiteCredito: number
+}
+
 export interface Parceiro {
   _id: string
   nome: string
@@ -84,12 +100,40 @@ export interface Parceiro {
   telefone?: string
   emissorNFPadrao: 'XDigital' | 'Revendedor'
   comissaoPercentual?: number
+  usarRegraCobrancaPadrao: boolean
+  regrasCobranca: RegraCobrancaRevenda
+  saldoCreditos: number
   observacoes?: string
   ativo: boolean
   createdAt: string
 }
 
-export type ParceiroPayload = Omit<Parceiro, '_id' | 'createdAt'>
+export type ParceiroPayload = Omit<Parceiro, '_id' | 'createdAt' | 'saldoCreditos'>
+
+export interface MovimentoCreditoRevenda {
+  _id: string
+  tipo: 'Aporte' | 'Consumo' | 'Estorno' | 'Ajuste'
+  valor: number
+  saldoAnterior: number
+  saldoPosterior: number
+  descricao: string
+  createdAt: string
+}
+
+export interface RelatorioRevenda {
+  saldoCreditos: number
+  totalPedidos: number
+  pedidosAtivos: number
+  pedidosConcluidos: number
+  pedidosCancelados: number
+  valorTotalPedidos: number
+  valorAFaturar: number
+  nfsEmitidas: number
+  certificados: { categoria: string; quantidade: number; valor: number }[]
+  volumeMensal: { mes: string; pedidos: number; valor: number }[]
+  topClientes: { nome: string; pedidos: number; valor: number }[]
+  cobrancaSituacao: Record<string, number>
+}
 
 // Contrato
 export type ModalidadeContrato = 'Total' | 'Parcial' | 'Por Ordem de Fornecimento'
@@ -108,7 +152,7 @@ export interface Contrato {
   dataFim: string
   assinantes: string[]
   versoes: { numeroVersao: number; arquivoUrl?: string; data: string }[]
-  aditivos: { numero: string; valor: number; vigenciaAte?: string; motivo: string; dataAssinatura: string }[]
+  aditivos: { numero: string; valor: number; vigenciaAte?: string; motivo: string; dataAssinatura: string; tipo?: 'Reequilíbrio Econômico' | 'Acréscimo' | 'Supressão' | 'Prorrogação' }[]
   createdAt: string
 }
 
@@ -269,6 +313,12 @@ export interface Pedido {
   valorTotal: number
   valorTabela: number
   valorRevenda?: number
+  cobrancaRevenda?: {
+    formaPagamento: FormaPagamentoRevenda
+    modeloCertificado: ModeloCobrancaCertificado | 'Misto'
+    valorCobrado: number
+    situacao: 'Pago com creditos' | 'A faturar' | 'Aguardando pagamento' | 'Estornado'
+  }
   cupomId?: string
   cupomCodigo?: string
   descontoValor?: number
@@ -327,9 +377,17 @@ export type PedidoPayload = {
 export interface NotaFiscal {
   _id: string
   numero: string
+  clienteId?: string | { _id: string; nome: string; documento: string }
   pedidoId: string | Pedido
   valor: number
   tipo?: 'Fiscal' | 'Credito'
+  tipoFaturamento?: 'Total' | 'Demanda' | 'Fechamento'
+  competencia?: string
+  dataVencimento?: string
+  codigoServico?: string
+  aliquotaISS?: number
+  municipioPrestacao?: string
+  itensCertificados?: { tipo: string; quantidade: number }[]
   notaOriginalId?: string
   aprovacaoEstornoSaldo?: 'Pendente' | 'Aprovado' | 'Negado'
   emissor: 'XDigital' | 'Revendedor'
@@ -441,6 +499,8 @@ export interface CampoConfig {
   placeholder: string
   configurado: boolean
   valor: string
+  type?: 'text' | 'number' | 'select'
+  options?: Array<{ value: string; label: string }>
 }
 
 export interface ServicoConfig {

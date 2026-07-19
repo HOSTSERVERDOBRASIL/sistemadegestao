@@ -6,13 +6,22 @@ import Badge from '../components/Badge'
 import Pagination from '../components/Pagination'
 import Modal from '../components/Modal'
 import { parceiros as api } from '../api'
-import type { Parceiro, ParceiroPayload, Pedido } from '../types'
+import type { Parceiro, ParceiroPayload, Pedido, RegraCobrancaRevenda } from '../types'
+import { useAuth } from '../context/AuthContext'
 import { email as validateEmail, documento as validateDoc, required, hasErrors, type FieldErrors } from '../utils/validate'
 import styles from './Page.module.css'
 
 const BLANK: ParceiroPayload = {
   nome: '', documento: '', email: '', telefone: '',
   emissorNFPadrao: 'XDigital', comissaoPercentual: undefined, observacoes: '', ativo: true,
+  usarRegraCobrancaPadrao: true,
+  regrasCobranca: {
+    formaPagamento: 'Pre-pago',
+    certificadosInternacionais: 'Por emissao',
+    certificadosIcpBrasil: 'Por emissao',
+    diaVencimento: 10,
+    limiteCredito: 0,
+  },
 }
 
 type Errs = FieldErrors<ParceiroPayload>
@@ -32,6 +41,7 @@ function moeda(v: number) {
 
 export default function Parceiros() {
   const navigate = useNavigate()
+  const { user } = useAuth()
   const [page, setPage] = useState(1)
   const [total, setTotal] = useState(0)
   const [rows, setRows] = useState<Parceiro[]>([])
@@ -49,6 +59,11 @@ export default function Parceiros() {
   const [detalhe, setDetalhe] = useState<Parceiro | null>(null)
   const [pedidosParceiro, setPedidosParceiro] = useState<Pedido[]>([])
   const [loadingPedidos, setLoadingPedidos] = useState(false)
+  const [regraEfetiva, setRegraEfetiva] = useState<{ origem: 'padrao' | 'revenda'; regras: RegraCobrancaRevenda } | null>(null)
+  const [carteira, setCarteira] = useState<{ saldo: number; movimentos: import('../types').MovimentoCreditoRevenda[] } | null>(null)
+  const [valorCredito, setValorCredito] = useState('')
+  const [descricaoCredito, setDescricaoCredito] = useState('')
+  const [salvandoCredito, setSalvandoCredito] = useState(false)
 
   const ativoParam = filtroAtivo === 'ativos' ? 'true' : filtroAtivo === 'inativos' ? 'false' : undefined
 
@@ -62,13 +77,31 @@ export default function Parceiros() {
   useEffect(() => { load() }, [load])
 
   useEffect(() => {
-    if (!detalhe) { setPedidosParceiro([]); return }
+    if (!detalhe) { setPedidosParceiro([]); setRegraEfetiva(null); setCarteira(null); return }
     setLoadingPedidos(true)
     api.pedidos(detalhe._id)
       .then(setPedidosParceiro)
       .catch(() => setPedidosParceiro([]))
       .finally(() => setLoadingPedidos(false))
+    api.regrasCobranca(detalhe._id).then(setRegraEfetiva).catch(() => setRegraEfetiva(null))
+    api.creditos(detalhe._id).then(setCarteira).catch(() => setCarteira(null))
   }, [detalhe?._id])
+
+  async function adicionarCredito() {
+    if (!detalhe) return
+    const valor = Number(valorCredito.replace(',', '.'))
+    if (!Number.isFinite(valor) || valor <= 0) { setError('Informe um valor de crédito maior que zero.'); return }
+    setSalvandoCredito(true); setError('')
+    try {
+      await api.adicionarCreditos(detalhe._id, { valor, descricao: descricaoCredito || undefined })
+      const atualizada = await api.creditos(detalhe._id)
+      setCarteira(atualizada)
+      setValorCredito(''); setDescricaoCredito('')
+      load()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erro ao adicionar créditos')
+    } finally { setSalvandoCredito(false) }
+  }
 
   function openCreate() {
     setEditing(null); setForm(BLANK); setErrs({}); setTouched(false); setShowModal(true)
@@ -81,6 +114,8 @@ export default function Parceiros() {
       telefone: p.telefone ?? '',
       emissorNFPadrao: p.emissorNFPadrao,
       comissaoPercentual: p.comissaoPercentual,
+      usarRegraCobrancaPadrao: p.usarRegraCobrancaPadrao !== false,
+      regrasCobranca: p.regrasCobranca ?? BLANK.regrasCobranca,
       observacoes: p.observacoes ?? '',
       ativo: p.ativo,
     })
@@ -148,6 +183,7 @@ export default function Parceiros() {
       key: 'emissorNFPadrao', header: 'Emite NF por',
       render: (r: Parceiro) => <Badge label={r.emissorNFPadrao} variant={r.emissorNFPadrao === 'Revendedor' ? 'purple' : 'default'} />
     },
+    { key: 'saldoCreditos', header: 'Créditos', render: (r: Parceiro) => <strong style={{ color: (r.saldoCreditos ?? 0) > 0 ? '#15803d' : '#64748b' }}>{moeda(r.saldoCreditos ?? 0)}</strong> },
     { key: 'ativo', header: 'Status', render: (r: Parceiro) => <Badge label={r.ativo ? 'Ativo' : 'Inativo'} variant={r.ativo ? 'success' : 'default'} /> },
     {
       key: '_actions', header: '', width: '170px',
@@ -216,8 +252,34 @@ export default function Parceiros() {
               <dt>Documento</dt><dd>{detalhe.documento}</dd>
               <dt>E-mail</dt><dd>{detalhe.email}</dd>
               {detalhe.telefone && <><dt>Telefone</dt><dd>{detalhe.telefone}</dd></>}
+              {regraEfetiva && <>
+                <dt>Regra comercial</dt>
+                <dd><Badge label={regraEfetiva.origem === 'padrao' ? 'Padrão global' : 'Personalizada'} variant="info" /></dd>
+                <dt>Pagamento</dt><dd>{regraEfetiva.regras.formaPagamento}</dd>
+                <dt>Certificados internacionais</dt><dd>{regraEfetiva.regras.certificadosInternacionais}</dd>
+                <dt>Certificados ICP-Brasil</dt><dd>{regraEfetiva.regras.certificadosIcpBrasil}</dd>
+                <dt>Vencimento</dt><dd>Dia {regraEfetiva.regras.diaVencimento}</dd>
+                <dt>Limite de crédito</dt><dd>{moeda(regraEfetiva.regras.limiteCredito)}</dd>
+              </>}
               {detalhe.observacoes && <><dt>Observações</dt><dd style={{ fontSize: '0.8rem', color: '#475569' }}>{detalhe.observacoes}</dd></>}
             </dl>
+
+            <div style={{ border: '1px solid #dbeafe', background: '#eff6ff', borderRadius: 10, padding: 12 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
+                <strong style={{ color: '#1e3a8a' }}>Carteira de créditos</strong>
+                <strong style={{ color: '#15803d', fontSize: '1.05rem' }}>{moeda(carteira?.saldo ?? detalhe.saldoCreditos ?? 0)}</strong>
+              </div>
+              {(user?.role === 'admin' || user?.role === 'financeiro') && <div style={{ display: 'grid', gridTemplateColumns: '110px 1fr auto', gap: 6, marginTop: 10 }}>
+                <input type="number" min="0.01" step="0.01" placeholder="Valor (R$)" value={valorCredito} onChange={e => setValorCredito(e.target.value)} />
+                <input placeholder="Descrição da recarga" value={descricaoCredito} onChange={e => setDescricaoCredito(e.target.value)} />
+                <button type="button" className={styles.btnPrimary} disabled={salvandoCredito} onClick={adicionarCredito}>{salvandoCredito ? '...' : 'Adicionar'}</button>
+              </div>}
+              {error && <p className={styles.error} style={{ marginTop: 8 }}>{error}</p>}
+              {carteira?.movimentos.slice(0, 3).map(m => <div key={m._id} style={{ display: 'flex', justifyContent: 'space-between', gap: 8, marginTop: 7, fontSize: '0.72rem', color: '#475569' }}>
+                <span>{m.tipo} — {m.descricao}</span>
+                <strong style={{ color: m.valor >= 0 ? '#15803d' : '#b91c1c' }}>{m.valor >= 0 ? '+' : ''}{moeda(m.valor)}</strong>
+              </div>)}
+            </div>
 
             {/* Pedidos de revenda */}
             <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -271,7 +333,8 @@ export default function Parceiros() {
             </div>
 
             <div className={styles.drawerFooter}>
-              <button className={styles.btnPrimary} onClick={() => { openEdit(detalhe); setDetalhe(null) }}>Editar dados</button>
+              <button className={styles.btnPrimary} onClick={() => navigate(`/parceiros/${detalhe._id}`)}>Ver detalhe completo →</button>
+              <button className={styles.btnSecondary} onClick={() => { openEdit(detalhe); setDetalhe(null) }}>Editar dados</button>
               <button
                 className={detalhe.ativo ? styles.btnDesativar : styles.btnReativar}
                 disabled={toggling === detalhe._id}
@@ -286,7 +349,7 @@ export default function Parceiros() {
 
       {/* ── Modal de edição ── */}
       {showModal && (
-        <Modal title={editing ? 'Editar Parceiro' : 'Novo Parceiro'} onClose={() => setShowModal(false)} size="md">
+        <Modal title={editing ? 'Editar Parceiro' : 'Novo Parceiro'} onClose={() => setShowModal(false)} size="lg">
           <form onSubmit={handleSave} noValidate className={styles.form}>
             <div className={styles.formGrid2}>
               <label>Nome *
@@ -318,6 +381,61 @@ export default function Parceiros() {
                   placeholder="Ex: 10"
                 />
               </label>
+              <label style={{ gridColumn: 'span 2', display: 'flex', flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                <input
+                  type="checkbox"
+                  checked={form.usarRegraCobrancaPadrao}
+                  onChange={e => update({ usarRegraCobrancaPadrao: e.target.checked })}
+                  style={{ width: 16, height: 16 }}
+                />
+                Usar a regra de cobrança padrão definida em Configurações
+              </label>
+              {!form.usarRegraCobrancaPadrao && <>
+                <label>Forma de pagamento
+                  <select
+                    value={form.regrasCobranca.formaPagamento}
+                    onChange={e => update({ regrasCobranca: { ...form.regrasCobranca, formaPagamento: e.target.value as RegraCobrancaRevenda['formaPagamento'] } })}
+                  >
+                    <option value="Pre-pago">Pré-pago — consome créditos</option>
+                    <option value="Pos-pago">Pós-pago — gera faturamento</option>
+                    <option value="Por pedido">Pagamento por pedido</option>
+                  </select>
+                </label>
+                <label>Certificados internacionais
+                  <select
+                    value={form.regrasCobranca.certificadosInternacionais}
+                    onChange={e => update({ regrasCobranca: { ...form.regrasCobranca, certificadosInternacionais: e.target.value as RegraCobrancaRevenda['certificadosInternacionais'] } })}
+                  >
+                    <option value="Por emissao">Cobrar por emissão</option>
+                    <option value="Por pedido">Cobrar por pedido</option>
+                    <option value="Fatura mensal">Consolidar em fatura mensal</option>
+                  </select>
+                </label>
+                <label>Certificados ICP-Brasil
+                  <select
+                    value={form.regrasCobranca.certificadosIcpBrasil}
+                    onChange={e => update({ regrasCobranca: { ...form.regrasCobranca, certificadosIcpBrasil: e.target.value as RegraCobrancaRevenda['certificadosIcpBrasil'] } })}
+                  >
+                    <option value="Por emissao">Cobrar por emissão</option>
+                    <option value="Por pedido">Cobrar por pedido</option>
+                    <option value="Fatura mensal">Consolidar em fatura mensal</option>
+                  </select>
+                </label>
+                <label>Dia do vencimento
+                  <input
+                    type="number" min="1" max="28"
+                    value={form.regrasCobranca.diaVencimento}
+                    onChange={e => update({ regrasCobranca: { ...form.regrasCobranca, diaVencimento: Number(e.target.value) } })}
+                  />
+                </label>
+                <label>Limite de crédito (R$)
+                  <input
+                    type="number" min="0" step="0.01"
+                    value={form.regrasCobranca.limiteCredito}
+                    onChange={e => update({ regrasCobranca: { ...form.regrasCobranca, limiteCredito: Number(e.target.value) } })}
+                  />
+                </label>
+              </>}
               <label style={{ gridColumn: 'span 2' }}>Observações
                 <textarea value={form.observacoes || ''} onChange={e => update({ observacoes: e.target.value })} rows={2} placeholder="Condições comerciais, contato responsável..." />
               </label>

@@ -14,10 +14,33 @@ import { NotaFiscalModel } from '../models/nota-fiscal.model.js';
 import { nextSeq } from '../models/counter.model.js';
 import { registrarAuditoria } from '../services/auditoria.service.js';
 import { estornarSaldoNotaEmpenho, reservarSaldoNotaEmpenho } from '../services/nota-empenho.service.js';
+import { movimentarCreditoRevenda, obterRegraCobrancaRevenda } from '../services/revenda-cobranca.service.js';
+import { ProdutoModel } from '../models/produto.model.js';
 
 const router = Router();
 
-router.get('/', authenticate, authorize('admin', 'operador', 'financeiro'), async (req, res, next) => {
+function toFilter(v: string | undefined) {
+  if (!v) return undefined
+  const arr = v.split(',').map(s => s.trim()).filter(Boolean)
+  return arr.length === 1 ? arr[0] : { $in: arr }
+}
+
+async function estornarCreditoPrePago(pedido: InstanceType<typeof PedidoModel>, usuarioId?: string) {
+  if (!pedido.parceiroId || pedido.cobrancaRevenda?.formaPagamento !== 'Pre-pago' ||
+      pedido.cobrancaRevenda.situacao === 'Estornado') return;
+  await movimentarCreditoRevenda({
+    parceiroId: pedido.parceiroId,
+    pedidoId: pedido._id,
+    valor: pedido.cobrancaRevenda.valorCobrado,
+    tipo: 'Estorno',
+    descricao: `Estorno de créditos do pedido ${pedido.numero}`,
+    usuarioId,
+  });
+  pedido.cobrancaRevenda.situacao = 'Estornado';
+  await pedido.save();
+}
+
+router.get('/', authenticate, authorize('admin', 'operador', 'financeiro', 'revenda'), async (req, res, next) => {
   try {
     const { clienteId, produtoId, contratoId, parceiroId, status, etapa, nfEmitida, busca, vinculoTipo } = req.query as Record<string, string>;
     const page = parsePage(req.query.page as string);
@@ -28,19 +51,36 @@ router.get('/', authenticate, authorize('admin', 'operador', 'financeiro'), asyn
     if (produtoId) filter.produtoId = produtoId;
     if (contratoId) filter.contratoId = contratoId;
     if (parceiroId) filter.parceiroId = parceiroId;
-    if (status) filter.status = status;
-    if (etapa) filter.etapaOperacional = etapa;
+    const statusFilter = toFilter(status)
+    if (statusFilter) filter.status = statusFilter;
+    const etapaFilter = toFilter(etapa)
+    if (etapaFilter) filter.etapaOperacional = etapaFilter;
     if (nfEmitida !== undefined) filter.nfEmitida = nfEmitida === 'true';
     if (busca) filter.numero = { $regex: escapeRegex(busca), $options: 'i' };
-    if (vinculoTipo === 'Contrato') filter.contratoId = { $exists: true };
-    if (vinculoTipo === 'Revenda') filter.parceiroId = { $exists: true };
-    if (vinculoTipo === 'EmpenhoSF') filter.$or = [
-      { notaEmpenhoId: { $exists: true } }, { numeroEmpenhoNoContrato: { $exists: true, $ne: '' } }, { 'vinculo.empenho': { $exists: true, $ne: '' } },
-    ];
-    if (vinculoTipo === 'CompraDireta') filter.$and = [
-      { contratoId: { $exists: false } }, { parceiroId: { $exists: false } }, { notaEmpenhoId: { $exists: false } },
-      { numeroEmpenhoNoContrato: { $in: [null, ''] } },
-    ];
+    const vinculoTipos = vinculoTipo ? vinculoTipo.split(',').map(s => s.trim()).filter(Boolean) : []
+    if (vinculoTipos.length > 0) {
+      const vinculoOr: Record<string, unknown>[] = []
+      if (vinculoTipos.includes('Contrato')) vinculoOr.push({ contratoId: { $exists: true } })
+      if (vinculoTipos.includes('Revenda')) vinculoOr.push({ parceiroId: { $exists: true } })
+      if (vinculoTipos.includes('EmpenhoSF')) vinculoOr.push(
+        { notaEmpenhoId: { $exists: true } },
+        { numeroEmpenhoNoContrato: { $exists: true, $ne: '' } },
+        { 'vinculo.empenho': { $exists: true, $ne: '' } }
+      )
+      if (vinculoTipos.includes('CompraDireta')) vinculoOr.push({
+        $and: [
+          { contratoId: { $exists: false } }, { parceiroId: { $exists: false } },
+          { notaEmpenhoId: { $exists: false } }, { numeroEmpenhoNoContrato: { $in: [null, ''] } },
+        ]
+      } as Record<string, unknown>)
+      if (vinculoOr.length > 0) filter.$or = vinculoOr
+    }
+
+    // Revenda só enxerga os próprios pedidos
+    const authReq = req as AuthenticatedRequest;
+    if (authReq.user?.role === 'revenda' && authReq.user.parceiroId) {
+      filter.parceiroId = authReq.user.parceiroId;
+    }
 
     const skip = (page - 1) * limit;
     const [data, total] = await Promise.all([
@@ -61,7 +101,7 @@ router.get('/', authenticate, authorize('admin', 'operador', 'financeiro'), asyn
   }
 });
 
-router.get('/:id', authenticate, authorize('admin', 'operador', 'financeiro'), async (req, res, next) => {
+router.get('/:id', authenticate, authorize('admin', 'operador', 'financeiro', 'revenda'), async (req, res, next) => {
   try {
     const pedido = await PedidoModel.findById(req.params.id)
       .populate('clienteId', 'nome documento email telefone')
@@ -73,6 +113,13 @@ router.get('/:id', authenticate, authorize('admin', 'operador', 'financeiro'), a
       .populate('notaEmpenhoId', 'numero valor valorUtilizado status descricao')
       .populate('historicoEtapas.usuarioId', 'nome email');
     if (!pedido) return res.status(404).json({ message: 'Pedido não encontrado' });
+    const authReq = req as AuthenticatedRequest;
+    if (authReq.user?.role === 'revenda') {
+      const parceiroIdPedido = pedido.parceiroId?.toString();
+      if (parceiroIdPedido !== authReq.user.parceiroId) {
+        return res.status(403).json({ message: 'Sem permissão' });
+      }
+    }
     res.json(pedido);
   } catch (error) {
     next(error);
@@ -85,8 +132,10 @@ router.post('/', authenticate, authorize('admin', 'operador'), async (req, res, 
       cupomCodigo?: string;
       valorTotal?: number;
       valorTabela?: number;
+      valorRevenda?: number;
       produtoId?: string;
       clienteId?: string;
+      parceiroId?: string;
       contratoId?: string;
       ordemFornecimentoId?: string;
       notaEmpenhoId?: string;
@@ -97,7 +146,7 @@ router.post('/', authenticate, authorize('admin', 'operador'), async (req, res, 
         precoUnitario?: number;
         valorTabelaUnitario?: number;
       }>;
-      vinculo?: { tipo?: string; empenho?: string; emissorNF?: 'XDigital' | 'Revendedor' };
+      vinculo?: { tipo?: string; empenho?: string; emissorNF?: 'XDigital' | 'Revendedor'; comprovantePagamentoAprovado?: boolean };
       historicoEtapas?: unknown[];
       [key: string]: unknown;
     };
@@ -186,11 +235,66 @@ router.post('/', authenticate, authorize('admin', 'operador'), async (req, res, 
       });
       notaReservada = true;
     }
+    let movimentoCredito: Awaited<ReturnType<typeof movimentarCreditoRevenda>>['movimento'] | undefined;
+    if (body.parceiroId) {
+      const politica = await obterRegraCobrancaRevenda(body.parceiroId);
+      if (!politica) throw new ContratoFluxoError('Revenda não encontrada', 404);
+      const produtos = await ProdutoModel.find({ _id: { $in: calculado.itens.map(item => item.produtoId) } }).select('categoria').lean();
+      const tipos = new Set(produtos.map(produto => String(produto.categoria || '').toUpperCase().startsWith('ICP-') ? 'icp' : 'internacional'));
+      const modeloCertificado = tipos.size > 1
+        ? 'Misto'
+        : tipos.has('icp') ? politica.regras.certificadosIcpBrasil : politica.regras.certificadosInternacionais;
+      const valorCobrado = Math.round(Number(body.valorRevenda ?? body.valorTotal) * 100) / 100;
+      const situacao = politica.regras.formaPagamento === 'Pre-pago'
+        ? 'Pago com creditos'
+        : politica.regras.formaPagamento === 'Pos-pago' ? 'A faturar' : 'Aguardando pagamento';
+      body.cobrancaRevenda = { formaPagamento: politica.regras.formaPagamento, modeloCertificado, valorCobrado, situacao };
+      if (politica.regras.formaPagamento === 'Pos-pago' && politica.regras.limiteCredito > 0) {
+        const [aberto] = await PedidoModel.aggregate<{ total: number }>([
+          { $match: { parceiroId: politica.parceiro._id, 'cobrancaRevenda.situacao': 'A faturar', status: { $ne: 'Cancelado' } } },
+          { $group: { _id: null, total: { $sum: '$cobrancaRevenda.valorCobrado' } } },
+        ]);
+        const utilizado = aberto?.total ?? 0;
+        if (utilizado + valorCobrado > politica.regras.limiteCredito) {
+          throw new ContratoFluxoError(
+            `Limite pós-pago excedido. Disponível: R$ ${Math.max(0, politica.regras.limiteCredito - utilizado).toFixed(2)}`,
+            422
+          );
+        }
+      }
+      if (politica.regras.formaPagamento === 'Por pedido') {
+        body.vinculo.comprovantePagamentoAprovado = false;
+      }
+      if (politica.regras.formaPagamento === 'Pre-pago') {
+        try {
+          movimentoCredito = (await movimentarCreditoRevenda({
+            parceiroId: body.parceiroId,
+            valor: valorCobrado,
+            tipo: 'Consumo',
+            descricao: `Consumo antecipado do pedido ${String(body.numero || '')}`,
+            usuarioId: (req as AuthenticatedRequest).user?.id,
+          })).movimento;
+        } catch (error) {
+          if (notaReservada) await estornarSaldoNotaEmpenho(body.notaEmpenhoId, body.valorTotal);
+          throw new ContratoFluxoError(error instanceof Error ? error.message : 'Não foi possível consumir os créditos da revenda', 422);
+        }
+      }
+    }
     let pedido;
     try {
       pedido = await PedidoModel.create(body);
+      if (movimentoCredito) {
+        movimentoCredito.pedidoId = pedido._id;
+        await movimentoCredito.save();
+      }
     } catch (error) {
       if (notaReservada) await estornarSaldoNotaEmpenho(body.notaEmpenhoId, body.valorTotal);
+      if (movimentoCredito && body.parceiroId) {
+        await movimentarCreditoRevenda({
+          parceiroId: body.parceiroId, valor: Math.abs(movimentoCredito.valor), tipo: 'Estorno',
+          descricao: `Estorno automático: falha ao criar o pedido ${String(body.numero || '')}`, usuarioId: (req as AuthenticatedRequest).user?.id,
+        });
+      }
       throw error;
     }
     if (body.cupomId) await registrarUsoCupom(body.cupomId as Types.ObjectId);
@@ -305,6 +409,7 @@ router.delete('/:id', authenticate, authorize('admin'), async (req, res, next) =
       return res.status(409).json({ message: 'Pedido confirmado/faturado exige solicitação de cancelamento com nota de crédito' });
     }
     if (pedido.status === 'Cancelado') {
+      await estornarCreditoPrePago(pedido, (req as AuthenticatedRequest).user?.id);
       return res.json({ message: 'Pedido já estava cancelado', pedido });
     }
     pedido.status = 'Cancelado';
@@ -321,6 +426,7 @@ router.delete('/:id', authenticate, authorize('admin'), async (req, res, next) =
     if (pedido.notaEmpenhoId) {
       await estornarSaldoNotaEmpenho(pedido.notaEmpenhoId, pedido.valorTotal);
     }
+    await estornarCreditoPrePago(pedido, (req as AuthenticatedRequest).user?.id);
     res.json({ message: 'Pedido cancelado', pedido });
   } catch (error) {
     next(error);
@@ -374,6 +480,7 @@ router.post('/:id/aprovar-estorno', authenticate, authorize('admin'), async (req
     if (pedido.notaEmpenhoId) {
       await estornarSaldoNotaEmpenho(pedido.notaEmpenhoId, pedido.valorTotal);
     }
+    await estornarCreditoPrePago(pedido, (req as AuthenticatedRequest).user?.id);
     await registrarAuditoria({
       entidade: 'Pedido', entidadeId: pedido._id, acao: 'estorno_saldo_aprovado', origem: 'Painel',
       detalhes: { notaCreditoId: String(notaCredito._id), valor: pedido.valorTotal },

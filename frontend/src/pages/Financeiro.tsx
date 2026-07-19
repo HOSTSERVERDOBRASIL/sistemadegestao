@@ -22,8 +22,9 @@ export default function Financeiro() {
   const [total, setTotal] = useState(0)
   const [rows, setRows] = useState<NotaFiscal[]>([])
   const [loading, setLoading] = useState(true)
-  const [filtroStatus, setFiltroStatus] = useState('')
-  const [filtroEmissor, setFiltroEmissor] = useState('')
+  const [filtroStatus, setFiltroStatus] = useState<string[]>([])
+  const [filtroEmissor, setFiltroEmissor] = useState<string[]>([])
+  const [filtroTipoFat, setFiltroTipoFat] = useState<string[]>([])
   const [resumo, setResumo] = useState<{ notasEmitidas: number; totalFaturado: number; pedidosFaturados: number; notasPendentes: number } | null>(null)
   const [conciliacao, setConciliacao] = useState<{
     por_emissor: { _id: string; total: number; quantidade: number }[]
@@ -39,13 +40,27 @@ export default function Financeiro() {
   const [dataInicio, setDataInicio] = useState('')
   const [dataFim, setDataFim] = useState('')
   const [exportando, setExportando] = useState(false)
+  const [showAvulsa, setShowAvulsa] = useState(false)
+  const [avulsaForm, setAvulsaForm] = useState({ numero: '', valor: '', emissor: 'XDigital' as 'XDigital' | 'Revendedor', tipoFaturamento: '' as '' | 'Total' | 'Demanda' | 'Fechamento', descricao: '', observacoes: '' })
+  const [savingAvulsa, setSavingAvulsa] = useState(false)
+  const [avulsaError, setAvulsaError] = useState('')
+
+  function toggle(arr: string[], val: string): string[] {
+    if (!val) return []
+    return arr.includes(val) ? arr.filter(x => x !== val) : [...arr, val]
+  }
 
   const loadNotas = useCallback(() => {
     setLoading(true)
-    api.notas({ page, status: filtroStatus, emissor: filtroEmissor })
+    api.notas({
+      page,
+      status: filtroStatus.length > 0 ? filtroStatus.join(',') : undefined,
+      emissor: filtroEmissor.length > 0 ? filtroEmissor.join(',') : undefined,
+      tipoFaturamento: filtroTipoFat.length > 0 ? filtroTipoFat.join(',') : undefined,
+    })
       .then(res => { setRows(res.data); setTotal(res.total) })
       .finally(() => setLoading(false))
-  }, [page, filtroStatus, filtroEmissor])
+  }, [page, filtroStatus, filtroEmissor, filtroTipoFat])
 
   const loadResumo = useCallback(() => {
     Promise.all([
@@ -60,8 +75,8 @@ export default function Financeiro() {
   async function handleExportar() {
     setExportando(true)
     const params: Record<string, string> = {}
-    if (filtroStatus) params.status = filtroStatus
-    if (filtroEmissor) params.emissor = filtroEmissor
+    if (filtroStatus.length > 0) params.status = filtroStatus.join(',')
+    if (filtroEmissor.length > 0) params.emissor = filtroEmissor.join(',')
     if (dataInicio) params.dataInicio = dataInicio
     if (dataFim) params.dataFim = dataFim
     try { await exportar.notas(params) } catch { /* silent */ } finally { setExportando(false) }
@@ -91,6 +106,30 @@ export default function Financeiro() {
     } finally { setBaixando(null) }
   }
 
+  async function handleCriarAvulsa(e: React.FormEvent) {
+    e.preventDefault()
+    setAvulsaError('')
+    const valor = parseFloat(avulsaForm.valor.replace(',', '.'))
+    if (!avulsaForm.numero.trim()) return setAvulsaError('Número da NF é obrigatório')
+    if (isNaN(valor) || valor <= 0) return setAvulsaError('Valor deve ser maior que zero')
+    setSavingAvulsa(true)
+    try {
+      await api.criarAvulsa({
+        numero: avulsaForm.numero.trim(),
+        valor,
+        emissor: avulsaForm.emissor,
+        tipoFaturamento: avulsaForm.tipoFaturamento || undefined,
+        descricao: avulsaForm.descricao.trim() || undefined,
+        observacoes: avulsaForm.observacoes.trim() || undefined,
+      })
+      setShowAvulsa(false)
+      setAvulsaForm({ numero: '', valor: '', emissor: 'XDigital', tipoFaturamento: '', descricao: '', observacoes: '' })
+      loadNotas(); loadResumo()
+    } catch (err) {
+      setAvulsaError(err instanceof Error ? err.message : 'Erro ao criar nota')
+    } finally { setSavingAvulsa(false) }
+  }
+
   async function handleCancelar(e: React.FormEvent) {
     e.preventDefault()
     if (!cancelNota) return
@@ -112,6 +151,14 @@ export default function Financeiro() {
     },
     { key: 'valor', header: 'Valor', render: (r: NotaFiscal) => moeda(r.valor) },
     { key: 'emissor', header: 'Emissor', render: (r: NotaFiscal) => <Badge label={r.emissor} /> },
+    {
+      key: 'tipoFaturamento', header: 'Tipo Fat.',
+      render: (r: NotaFiscal) => {
+        if (!r.tipoFaturamento) return <span style={{ color: '#94a3b8', fontSize: '0.75rem' }}>—</span>
+        const map: Record<string, 'info' | 'success' | 'warning'> = { Total: 'info', Demanda: 'success', Fechamento: 'warning' }
+        return <Badge label={r.tipoFaturamento} variant={map[r.tipoFaturamento] ?? 'default'} />
+      }
+    },
     { key: 'status', header: 'Status', render: (r: NotaFiscal) => <Badge label={r.status} /> },
     { key: 'createdAt', header: 'Data', render: (r: NotaFiscal) => fmt(r.createdAt) },
     {
@@ -185,9 +232,14 @@ export default function Financeiro() {
         title="Financeiro"
         subtitle="Notas Fiscais e conciliação"
         action={
-          <button className={styles.btnSecondary} onClick={handleExportar} disabled={exportando}>
-            {exportando ? 'Exportando...' : '⬇ Notas CSV'}
-          </button>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button className={styles.btnPrimary} onClick={() => { setAvulsaError(''); setShowAvulsa(true) }}>
+              + NF Avulsa
+            </button>
+            <button className={styles.btnSecondary} onClick={handleExportar} disabled={exportando}>
+              {exportando ? 'Exportando...' : '⬇ Notas CSV'}
+            </button>
+          </div>
         }
       />
 
@@ -240,25 +292,68 @@ export default function Financeiro() {
       )}
 
       <div className={styles.panel}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-          <h3 className={styles.panelTitle} style={{ margin: 0 }}>Notas Fiscais</h3>
-          <div className={styles.filters} style={{ margin: 0 }}>
-            <select value={filtroStatus} onChange={e => { setFiltroStatus(e.target.value); setPage(1) }}>
-              <option value="">Todos os status</option>
-              <option value="Emitida">Emitida</option>
-              <option value="Pendente">Pendente</option>
-              <option value="Cancelada">Cancelada</option>
-            </select>
-            <select value={filtroEmissor} onChange={e => { setFiltroEmissor(e.target.value); setPage(1) }}>
-              <option value="">Todos os emissores</option>
-              <option value="XDigital">XDigital</option>
-              <option value="Revendedor">Revendedor</option>
-            </select>
+        <h3 className={styles.panelTitle}>Notas Fiscais</h3>
+        <div className={styles.filters} style={{ marginBottom: 16 }}>
+          <div className={styles.chipRow}>
+            <span className={styles.chipLabel}>Status:</span>
+            {[{ v: '', l: 'Todos' }, { v: 'Emitida', l: 'Emitida' }, { v: 'Pendente', l: 'Pendente' }, { v: 'Cancelada', l: 'Cancelada' }].map(({ v, l }) => (
+              <button key={v} className={`${styles.chip} ${v === '' ? filtroStatus.length === 0 ? styles.chipActive : '' : filtroStatus.includes(v) ? styles.chipActive : ''}`} onClick={() => { setFiltroStatus(toggle(filtroStatus, v)); setPage(1) }}>{l}</button>
+            ))}
+          </div>
+          <div className={styles.chipRow}>
+            <span className={styles.chipLabel}>Emissor:</span>
+            {[{ v: '', l: 'Todos' }, { v: 'XDigital', l: 'XDigital' }, { v: 'Revendedor', l: 'Revendedor' }].map(({ v, l }) => (
+              <button key={v} className={`${styles.chip} ${v === '' ? filtroEmissor.length === 0 ? styles.chipActive : '' : filtroEmissor.includes(v) ? styles.chipActive : ''}`} onClick={() => { setFiltroEmissor(toggle(filtroEmissor, v)); setPage(1) }}>{l}</button>
+            ))}
+          </div>
+          <div className={styles.chipRow}>
+            <span className={styles.chipLabel}>Tipo Fat.:</span>
+            {[{ v: '', l: 'Todos' }, { v: 'Total', l: 'Total' }, { v: 'Demanda', l: 'Por Demanda' }, { v: 'Fechamento', l: 'Fechamento' }].map(({ v, l }) => (
+              <button key={v} className={`${styles.chip} ${v === '' ? filtroTipoFat.length === 0 ? styles.chipActive : '' : filtroTipoFat.includes(v) ? styles.chipActive : ''}`} onClick={() => { setFiltroTipoFat(toggle(filtroTipoFat, v)); setPage(1) }}>{l}</button>
+            ))}
           </div>
         </div>
         <Table columns={columns} rows={rows} loading={loading} empty="Nenhuma nota encontrada" />
         <Pagination page={page} total={total} limit={20} onChange={setPage} />
       </div>
+
+      {showAvulsa && (
+        <Modal title="Emitir NF Avulsa" onClose={() => setShowAvulsa(false)} size="sm">
+          <form onSubmit={handleCriarAvulsa} className={styles.form}>
+            <label>Número da NF *
+              <input value={avulsaForm.numero} onChange={e => setAvulsaForm(f => ({ ...f, numero: e.target.value }))} placeholder="Ex: 00001234" autoFocus />
+            </label>
+            <label>Valor (R$) *
+              <input type="number" step="0.01" min="0.01" value={avulsaForm.valor} onChange={e => setAvulsaForm(f => ({ ...f, valor: e.target.value }))} placeholder="0,00" />
+            </label>
+            <label>Emissor *
+              <select value={avulsaForm.emissor} onChange={e => setAvulsaForm(f => ({ ...f, emissor: e.target.value as 'XDigital' | 'Revendedor' }))}>
+                <option value="XDigital">XDigital</option>
+                <option value="Revendedor">Revendedor</option>
+              </select>
+            </label>
+            <label>Tipo de Faturamento
+              <select value={avulsaForm.tipoFaturamento} onChange={e => setAvulsaForm(f => ({ ...f, tipoFaturamento: e.target.value as '' | 'Total' | 'Demanda' | 'Fechamento' }))}>
+                <option value="">Não classificado</option>
+                <option value="Total">Total (faturamento único do contrato)</option>
+                <option value="Demanda">Por Demanda (certificados por solicitação)</option>
+                <option value="Fechamento">Fechamento (quantitativo mensal)</option>
+              </select>
+            </label>
+            <label>Descrição
+              <input value={avulsaForm.descricao} onChange={e => setAvulsaForm(f => ({ ...f, descricao: e.target.value }))} placeholder="Descrição dos serviços (opcional)" />
+            </label>
+            <label>Observações
+              <textarea value={avulsaForm.observacoes} onChange={e => setAvulsaForm(f => ({ ...f, observacoes: e.target.value }))} rows={2} placeholder="Observações internas (opcional)" />
+            </label>
+            {avulsaError && <p className={styles.error}>{avulsaError}</p>}
+            <div className={styles.formActions}>
+              <button type="button" className={styles.btnSecondary} onClick={() => setShowAvulsa(false)}>Cancelar</button>
+              <button type="submit" className={styles.btnPrimary} disabled={savingAvulsa}>{savingAvulsa ? 'Emitindo...' : 'Emitir NF'}</button>
+            </div>
+          </form>
+        </Modal>
+      )}
 
       {showCancelModal && cancelNota && (
         <Modal title="Cancelar Nota Fiscal" onClose={() => { setShowCancelModal(false); setCancelNota(null) }} size="sm">

@@ -7,6 +7,12 @@ import { escapeRegex, parseLimit, parsePage } from '../utils/query.js';
 
 const router = Router();
 
+function toFilter(v: string | undefined) {
+  if (!v) return undefined
+  const arr = v.split(',').map(s => s.trim()).filter(Boolean)
+  return arr.length === 1 ? arr[0] : { $in: arr }
+}
+
 router.get('/', authenticate, authorize('admin', 'operador', 'financeiro'), async (req, res, next) => {
   try {
     const { busca, clienteId, status } = req.query as Record<string, string>;
@@ -16,7 +22,8 @@ router.get('/', authenticate, authorize('admin', 'operador', 'financeiro'), asyn
 
     if (busca) filter.numero = { $regex: escapeRegex(busca), $options: 'i' };
     if (clienteId) filter.clienteId = clienteId;
-    if (status) filter.status = status;
+    const statusFilter = toFilter(status)
+    if (statusFilter) filter.status = statusFilter;
 
     const skip = (page - 1) * limit;
     const [data, total] = await Promise.all([

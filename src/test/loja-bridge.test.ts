@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { clearDatabase, getBaseUrl, seedBase, startTestServer, stopTestServer } from './setup.js';
 import { ContratoModel } from '../models/contrato.model.js';
 import { PedidoModel } from '../models/pedido.model.js';
+import { NotaFiscalModel } from '../models/nota-fiscal.model.js';
 
 process.env.GESTAO_BRIDGE_API_KEY = 'bridge-test-secret';
 const auth = { Authorization: 'Bearer bridge-test-secret', 'Content-Type': 'application/json' };
@@ -53,6 +54,10 @@ describe('Ponte Loja → AtlasX', () => {
     assert.equal(pedido?.valorTotal, 251);
     assert.equal(pedido?.itens[0].quantidade, 2);
     assert.equal(pedido?.vinculo.tipo, 'CompraDireta');
+    assert.equal(pedido?.nfEmitida, true);
+    const nota = await NotaFiscalModel.findOne({ pedidoId: criado.pedidoId }).lean();
+    assert.ok(nota, 'compra direta da loja deve gerar nota fiscal');
+    assert.equal(nota?.emissor, 'XDigital');
 
     const retry = await fetch(`${getBaseUrl()}/subscriptions/assign`, {
       method: 'POST', headers: auth, body: JSON.stringify(body),

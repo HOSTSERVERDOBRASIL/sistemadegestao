@@ -94,7 +94,8 @@
   align-items: center;
 }
 
-.inputWrap input {
+.inputWrap input,
+.inputWrap select {
   flex: 1;
   padding: 8px 36px 8px 10px;
   border: 1px solid #d1d5db;
@@ -106,7 +107,8 @@
   width: 100%;
 }
 
-.inputWrap input:focus { border-color: #4f46e5; }
+.inputWrap input:focus,
+.inputWrap select:focus { border-color: #4f46e5; }
 
 .eyeBtn {
   position: absolute;

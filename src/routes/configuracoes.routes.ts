@@ -25,7 +25,45 @@ const uploadCert = multer({
 }).single('certificado');
 
 // Campos que existem no processo por serviço — servem como fonte de verdade de qual env usar
-const SERVICOS: Record<string, { label: string; campos: Array<{ key: string; label: string; secret?: boolean; placeholder?: string }> }> = {
+const SERVICOS: Record<string, { label: string; campos: Array<{
+  key: string;
+  label: string;
+  secret?: boolean;
+  placeholder?: string;
+  type?: 'text' | 'number' | 'select';
+  options?: Array<{ value: string; label: string }>;
+}> }> = {
+  revendas: {
+    label: 'Cobrança de Revendas',
+    campos: [
+      {
+        key: 'REVENDAS_FORMA_PAGAMENTO_PADRAO', label: 'Forma de pagamento padrão', type: 'select',
+        options: [
+          { value: 'Pre-pago', label: 'Pré-pago — consome créditos' },
+          { value: 'Pos-pago', label: 'Pós-pago — gera faturamento' },
+          { value: 'Por pedido', label: 'Pagamento por pedido' },
+        ],
+      },
+      {
+        key: 'REVENDAS_COBRANCA_INTERNACIONAL', label: 'Certificados internacionais', type: 'select',
+        options: [
+          { value: 'Por emissao', label: 'Cobrar por emissão' },
+          { value: 'Por pedido', label: 'Cobrar por pedido' },
+          { value: 'Fatura mensal', label: 'Consolidar em fatura mensal' },
+        ],
+      },
+      {
+        key: 'REVENDAS_COBRANCA_ICP_BRASIL', label: 'Certificados ICP-Brasil', type: 'select',
+        options: [
+          { value: 'Por emissao', label: 'Cobrar por emissão' },
+          { value: 'Por pedido', label: 'Cobrar por pedido' },
+          { value: 'Fatura mensal', label: 'Consolidar em fatura mensal' },
+        ],
+      },
+      { key: 'REVENDAS_DIA_VENCIMENTO', label: 'Dia padrão de vencimento', type: 'number', placeholder: '1 a 28' },
+      { key: 'REVENDAS_LIMITE_CREDITO_PADRAO', label: 'Limite de crédito padrão (R$)', type: 'number', placeholder: '0,00' },
+    ],
+  },
   efi: {
     label: 'Efi Bank (PIX + Boleto)',
     campos: [
@@ -108,6 +146,19 @@ function camposToRecord(value: unknown): Record<string, string> {
 }
 
 function validarCampo(key: string, value: string): string | null {
+  if (key === 'REVENDAS_FORMA_PAGAMENTO_PADRAO' && !['Pre-pago', 'Pos-pago', 'Por pedido'].includes(value)) {
+    return 'Forma de pagamento de revenda inválida';
+  }
+  if (['REVENDAS_COBRANCA_INTERNACIONAL', 'REVENDAS_COBRANCA_ICP_BRASIL'].includes(key) &&
+      !['Por emissao', 'Por pedido', 'Fatura mensal'].includes(value)) {
+    return 'Modelo de cobrança de certificados inválido';
+  }
+  if (key === 'REVENDAS_DIA_VENCIMENTO' && (!/^\d+$/.test(value) || Number(value) < 1 || Number(value) > 28)) {
+    return 'O dia de vencimento deve estar entre 1 e 28';
+  }
+  if (key === 'REVENDAS_LIMITE_CREDITO_PADRAO' && (!/^\d+(\.\d{1,2})?$/.test(value) || Number(value) < 0)) {
+    return 'O limite de crédito deve ser um valor positivo com até duas casas decimais';
+  }
   if (['EFI_SANDBOX', 'EFI_WEBHOOK_VALIDATE_MTLS'].includes(key) && !['true', 'false'].includes(value)) {
     return `${key} deve ser true ou false`;
   }
@@ -213,6 +264,8 @@ router.get('/', authenticate, authorize('admin'), async (req, res, next) => {
           label: c.label,
           secret: c.secret ?? false,
           placeholder: c.placeholder ?? '',
+          type: c.type ?? 'text',
+          options: c.options ?? [],
           configurado: valorBruto !== '',
           valor: valorBruto ? (c.secret ? mascarar(valorBruto) : valorBruto) : '',
         };

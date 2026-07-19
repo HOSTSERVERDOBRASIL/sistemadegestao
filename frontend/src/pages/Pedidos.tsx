@@ -49,9 +49,9 @@ export default function Pedidos() {
   const [rows, setRows] = useState<Pedido[]>([])
   const [loading, setLoading] = useState(true)
   const [busca, setBusca] = useState('')
-  const [filtroStatus, setFiltroStatus] = useState('')
-  const [filtroEtapa, setFiltroEtapa] = useState('')
-  const [filtroVinculo, setFiltroVinculo] = useState('')
+  const [filtroStatus, setFiltroStatus] = useState<string[]>([])
+  const [filtroEtapa, setFiltroEtapa] = useState<string[]>([])
+  const [filtroVinculo, setFiltroVinculo] = useState<string[]>([])
   const [filtroNF, setFiltroNF] = useState('')
   const [showModal, setShowModal] = useState(false)
   const [form, setForm] = useState<PedidoPayload>(blankForm)
@@ -74,9 +74,20 @@ export default function Pedidos() {
 
   const contratoSelecionado = contratosList.find(c => c._id === form.contratoId)
 
+  function toggle(arr: string[], val: string): string[] {
+    if (!val) return []
+    return arr.includes(val) ? arr.filter(x => x !== val) : [...arr, val]
+  }
+
   const load = useCallback(() => {
     setLoading(true)
-    api.list({ page, busca, status: filtroStatus, etapa: filtroEtapa, vinculoTipo: filtroVinculo || undefined, nfEmitida: filtroNF || undefined })
+    api.list({
+      page, busca,
+      status: filtroStatus.length > 0 ? filtroStatus.join(',') : undefined,
+      etapa: filtroEtapa.length > 0 ? filtroEtapa.join(',') : undefined,
+      vinculoTipo: filtroVinculo.length > 0 ? filtroVinculo.join(',') : undefined,
+      nfEmitida: filtroNF || undefined,
+    })
       .then(res => { setRows(res.data); setTotal(res.total) })
       .finally(() => setLoading(false))
   }, [page, busca, filtroStatus, filtroEtapa, filtroVinculo, filtroNF])
@@ -177,8 +188,8 @@ export default function Pedidos() {
   async function handleExportar() {
     setExportando(true)
     const params: Record<string, string> = {}
-    if (filtroStatus) params.status = filtroStatus
-    if (filtroEtapa) params.etapa = filtroEtapa
+    if (filtroStatus.length > 0) params.status = filtroStatus.join(',')
+    if (filtroEtapa.length > 0) params.etapa = filtroEtapa.join(',')
     if (busca) params.busca = busca
     try { await exportar.pedidos(params) } finally { setExportando(false) }
   }
@@ -250,22 +261,30 @@ export default function Pedidos() {
 
     <div className={styles.filters}>
       <input className={styles.search} placeholder="Buscar por número..." value={busca} onChange={e => { setBusca(e.target.value); setPage(1) }} />
-      <select value={filtroStatus} onChange={e => { setFiltroStatus(e.target.value); setPage(1) }}>
-        <option value="">Todos os status</option>
-        {['Rascunho', 'Aprovado', 'Em processo', 'Faturado', 'Concluido', 'Cancelado'].map(s => <option key={s}>{s}</option>)}
-      </select>
-      <select value={filtroEtapa} onChange={e => { setFiltroEtapa(e.target.value); setPage(1) }}>
-        <option value="">Todas as etapas</option>{ETAPAS.map(etapa => <option key={etapa}>{etapa}</option>)}
-      </select>
-      <select value={filtroVinculo} onChange={e => { setFiltroVinculo(e.target.value); setPage(1) }}>
-        <option value="">Todos os vínculos</option>
-        {VINCULOS.map(v => <option key={v}>{v}</option>)}
-      </select>
-      <select value={filtroNF} onChange={e => { setFiltroNF(e.target.value); setPage(1) }}>
-        <option value="">NF: todas</option>
-        <option value="true">NF emitida</option>
-        <option value="false">NF pendente</option>
-      </select>
+      <div className={styles.chipRow}>
+        <span className={styles.chipLabel}>Status:</span>
+        {[{ v: '', l: 'Todos' }, ...['Rascunho', 'Aprovado', 'Em processo', 'Faturado', 'Concluido', 'Cancelado'].map(s => ({ v: s, l: s }))].map(({ v, l }) => (
+          <button key={v} className={`${styles.chip} ${v === '' ? filtroStatus.length === 0 ? styles.chipActive : '' : filtroStatus.includes(v) ? styles.chipActive : ''}`} onClick={() => { setFiltroStatus(toggle(filtroStatus, v)); setPage(1) }}>{l}</button>
+        ))}
+      </div>
+      <div className={styles.chipRow}>
+        <span className={styles.chipLabel}>Etapa:</span>
+        {[{ v: '', l: 'Todas' }, ...ETAPAS.map(e => ({ v: e, l: e }))].map(({ v, l }) => (
+          <button key={v} className={`${styles.chip} ${v === '' ? filtroEtapa.length === 0 ? styles.chipActive : '' : filtroEtapa.includes(v) ? styles.chipActive : ''}`} onClick={() => { setFiltroEtapa(toggle(filtroEtapa, v)); setPage(1) }}>{l}</button>
+        ))}
+      </div>
+      <div className={styles.chipRow}>
+        <span className={styles.chipLabel}>Vínculo:</span>
+        {[{ v: '', l: 'Todos' }, ...VINCULOS.map(v => ({ v, l: v }))].map(({ v, l }) => (
+          <button key={v} className={`${styles.chip} ${v === '' ? filtroVinculo.length === 0 ? styles.chipActive : '' : filtroVinculo.includes(v) ? styles.chipActive : ''}`} onClick={() => { setFiltroVinculo(toggle(filtroVinculo, v)); setPage(1) }}>{l}</button>
+        ))}
+      </div>
+      <div className={styles.chipRow}>
+        <span className={styles.chipLabel}>NF:</span>
+        {[{ v: '', l: 'Todas' }, { v: 'true', l: 'Emitida' }, { v: 'false', l: 'Pendente' }].map(({ v, l }) => (
+          <button key={v} className={`${styles.chip} ${filtroNF === v ? styles.chipActive : ''}`} onClick={() => { setFiltroNF(v); setPage(1) }}>{l}</button>
+        ))}
+      </div>
     </div>
 
     <Table columns={columns} rows={rows} loading={loading} onRowClick={r => navigate(`/pedidos/${(r as Pedido)._id}`)} empty="Nenhum pedido encontrado" />

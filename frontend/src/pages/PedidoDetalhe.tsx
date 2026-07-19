@@ -41,6 +41,50 @@ export default function PedidoDetalhe() {
   const [origemEvidencia, setOrigemEvidencia] = useState('')
   const evidenciaFileRef = React.useRef<HTMLInputElement>(null)
 
+  // ── Wizard de Liberação de Cadastro ──────────────────────────
+  const [showLiberacao, setShowLiberacao] = useState(false)
+  const [wizardStep, setWizardStep] = useState(1)
+  const [wizardEmissorNF, setWizardEmissorNF] = useState<'XDigital' | 'Revendedor'>('XDigital')
+  const [wizardObs, setWizardObs] = useState('')
+  const [wizardUploading, setWizardUploading] = useState<Record<string, boolean>>({})
+  const [wizardUploaded, setWizardUploaded] = useState<Record<string, boolean>>({})
+  const [liberando, setLiberando] = useState(false)
+  const [wizardError, setWizardError] = useState('')
+  const ofFileRef = React.useRef<HTMLInputElement>(null)
+  const sfFileRef = React.useRef<HTMLInputElement>(null)
+  const comprovanteWizardRef = React.useRef<HTMLInputElement>(null)
+
+  async function handleWizardUpload(tipo: 'of' | 'sf' | 'comprovante', file: File) {
+    if (!id) return
+    setWizardUploading(p => ({ ...p, [tipo]: true }))
+    try {
+      if (tipo === 'comprovante') {
+        await uploads.comprovante(id, file)
+      } else {
+        await uploads.evidencia(id, 'documento', file, { origem: tipo === 'of' ? 'Ordem de Fornecimento' : 'Solicitação de Fornecimento' })
+      }
+      setWizardUploaded(p => ({ ...p, [tipo]: true }))
+    } catch (err) {
+      setWizardError(err instanceof Error ? err.message : 'Erro no upload')
+    } finally {
+      setWizardUploading(p => ({ ...p, [tipo]: false }))
+    }
+  }
+
+  async function handleLiberar() {
+    if (!id || !pedido) return
+    setLiberando(true); setWizardError('')
+    try {
+      await api.update(id, { vinculo: { ...pedido.vinculo, emissorNF: wizardEmissorNF } })
+      await api.avancarEtapa(id, 'Pagamento', wizardObs || `Cadastro liberado — faturamento: ${wizardEmissorNF}`)
+      load()
+      setShowLiberacao(false)
+      setWizardStep(1)
+    } catch (err) {
+      setWizardError(err instanceof Error ? err.message : 'Erro ao liberar pedido')
+    } finally { setLiberando(false) }
+  }
+
   function load() {
     if (!id) return
     setLoading(true)
@@ -203,6 +247,11 @@ export default function PedidoDetalhe() {
         action={
           <div className={styles.actions}>
             <button className={styles.btnSecondary} onClick={() => navigate(-1)}>← Voltar</button>
+            {pedido.status === 'Rascunho' && (
+              <button className={styles.btnSuccess} onClick={() => { setShowLiberacao(true); setWizardStep(1); setWizardError(''); setWizardUploaded({}) }}>
+                ✓ Liberar Cadastro
+              </button>
+            )}
             <label className={styles.btnUpload} title="Enviar comprovante de pagamento">
               {uploading ? 'Enviando...' : '📎 Comprovante'}
               <input
@@ -353,7 +402,12 @@ export default function PedidoDetalhe() {
         {/* Painel do Parceiro (só para Revenda) */}
         {parceiro && (
           <div className={styles.panel}>
-            <h3 className={styles.panelTitle}>Parceiro Revendedor</h3>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
+              <h3 className={styles.panelTitle} style={{ margin: 0 }}>Parceiro Revendedor</h3>
+              <button className={styles.btnLink} onClick={() => navigate(`/parceiros/${typeof pedido.parceiroId === 'object' ? (pedido.parceiroId as { _id: string })._id : pedido.parceiroId}`)}>
+                Ver carteira →
+              </button>
+            </div>
             <dl className={styles.dl}>
               <dt>Nome</dt><dd><strong>{parceiro.nome}</strong></dd>
               <dt>Documento</dt><dd>{parceiro.documento}</dd>
@@ -368,6 +422,43 @@ export default function PedidoDetalhe() {
                 <><dt>Valor Revenda</dt><dd style={{ fontWeight: 600 }}>{moeda(pedido.valorRevenda)}</dd></>
               )}
             </dl>
+            {pedido.cobrancaRevenda && (() => {
+              const cb = pedido.cobrancaRevenda!
+              const situacaoColor: Record<string, string> = {
+                'Pago com creditos': '#15803d',
+                'A faturar': '#b45309',
+                'Aguardando pagamento': '#1d4ed8',
+                'Estornado': '#94a3b8',
+              }
+              const situacaoBg: Record<string, string> = {
+                'Pago com creditos': '#dcfce7',
+                'A faturar': '#fef3c7',
+                'Aguardando pagamento': '#dbeafe',
+                'Estornado': '#f1f5f9',
+              }
+              return (
+                <div style={{ marginTop: 14, padding: '12px 14px', borderRadius: 10, background: situacaoBg[cb.situacao] ?? '#f8fafc', border: `1px solid ${situacaoColor[cb.situacao] ?? '#e2e8f0'}22` }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+                    <div>
+                      <div style={{ fontSize: '0.72rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>Cobrança de Revenda</div>
+                      <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                        <span style={{ fontSize: '0.78rem', fontWeight: 700, padding: '2px 8px', borderRadius: 4, background: situacaoBg[cb.situacao], color: situacaoColor[cb.situacao] ?? '#64748b' }}>
+                          {cb.situacao}
+                        </span>
+                        <span style={{ fontSize: '0.78rem', color: '#64748b' }}>
+                          {cb.formaPagamento === 'Pre-pago' ? 'Pré-pago' : cb.formaPagamento === 'Pos-pago' ? 'Pós-pago' : 'Por pedido'}
+                        </span>
+                        <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>· {cb.modeloCertificado}</span>
+                      </div>
+                    </div>
+                    <div style={{ textAlign: 'right' }}>
+                      <div style={{ fontSize: '0.72rem', color: '#64748b', marginBottom: 2 }}>Valor cobrado</div>
+                      <div style={{ fontSize: '1.1rem', fontWeight: 800, color: situacaoColor[cb.situacao] ?? '#1e293b' }}>{moeda(cb.valorCobrado)}</div>
+                    </div>
+                  </div>
+                </div>
+              )
+            })()}
           </div>
         )}
 
@@ -511,6 +602,193 @@ export default function PedidoDetalhe() {
           </div>
         )}
       </div>
+
+      {/* ── Wizard de Liberação de Cadastro ────────────────────── */}
+      {showLiberacao && (
+        <Modal title="Liberar Cadastro do Pedido" onClose={() => setShowLiberacao(false)}>
+          {/* Indicador de passos */}
+          <div style={{ display: 'flex', gap: 0, marginBottom: 28, borderBottom: '1px solid var(--surface-border)' }}>
+            {['Documentos', 'Faturamento', 'Confirmação'].map((label, i) => {
+              const step = i + 1
+              const done = wizardStep > step
+              const active = wizardStep === step
+              return (
+                <div key={step} style={{ flex: 1, textAlign: 'center', paddingBottom: 12, borderBottom: `2px solid ${active ? 'var(--accent)' : done ? 'var(--success)' : 'transparent'}`, color: active ? 'var(--accent)' : done ? 'var(--success)' : 'var(--text-muted)', fontSize: '0.78rem', fontWeight: active ? 700 : 500 }}>
+                  <div style={{ width: 22, height: 22, borderRadius: '50%', background: active ? 'var(--accent)' : done ? 'var(--success)' : 'var(--surface-2)', color: active || done ? (active ? 'var(--btn-primary-bg)' : '#fff') : 'var(--text-muted)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: '0.75rem', marginBottom: 6 }}>
+                    {done ? '✓' : step}
+                  </div>
+                  <div>{label}</div>
+                </div>
+              )
+            })}
+          </div>
+
+          {/* Passo 1 — Upload de documentos */}
+          {wizardStep === 1 && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+              <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', margin: 0 }}>
+                Anexe os documentos necessários para liberar o pedido. Os campos são opcionais — pule caso não se apliquem.
+              </p>
+
+              {/* Ordem de Fornecimento */}
+              <div style={{ border: '1px solid var(--surface-border)', borderRadius: 10, padding: 16 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                  <div>
+                    <strong style={{ color: 'var(--text-primary)', fontSize: '0.875rem' }}>Ordem de Fornecimento (OF)</strong>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: 2 }}>PDF, DOCX, XLSX</div>
+                  </div>
+                  {wizardUploaded['of']
+                    ? <span style={{ color: 'var(--success)', fontSize: '0.8rem', fontWeight: 600 }}>✓ Enviado</span>
+                    : <label style={{ background: 'var(--btn-secondary-bg)', border: '1px solid var(--btn-secondary-border)', color: 'var(--btn-secondary-text)', padding: '6px 14px', borderRadius: 7, fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer' }}>
+                        {wizardUploading['of'] ? 'Enviando...' : '📎 Selecionar'}
+                        <input ref={ofFileRef} type="file" accept=".pdf,.docx,.xlsx" style={{ display: 'none' }}
+                          onChange={e => { const f = e.target.files?.[0]; if (f) handleWizardUpload('of', f) }}
+                          disabled={!!wizardUploading['of']} />
+                      </label>
+                  }
+                </div>
+              </div>
+
+              {/* Solicitação de Fornecimento */}
+              <div style={{ border: '1px solid var(--surface-border)', borderRadius: 10, padding: 16 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                  <div>
+                    <strong style={{ color: 'var(--text-primary)', fontSize: '0.875rem' }}>Solicitação de Fornecimento</strong>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: 2 }}>PDF, DOCX, XLSX</div>
+                  </div>
+                  {wizardUploaded['sf']
+                    ? <span style={{ color: 'var(--success)', fontSize: '0.8rem', fontWeight: 600 }}>✓ Enviado</span>
+                    : <label style={{ background: 'var(--btn-secondary-bg)', border: '1px solid var(--btn-secondary-border)', color: 'var(--btn-secondary-text)', padding: '6px 14px', borderRadius: 7, fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer' }}>
+                        {wizardUploading['sf'] ? 'Enviando...' : '📎 Selecionar'}
+                        <input ref={sfFileRef} type="file" accept=".pdf,.docx,.xlsx" style={{ display: 'none' }}
+                          onChange={e => { const f = e.target.files?.[0]; if (f) handleWizardUpload('sf', f) }}
+                          disabled={!!wizardUploading['sf']} />
+                      </label>
+                  }
+                </div>
+              </div>
+
+              {/* Comprovante de pagamento */}
+              <div style={{ border: '1px solid var(--surface-border)', borderRadius: 10, padding: 16 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                  <div>
+                    <strong style={{ color: 'var(--text-primary)', fontSize: '0.875rem' }}>Comprovante de Pagamento</strong>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: 2 }}>PDF, JPG, PNG</div>
+                  </div>
+                  {wizardUploaded['comprovante'] || pedido.vinculo.comprovantePagamentoAprovado
+                    ? <span style={{ color: 'var(--success)', fontSize: '0.8rem', fontWeight: 600 }}>✓ {pedido.vinculo.comprovantePagamentoAprovado ? 'Já aprovado' : 'Enviado'}</span>
+                    : <label style={{ background: 'var(--btn-secondary-bg)', border: '1px solid var(--btn-secondary-border)', color: 'var(--btn-secondary-text)', padding: '6px 14px', borderRadius: 7, fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer' }}>
+                        {wizardUploading['comprovante'] ? 'Enviando...' : '📎 Selecionar'}
+                        <input ref={comprovanteWizardRef} type="file" accept=".pdf,.jpg,.jpeg,.png" style={{ display: 'none' }}
+                          onChange={e => { const f = e.target.files?.[0]; if (f) handleWizardUpload('comprovante', f) }}
+                          disabled={!!wizardUploading['comprovante']} />
+                      </label>
+                  }
+                </div>
+              </div>
+
+              {wizardError && <p style={{ color: 'var(--danger)', fontSize: '0.82rem', margin: 0 }}>{wizardError}</p>}
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 4 }}>
+                <button style={{ background: 'var(--btn-secondary-bg)', border: '1px solid var(--btn-secondary-border)', color: 'var(--btn-secondary-text)', padding: '9px 20px', borderRadius: 8, fontWeight: 600, cursor: 'pointer', fontSize: '0.875rem' }} onClick={() => setShowLiberacao(false)}>Cancelar</button>
+                <button style={{ background: 'var(--btn-primary-bg)', color: 'var(--accent)', border: 'none', padding: '9px 24px', borderRadius: 8, fontWeight: 700, cursor: 'pointer', fontSize: '0.875rem' }} onClick={() => { setWizardError(''); setWizardStep(2) }}>
+                  Próximo →
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Passo 2 — Como será faturado */}
+          {wizardStep === 2 && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+              <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', margin: 0 }}>
+                Selecione quem irá emitir a Nota Fiscal para este pedido.
+              </p>
+
+              {(['XDigital', 'Revendedor'] as const).map(opt => (
+                <label key={opt} onClick={() => setWizardEmissorNF(opt)} style={{ display: 'flex', alignItems: 'flex-start', gap: 14, padding: 18, border: `2px solid ${wizardEmissorNF === opt ? 'var(--accent)' : 'var(--surface-border)'}`, borderRadius: 12, cursor: 'pointer', background: wizardEmissorNF === opt ? 'var(--accent-muted)' : 'var(--surface-2)', transition: 'all 0.15s' }}>
+                  <div style={{ width: 18, height: 18, borderRadius: '50%', border: `2px solid ${wizardEmissorNF === opt ? 'var(--accent)' : 'var(--text-muted)'}`, background: wizardEmissorNF === opt ? 'var(--accent)' : 'transparent', flexShrink: 0, marginTop: 2 }} />
+                  <div>
+                    <div style={{ fontWeight: 700, color: 'var(--text-primary)', fontSize: '0.95rem' }}>{opt === 'XDigital' ? 'XDigital Brasil' : 'Revendedor / Parceiro'}</div>
+                    <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: 4 }}>
+                      {opt === 'XDigital'
+                        ? 'A nota fiscal será emitida diretamente pela XDigital Brasil para o cliente final.'
+                        : 'O parceiro revendedor emitirá a nota fiscal para o cliente. A XDigital emite para o parceiro.'}
+                    </div>
+                  </div>
+                </label>
+              ))}
+
+              {wizardError && <p style={{ color: 'var(--danger)', fontSize: '0.82rem', margin: 0 }}>{wizardError}</p>}
+
+              <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, marginTop: 4 }}>
+                <button style={{ background: 'var(--btn-secondary-bg)', border: '1px solid var(--btn-secondary-border)', color: 'var(--btn-secondary-text)', padding: '9px 20px', borderRadius: 8, fontWeight: 600, cursor: 'pointer', fontSize: '0.875rem' }} onClick={() => setWizardStep(1)}>← Voltar</button>
+                <button style={{ background: 'var(--btn-primary-bg)', color: 'var(--accent)', border: 'none', padding: '9px 24px', borderRadius: 8, fontWeight: 700, cursor: 'pointer', fontSize: '0.875rem' }} onClick={() => { setWizardError(''); setWizardStep(3) }}>
+                  Próximo →
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Passo 3 — Confirmação */}
+          {wizardStep === 3 && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+              <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', margin: 0 }}>
+                Revise o resumo abaixo antes de liberar o pedido. Após a liberação, o status mudará para <strong>Aprovado</strong> e a etapa avançará para <strong>Pagamento</strong>.
+              </p>
+
+              <div style={{ background: 'var(--surface-2)', borderRadius: 12, padding: 20, display: 'flex', flexDirection: 'column', gap: 12 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.875rem' }}>
+                  <span style={{ color: 'var(--text-muted)', fontWeight: 600 }}>Pedido</span>
+                  <strong style={{ color: 'var(--text-primary)' }}>{pedido.numero}</strong>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.875rem' }}>
+                  <span style={{ color: 'var(--text-muted)', fontWeight: 600 }}>Cliente</span>
+                  <span style={{ color: 'var(--text-primary)' }}>{typeof pedido.clienteId === 'object' ? pedido.clienteId.nome : '—'}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.875rem' }}>
+                  <span style={{ color: 'var(--text-muted)', fontWeight: 600 }}>Valor</span>
+                  <strong style={{ color: 'var(--text-primary)' }}>{moeda(pedido.valorTotal)}</strong>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.875rem' }}>
+                  <span style={{ color: 'var(--text-muted)', fontWeight: 600 }}>Emissor NF</span>
+                  <span style={{ color: 'var(--accent)', fontWeight: 700 }}>{wizardEmissorNF}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.875rem' }}>
+                  <span style={{ color: 'var(--text-muted)', fontWeight: 600 }}>Documentos</span>
+                  <span style={{ color: 'var(--text-secondary)' }}>
+                    {Object.values(wizardUploaded).filter(Boolean).length} arquivo(s) anexado(s)
+                  </span>
+                </div>
+              </div>
+
+              <label style={{ display: 'flex', flexDirection: 'column', gap: 6, fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)' }}>
+                Observação (opcional)
+                <textarea
+                  rows={3}
+                  value={wizardObs}
+                  onChange={e => setWizardObs(e.target.value)}
+                  placeholder="Ex: Documentação verificada, cliente aprovado..."
+                  style={{ background: 'var(--input-bg)', border: '1px solid var(--input-border)', borderRadius: 8, padding: '8px 10px', color: 'var(--input-text)', fontSize: '0.875rem', resize: 'vertical', fontFamily: 'inherit' }}
+                />
+              </label>
+
+              {wizardError && <p style={{ color: 'var(--danger)', fontSize: '0.82rem', margin: 0 }}>{wizardError}</p>}
+
+              <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10 }}>
+                <button style={{ background: 'var(--btn-secondary-bg)', border: '1px solid var(--btn-secondary-border)', color: 'var(--btn-secondary-text)', padding: '9px 20px', borderRadius: 8, fontWeight: 600, cursor: 'pointer', fontSize: '0.875rem' }} onClick={() => setWizardStep(2)}>← Voltar</button>
+                <button
+                  style={{ background: liberando ? 'var(--surface-2)' : 'var(--success)', color: '#fff', border: 'none', padding: '9px 28px', borderRadius: 8, fontWeight: 700, cursor: liberando ? 'default' : 'pointer', fontSize: '0.875rem', opacity: liberando ? 0.7 : 1 }}
+                  onClick={handleLiberar}
+                  disabled={liberando}
+                >
+                  {liberando ? 'Liberando...' : '✓ Liberar Pedido'}
+                </button>
+              </div>
+            </div>
+          )}
+        </Modal>
+      )}
 
       {showEtapa && (
         <Modal title="Avançar Etapa Operacional" onClose={() => setShowEtapa(false)} size="sm">

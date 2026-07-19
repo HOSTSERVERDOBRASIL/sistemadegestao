@@ -14,6 +14,7 @@ export interface ICliente extends Document {
   naturezaJuridicaCodigo?: string;
   naturezaJuridicaDescricao?: string;
   validadoSerproEm?: Date;
+  usuarioMasterId?: mongoose.Types.ObjectId;
   solicitacoesLgpd: Array<{
     tipo: TipoSolicitacaoLgpd;
     status: 'Registrada' | 'Em analise' | 'Atendida' | 'Negada';
@@ -37,6 +38,7 @@ const clienteSchema = new Schema<ICliente>({
   naturezaJuridicaCodigo: String,
   naturezaJuridicaDescricao: String,
   validadoSerproEm: Date,
+  usuarioMasterId: { type: Schema.Types.ObjectId, ref: 'User' },
   solicitacoesLgpd: [{
     tipo: { type: String, enum: ['Acesso', 'Correcao', 'Exclusao', 'Portabilidade'], required: true },
     status: { type: String, enum: ['Registrada', 'Em analise', 'Atendida', 'Negada'], default: 'Registrada' },

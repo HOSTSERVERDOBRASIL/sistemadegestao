@@ -60,7 +60,7 @@ export default function Logs() {
         subtitle={`${total} ocorrência(s)`}
         action={
           <button className={styles.btnDesativar} onClick={handleLimpar} disabled={limpando} style={{ fontSize: '0.8rem' }}>
-            {limpando ? 'Limpando...' : '🗑 Limpar &gt;7 dias'}
+            {limpando ? 'Limpando...' : '🗑 Limpar >7 dias'}
           </button>
         }
       />
@@ -86,17 +86,28 @@ export default function Logs() {
       )}
 
       <div className={styles.filters}>
-        <select value={level} onChange={e => { setLevel(e.target.value); setPage(1) }}>
-          {LEVELS.map(l => <option key={l} value={l}>{l}+</option>)}
-        </select>
-        <input
-          className={styles.search}
-          placeholder="Buscar mensagem..."
-          value={busca}
-          onChange={e => { setBusca(e.target.value); setPage(1) }}
-        />
-        <input type="date" value={de} onChange={e => { setDe(e.target.value); setPage(1) }} title="De" />
-        <input type="date" value={ate} onChange={e => { setAte(e.target.value); setPage(1) }} title="Até" />
+        <div className={styles.chipRow}>
+          <span className={styles.chipLabel}>Nível</span>
+          {LEVELS.map(l => (
+            <button key={l} className={`${styles.chip} ${level === l ? styles.chipActive : ''}`}
+              onClick={() => { setLevel(l); setPage(1) }}>{l}+</button>
+          ))}
+        </div>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'nowrap' }}>
+          <input
+            className={styles.search}
+            placeholder="Buscar mensagem..."
+            value={busca}
+            onChange={e => { setBusca(e.target.value); setPage(1) }}
+            style={{ flex: 1, minWidth: 180, maxWidth: 280 }}
+          />
+          <span className={styles.chipLabel}>De</span>
+          <input type="date" value={de} onChange={e => { setDe(e.target.value); setPage(1) }}
+            style={{ padding: '5px 8px', border: '1px solid var(--input-border)', borderRadius: 8, fontSize: '0.85rem', background: 'var(--input-bg)', color: 'var(--input-text)', outline: 'none' }} />
+          <span className={styles.chipLabel}>até</span>
+          <input type="date" value={ate} onChange={e => { setAte(e.target.value); setPage(1) }}
+            style={{ padding: '5px 8px', border: '1px solid var(--input-border)', borderRadius: 8, fontSize: '0.85rem', background: 'var(--input-bg)', color: 'var(--input-text)', outline: 'none' }} />
+        </div>
       </div>
 
       {loading ? (

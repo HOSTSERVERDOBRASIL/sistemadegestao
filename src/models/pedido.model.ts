@@ -41,6 +41,12 @@ export interface IPedido extends Document {
   contratoId?: Types.ObjectId;
   ordemFornecimentoId?: Types.ObjectId;
   parceiroId?: Types.ObjectId;
+  cobrancaRevenda?: {
+    formaPagamento: 'Pre-pago' | 'Pos-pago' | 'Por pedido';
+    modeloCertificado: 'Por emissao' | 'Por pedido' | 'Fatura mensal' | 'Misto';
+    valorCobrado: number;
+    situacao: 'Pago com creditos' | 'A faturar' | 'Aguardando pagamento' | 'Estornado';
+  };
   valorTotal: number;
   valorTabela: number;
   valorRevenda?: number;
@@ -111,6 +117,12 @@ const pedidoSchema = new Schema<IPedido>({
   contratoId: { type: Schema.Types.ObjectId, ref: 'Contrato' },
   ordemFornecimentoId: { type: Schema.Types.ObjectId, ref: 'OrdemFornecimento' },
   parceiroId: { type: Schema.Types.ObjectId, ref: 'Parceiro' },
+  cobrancaRevenda: {
+    formaPagamento: { type: String, enum: ['Pre-pago', 'Pos-pago', 'Por pedido'] },
+    modeloCertificado: { type: String, enum: ['Por emissao', 'Por pedido', 'Fatura mensal', 'Misto'] },
+    valorCobrado: { type: Number, min: 0 },
+    situacao: { type: String, enum: ['Pago com creditos', 'A faturar', 'Aguardando pagamento', 'Estornado'] },
+  },
   notaEmpenhoId: { type: Schema.Types.ObjectId, ref: 'NotaEmpenho' },
   numeroEmpenhoNoContrato: String,
   ordemFornecimento: {

@@ -5,7 +5,7 @@ import { TokenBlacklistModel } from '../models/token-blacklist.model.js';
 import { env } from '../config/env.js';
 
 export interface AuthenticatedRequest extends Request {
-  user?: { id: string; role: string };
+  user?: { id: string; role: string; parceiroId?: string };
 }
 
 export async function authenticate(req: AuthenticatedRequest, res: Response, next: NextFunction) {
@@ -23,11 +23,11 @@ export async function authenticate(req: AuthenticatedRequest, res: Response, nex
       if (revogado) return res.status(401).json({ message: 'Token revogado' });
     }
 
-    const user = await UserModel.findById(payload.sub).select('_id role ativo');
+    const user = await UserModel.findById(payload.sub).select('_id role ativo parceiroId');
     if (!user || !user.ativo) {
       return res.status(401).json({ message: 'Usuário inválido ou inativo' });
     }
-    req.user = { id: user._id.toString(), role: user.role };
+    req.user = { id: user._id.toString(), role: user.role, parceiroId: user.parceiroId?.toString() };
     next();
   } catch {
     return res.status(401).json({ message: 'Token inválido ou expirado' });

@@ -30,7 +30,7 @@ export default function NotasEmpenho() {
   const [rows, setRows] = useState<NotaEmpenho[]>([])
   const [loading, setLoading] = useState(true)
   const [busca, setBusca] = useState('')
-  const [filtroStatus, setFiltroStatus] = useState('')
+  const [filtroStatus, setFiltroStatus] = useState<string[]>([])
   const [showModal, setShowModal] = useState(false)
   const [form, setForm] = useState<NotaEmpenhoPayload>(BLANK)
   const [saving, setSaving] = useState(false)
@@ -45,9 +45,14 @@ export default function NotasEmpenho() {
   const [editSaving, setEditSaving] = useState(false)
   const [editError, setEditError] = useState('')
 
+  function toggle(arr: string[], val: string): string[] {
+    if (!val) return []
+    return arr.includes(val) ? arr.filter(x => x !== val) : [...arr, val]
+  }
+
   const load = useCallback(() => {
     setLoading(true)
-    api.list({ page, busca, status: filtroStatus || undefined })
+    api.list({ page, busca, status: filtroStatus.length > 0 ? filtroStatus.join(',') : undefined })
       .then(res => { setRows(res.data); setTotal(res.total) })
       .finally(() => setLoading(false))
   }, [page, busca, filtroStatus])
@@ -200,10 +205,11 @@ export default function NotasEmpenho() {
           value={busca}
           onChange={e => { setBusca(e.target.value); setPage(1) }}
         />
-        <select value={filtroStatus} onChange={e => { setFiltroStatus(e.target.value); setPage(1) }}>
-          <option value="">Todos os status</option>
-          {STATUS_OPTS.map(s => <option key={s}>{s}</option>)}
-        </select>
+        <div className={styles.chipRow}>
+          {[{ v: '', l: 'Todos' }, ...STATUS_OPTS.map(s => ({ v: s, l: s }))].map(({ v, l }) => (
+            <button key={v} className={`${styles.chip} ${v === '' ? filtroStatus.length === 0 ? styles.chipActive : '' : filtroStatus.includes(v) ? styles.chipActive : ''}`} onClick={() => { setFiltroStatus(toggle(filtroStatus, v)); setPage(1) }}>{l}</button>
+          ))}
+        </div>
       </div>
 
       <Table columns={columns} rows={rows} loading={loading} empty="Nenhuma nota de empenho encontrada" onRowClick={setDetalhe} />

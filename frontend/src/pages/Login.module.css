@@ -2,54 +2,39 @@
   min-height: 100vh;
   display: grid;
   place-items: center;
-  background: linear-gradient(135deg, #0f172a, #1e1b4b);
+  background: linear-gradient(145deg, #071a2f 0%, #0F3961 60%, #0a2540 100%);
   padding: 16px;
 }
 
 .card {
-  background: #fff;
+  background: #0a2540;
+  border: 1px solid rgba(230, 191, 64, 0.18);
   border-radius: 20px;
   padding: 40px 36px 32px;
   width: 100%;
   max-width: 380px;
-  box-shadow: 0 24px 64px rgba(0,0,0,0.35);
+  box-shadow: 0 32px 80px rgba(0,0,0,0.5), 0 0 0 1px rgba(230,191,64,0.08);
 }
 
 .logoWrapper {
   display: flex;
   justify-content: center;
-  margin-bottom: 24px;
+  margin-bottom: 28px;
+  padding-bottom: 24px;
+  border-bottom: 1px solid rgba(255,255,255,0.07);
 }
 
 .logo {
-  width: 180px;
+  width: 200px;
   height: auto;
 }
 
-.brand {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-bottom: 4px;
-}
-
-.brandIcon {
-  font-size: 1.6rem;
-  color: #4f46e5;
-}
-
-.brand h1 {
-  font-size: 1.4rem;
-  font-weight: 800;
-  color: #0f172a;
-  margin: 0;
-  letter-spacing: -0.5px;
-}
-
 .sub {
-  font-size: 0.85rem;
-  color: #64748b;
+  font-size: 0.82rem;
+  color: #4a6fa3;
   margin: 0 0 24px;
+  text-align: center;
+  letter-spacing: 0.02em;
 }
 
 .form {
@@ -61,55 +46,69 @@
 .form label {
   display: flex;
   flex-direction: column;
-  gap: 5px;
-  font-size: 0.8rem;
+  gap: 6px;
+  font-size: 0.75rem;
   font-weight: 600;
-  color: #374151;
+  color: #8fb3d4;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
 }
 
 .form input {
   padding: 10px 12px;
-  border: 1px solid #d1d5db;
+  border: 1px solid #1e4a7a;
   border-radius: 8px;
-  font-size: 0.9rem;
-  color: #0f172a;
-  transition: border-color 0.15s;
+  font-size: 0.875rem;
+  color: #e2edf7;
+  background: #0f3061;
+  transition: border-color 0.15s, box-shadow 0.15s;
   outline: none;
   width: 100%;
   box-sizing: border-box;
-  background: #f9fafb;
+  text-transform: none;
+  letter-spacing: normal;
+  font-weight: 400;
 }
 
 .form input:focus {
-  border-color: #4f46e5;
-  background: #fff;
+  border-color: #E6BF40;
+  box-shadow: 0 0 0 3px rgba(230,191,64,0.15);
+}
+
+.form input::placeholder {
+  color: #2c5282;
 }
 
 .form button {
-  background: #1e40af;
-  color: #fff;
-  border: none;
+  background: #0F3961;
+  color: #E6BF40;
+  border: 1px solid rgba(230,191,64,0.3);
   padding: 12px;
   border-radius: 10px;
-  font-size: 0.9rem;
-  font-weight: 600;
+  font-size: 0.875rem;
+  font-weight: 700;
   cursor: pointer;
   margin-top: 4px;
-  transition: background 0.15s;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  transition: background 0.15s, border-color 0.15s, box-shadow 0.15s;
 }
 
 .form button:hover:not(:disabled) {
-  background: #1d4ed8;
+  background: #1a4f82;
+  border-color: #E6BF40;
+  box-shadow: 0 4px 16px rgba(230,191,64,0.2);
 }
 
 .form button:disabled {
-  opacity: 0.65;
+  opacity: 0.5;
   cursor: default;
 }
 
 .error {
-  background: #fee2e2;
-  color: #b91c1c;
+  background: rgba(240, 82, 82, 0.12);
+  border: 1px solid rgba(240, 82, 82, 0.25);
+  color: #f05252;
   padding: 8px 12px;
   border-radius: 8px;
   font-size: 0.82rem;

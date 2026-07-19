@@ -9,6 +9,7 @@ export interface IAditivoContrato {
   vigenciaAte?: Date;
   motivo: string;
   dataAssinatura: Date;
+  tipo?: 'Reequilíbrio Econômico' | 'Acréscimo' | 'Supressão' | 'Prorrogação';
 }
 
 export interface IContrato extends Document {
@@ -44,6 +45,7 @@ const contratoSchema = new Schema<IContrato>({
     vigenciaAte: Date,
     motivo: { type: String, required: true },
     dataAssinatura: { type: Date, required: true },
+    tipo: { type: String, enum: ['Reequilíbrio Econômico', 'Acréscimo', 'Supressão', 'Prorrogação'] },
   }]
 }, { timestamps: true });
 

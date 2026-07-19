@@ -32,9 +32,9 @@ export default function Conciliacao() {
   const [resumo, setResumo] = useState<ConciliacaoResumo | null>(null)
 
   // Filtros
-  const [fBanco, setFBanco]   = useState('')
-  const [fStatus, setFStatus] = useState('pendente')
-  const [fTipo, setFTipo]     = useState('')
+  const [fBanco, setFBanco]   = useState<string[]>([])
+  const [fStatus, setFStatus] = useState<string[]>(['pendente'])
+  const [fTipo, setFTipo]     = useState<string[]>([])
   const [fDataInicio, setFDataInicio] = useState('')
   const [fDataFim, setFDataFim]       = useState('')
 
@@ -72,10 +72,21 @@ export default function Conciliacao() {
   // Conciliar
   const [conciliarBusca, setConciliarBusca] = useState('')
   const [conciliarPedidos, setConciliarPedidos] = useState<Pedido[]>([])
+  const [conciliarComprovante, setConciliarComprovante] = useState<File | null>(null)
+
+  function toggle(arr: string[], val: string): string[] {
+    if (!val) return []
+    return arr.includes(val) ? arr.filter(x => x !== val) : [...arr, val]
+  }
 
   const carregar = useCallback(() => {
     setLoading(true)
-    api.lancamentos({ banco: fBanco, status: fStatus, tipo: fTipo, dataInicio: fDataInicio, dataFim: fDataFim, page, limit: 30 })
+    api.lancamentos({
+      banco: fBanco.length > 0 ? fBanco.join(',') : undefined,
+      status: fStatus.length > 0 ? fStatus.join(',') : undefined,
+      tipo: fTipo.length > 0 ? fTipo.join(',') : undefined,
+      dataInicio: fDataInicio, dataFim: fDataFim, page, limit: 30,
+    })
       .then(r => { setLancamentos(r.data); setTotal(r.total) })
       .finally(() => setLoading(false))
   }, [fBanco, fStatus, fTipo, fDataInicio, fDataFim, page])
@@ -169,8 +180,8 @@ export default function Conciliacao() {
 
   async function handleConciliar(pedidoId?: string, cobrancaId?: string) {
     if (!modalConciliar) return
-    await api.conciliar(modalConciliar._id, { pedidoId, cobrancaId })
-    setModalConciliar(null); setConciliarBusca(''); setConciliarPedidos([])
+    await api.conciliar(modalConciliar._id, { pedidoId, cobrancaId, comprovante: conciliarComprovante })
+    setModalConciliar(null); setConciliarBusca(''); setConciliarPedidos([]); setConciliarComprovante(null)
     carregar()
   }
 
@@ -279,27 +290,36 @@ export default function Conciliacao() {
       {aba === 'lancamentos' && (
         <>
           <div className={styles.filters}>
-            <select value={fBanco} onChange={e => { setFBanco(e.target.value); setPage(1) }}>
-              <option value="">Todos os bancos</option>
-              <option value="BB">Banco do Brasil</option>
-              <option value="Bradesco">Bradesco</option>
-              <option value="Efi">Efi Bank</option>
-              <option value="Manual">Manual</option>
-            </select>
-            <select value={fStatus} onChange={e => { setFStatus(e.target.value); setPage(1) }}>
-              <option value="">Todos os status</option>
-              <option value="pendente">Pendente</option>
-              <option value="conciliado">Conciliado</option>
-              <option value="ignorado">Ignorado</option>
-            </select>
-            <select value={fTipo} onChange={e => { setFTipo(e.target.value); setPage(1) }}>
-              <option value="">Crédito e Débito</option>
-              <option value="credito">Crédito</option>
-              <option value="debito">Débito</option>
-            </select>
-            <input type="date" value={fDataInicio} onChange={e => { setFDataInicio(e.target.value); setPage(1) }} title="Data início" />
-            <input type="date" value={fDataFim}    onChange={e => { setFDataFim(e.target.value);    setPage(1) }} title="Data fim" />
-            <button className={styles.btnSecondary} onClick={carregar}>↻</button>
+            <div className={styles.chipRow}>
+              <span className={styles.chipLabel}>Banco</span>
+              {[{ v: '', l: 'Todos' }, { v: 'BB', l: 'BB' }, { v: 'Bradesco', l: 'Bradesco' }, { v: 'Efi', l: 'Efi' }, { v: 'Manual', l: 'Manual' }].map(o => (
+                <button key={o.v} className={`${styles.chip} ${o.v === '' ? fBanco.length === 0 ? styles.chipActive : '' : fBanco.includes(o.v) ? styles.chipActive : ''}`}
+                  onClick={() => { setFBanco(toggle(fBanco, o.v)); setPage(1) }}>{o.l}</button>
+              ))}
+            </div>
+            <div className={styles.chipRow}>
+              <span className={styles.chipLabel}>Status</span>
+              {[{ v: '', l: 'Todos' }, { v: 'pendente', l: 'Pendente' }, { v: 'conciliado', l: 'Conciliado' }, { v: 'ignorado', l: 'Ignorado' }].map(o => (
+                <button key={o.v} className={`${styles.chip} ${o.v === '' ? fStatus.length === 0 ? styles.chipActive : '' : fStatus.includes(o.v) ? styles.chipActive : ''}`}
+                  onClick={() => { setFStatus(toggle(fStatus, o.v)); setPage(1) }}>{o.l}</button>
+              ))}
+            </div>
+            <div className={styles.chipRow}>
+              <span className={styles.chipLabel}>Tipo</span>
+              {[{ v: '', l: 'Todos' }, { v: 'credito', l: 'Crédito' }, { v: 'debito', l: 'Débito' }].map(o => (
+                <button key={o.v} className={`${styles.chip} ${o.v === '' ? fTipo.length === 0 ? styles.chipActive : '' : fTipo.includes(o.v) ? styles.chipActive : ''}`}
+                  onClick={() => { setFTipo(toggle(fTipo, o.v)); setPage(1) }}>{o.l}</button>
+              ))}
+            </div>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'nowrap' }}>
+              <span className={styles.chipLabel}>Período</span>
+              <input type="date" value={fDataInicio} onChange={e => { setFDataInicio(e.target.value); setPage(1) }} title="Data início"
+                style={{ padding: '5px 8px', border: '1px solid var(--input-border)', borderRadius: 8, fontSize: '0.85rem', background: 'var(--input-bg)', color: 'var(--input-text)', outline: 'none' }} />
+              <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>até</span>
+              <input type="date" value={fDataFim} onChange={e => { setFDataFim(e.target.value); setPage(1) }} title="Data fim"
+                style={{ padding: '5px 8px', border: '1px solid var(--input-border)', borderRadius: 8, fontSize: '0.85rem', background: 'var(--input-bg)', color: 'var(--input-text)', outline: 'none' }} />
+              <button className={styles.btnSecondary} onClick={carregar} style={{ padding: '5px 12px' }}>↻</button>
+            </div>
           </div>
           <div className={styles.panel}>
             <Table columns={colunas} rows={lancamentos} loading={loading} empty="Nenhum lançamento encontrado" />
@@ -465,7 +485,7 @@ export default function Conciliacao() {
 
       {/* Modal: conciliar */}
       {modalConciliar && (
-        <Modal title="Conciliar Lançamento" onClose={() => { setModalConciliar(null); setConciliarPedidos([]) }} size="md">
+        <Modal title="Conciliar Lançamento" onClose={() => { setModalConciliar(null); setConciliarPedidos([]); setConciliarComprovante(null) }} size="md">
           <div className={styles.form}>
             <div className={cStyles.conciliarInfo}>
               <div><span>Banco</span><strong>{modalConciliar.banco}</strong></div>
@@ -473,6 +493,13 @@ export default function Conciliacao() {
               <div><span>Data</span><strong>{fmtData(modalConciliar.data)}</strong></div>
               <div><span>Descrição</span><span style={{ fontSize: '0.85rem' }}>{modalConciliar.descricao}</span></div>
             </div>
+            <label>Comprovante de pagamento (PDF, JPG, PNG)
+              <input type="file" accept=".pdf,.jpg,.jpeg,.png"
+                onChange={e => setConciliarComprovante(e.target.files?.[0] ?? null)} />
+              {conciliarComprovante && (
+                <span style={{ fontSize: '0.75rem', color: '#64748b' }}>📎 {conciliarComprovante.name}</span>
+              )}
+            </label>
             <label>Buscar pedido por número
               <div style={{ display: 'flex', gap: 8 }}>
                 <input className={styles.search} value={conciliarBusca}
@@ -494,7 +521,7 @@ export default function Conciliacao() {
               </div>
             )}
             <div className={styles.formActions}>
-              <button type="button" className={styles.btnSecondary} onClick={() => { setModalConciliar(null); setConciliarPedidos([]) }}>Fechar</button>
+              <button type="button" className={styles.btnSecondary} onClick={() => { setModalConciliar(null); setConciliarPedidos([]); setConciliarComprovante(null) }}>Fechar</button>
             </div>
           </div>
         </Modal>

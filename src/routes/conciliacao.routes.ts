@@ -15,6 +15,12 @@ import { env } from '../config/env.js';
 const router = Router();
 router.use(authenticate, authorize('admin', 'financeiro'));
 
+function toFilter(v: string | undefined) {
+  if (!v) return undefined
+  const arr = v.split(',').map(s => s.trim()).filter(Boolean)
+  return arr.length === 1 ? arr[0] : { $in: arr }
+}
+
 // Multer para comprovante manual e arquivo OFX
 const uploadDir = path.resolve(env.UPLOAD_DIR);
 const storage = multer.diskStorage({
@@ -52,9 +58,12 @@ router.get('/lancamentos', async (req, res, next) => {
     } = req.query as Record<string, string>;
 
     const filter: Record<string, unknown> = {};
-    if (banco)  filter.banco  = banco;
-    if (status) filter.status = status;
-    if (tipo)   filter.tipo   = tipo;
+    const bancoFilter = toFilter(banco)
+    if (bancoFilter) filter.banco = bancoFilter;
+    const statusFilter = toFilter(status)
+    if (statusFilter) filter.status = statusFilter;
+    const tipoFilter = toFilter(tipo)
+    if (tipoFilter) filter.tipo = tipoFilter;
     if (dataInicio || dataFim) {
       const range: Record<string, Date> = {};
       if (dataInicio) range.$gte = new Date(dataInicio);
@@ -326,8 +335,10 @@ router.post('/auto', async (req, res, next) => {
 });
 
 // ─── PATCH /conciliacao/lancamentos/:id/conciliar ─────────────────────────────
-router.patch('/lancamentos/:id/conciliar', async (req, res, next) => {
-  try {
+router.patch('/lancamentos/:id/conciliar', (req, res, next) => {
+  uploadComprovante(req, res, async (err) => {
+    if (err) return next(err);
+    try {
     const lanc = await LancamentoBancarioModel.findById(req.params.id);
     if (!lanc) return res.status(404).json({ message: 'Lançamento não encontrado' });
     if (lanc.status === 'conciliado') return res.status(409).json({ message: 'Lançamento já conciliado' });
@@ -337,14 +348,17 @@ router.patch('/lancamentos/:id/conciliar', async (req, res, next) => {
       return res.status(400).json({ message: 'Informe pedidoId ou cobrancaId' });
     }
 
+    const comprovanteUrl = req.file ? `/uploads/${req.file.filename}` : undefined;
     const userId = (req as { user?: { id: string } }).user?.id;
-    await lanc.updateOne({
+    const update: Record<string, unknown> = {
       status: 'conciliado',
       pedidoId:    pedidoId    ?? undefined,
       cobrancaId:  cobrancaId  ?? undefined,
       conciliadoEm: new Date(),
       conciliadoPor: userId,
-    });
+    };
+    if (comprovanteUrl) update.comprovanteUrl = comprovanteUrl;
+    await lanc.updateOne(update);
 
     // Atualiza cobrança se informada
     if (cobrancaId) {
@@ -363,7 +377,8 @@ router.patch('/lancamentos/:id/conciliar', async (req, res, next) => {
       .populate('pedidoId', 'numero valorTotal')
       .populate('cobrancaId', 'tipo valor status');
     res.json(atualizado);
-  } catch (error) { next(error); }
+    } catch (error) { next(error); }
+  });
 });
 
 // ─── PATCH /conciliacao/lancamentos/:id/ignorar ──────────────────────────────

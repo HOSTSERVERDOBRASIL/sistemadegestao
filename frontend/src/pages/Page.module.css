@@ -5,6 +5,30 @@
   gap: 10px;
   margin-bottom: 16px;
   flex-wrap: wrap;
+  flex-direction: column;
+}
+
+.chipRow {
+  display: flex;
+  gap: 5px;
+  align-items: center;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  padding-bottom: 2px;
+}
+.chipRow::-webkit-scrollbar { display: none; }
+
+.chipLabel {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  white-space: nowrap;
+  min-width: max-content;
+  padding-right: 2px;
 }
 
 .search {
@@ -133,6 +157,22 @@
 
 .form textarea, .formGrid2 textarea { resize: vertical; }
 
+.formDivider {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding-top: 14px;
+  border-top: 1px solid var(--surface-border);
+  color: var(--text-primary);
+}
+
+.formDivider span,
+.fieldHint {
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  font-weight: 400;
+}
+
 .formActions {
   display: flex;
   justify-content: flex-end;
@@ -188,10 +228,10 @@
 .chip {
   display: inline-flex;
   align-items: center;
-  gap: 7px;
-  padding: 5px 14px;
+  gap: 6px;
+  padding: 4px 12px;
   border-radius: 20px;
-  font-size: 0.79rem;
+  font-size: 0.775rem;
   font-weight: 600;
   border: 1.5px solid var(--surface-border);
   background: var(--surface);
@@ -199,6 +239,7 @@
   cursor: pointer;
   transition: all 0.15s;
   white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .chip:hover { background: var(--surface-2); }

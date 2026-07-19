@@ -34,12 +34,16 @@ router.post('/login', async (req, res, next) => {
     }
 
     const jti = randomUUID();
+    const jwtPayload: Record<string, unknown> = { sub: user._id.toString(), role: user.role, jti };
+    if (user.parceiroId) jwtPayload.parceiroId = user.parceiroId.toString();
     const token = jwt.sign(
-      { sub: user._id.toString(), role: user.role, jti },
+      jwtPayload,
       env.JWT_SECRET,
       { expiresIn: env.JWT_EXPIRES_IN as jwt.SignOptions['expiresIn'] }
     );
-    res.json({ token, user: { id: user._id, email: user.email, role: user.role } });
+    const userResp: Record<string, unknown> = { id: user._id, email: user.email, role: user.role };
+    if (user.parceiroId) userResp.parceiroId = user.parceiroId.toString();
+    res.json({ token, user: userResp });
   } catch (error) {
     next(error);
   }

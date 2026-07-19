@@ -1,6 +1,8 @@
 import { Router } from 'express';
+import bcrypt from 'bcryptjs';
 import { ClienteModel } from '../models/cliente.model.js';
 import { PedidoModel } from '../models/pedido.model.js';
+import { UserModel } from '../models/user.model.js';
 import { authenticate, authorize } from '../middleware/auth.middleware.js';
 import { escapeRegex, parseLimit, parsePage } from '../utils/query.js';
 import { consultarCNPJ, consultarCPF } from '../services/cadastro-publico.service.js';
@@ -9,6 +11,12 @@ import type { AuthenticatedRequest } from '../middleware/auth.middleware.js';
 import type { Types } from 'mongoose';
 
 const router = Router();
+
+function toFilter(v: string | undefined) {
+  if (!v) return undefined
+  const arr = v.split(',').map(s => s.trim()).filter(Boolean)
+  return arr.length === 1 ? arr[0] : { $in: arr }
+}
 
 router.get('/consulta/documento/:documento', authenticate, authorize('admin', 'operador'), async (req, res, next) => {
   try {
@@ -84,7 +92,8 @@ router.get('/', authenticate, authorize('admin', 'operador', 'financeiro'), asyn
         { documento: { $regex: safe, $options: 'i' } }
       ];
     }
-    if (tipo) filter.tipo = tipo;
+    const tipoFilter = toFilter(tipo)
+    if (tipoFilter) filter.tipo = tipoFilter;
     if (ativo !== undefined) filter.ativo = ativo === 'true';
 
     const skip = (page - 1) * limit;
@@ -98,9 +107,80 @@ router.get('/', authenticate, authorize('admin', 'operador', 'financeiro'), asyn
   }
 });
 
+router.post('/onboarding', authenticate, authorize('admin', 'operador'), async (req: AuthenticatedRequest, res, next) => {
+  let clienteCriadoId: Types.ObjectId | undefined;
+  let usuarioCriadoId: Types.ObjectId | undefined;
+  try {
+    const clienteInput = req.body.cliente as Record<string, unknown> | undefined;
+    const masterInput = req.body.usuarioMaster as Record<string, unknown> | undefined;
+    const nome = String(clienteInput?.nome ?? '').trim();
+    const email = String(clienteInput?.email ?? '').trim().toLowerCase();
+    const documento = String(clienteInput?.documento ?? '').replace(/\D/g, '');
+    const masterNome = String(masterInput?.nome ?? '').trim();
+    const masterEmail = String(masterInput?.email ?? '').trim().toLowerCase();
+    const masterPassword = String(masterInput?.password ?? '');
+
+    if (!nome || !email || !documento) {
+      return res.status(400).json({ message: 'Preencha os dados obrigatórios do cliente' });
+    }
+    if (!masterNome || !masterEmail) {
+      return res.status(400).json({ message: 'Nome e e-mail do usuário master são obrigatórios' });
+    }
+    if (masterPassword.length < 6) {
+      return res.status(400).json({ message: 'A senha inicial do usuário master deve ter ao menos 6 caracteres' });
+    }
+    if (await UserModel.exists({ email: masterEmail })) {
+      return res.status(409).json({ message: 'Já existe um usuário com o e-mail master informado' });
+    }
+
+    const cliente = await ClienteModel.create({
+      nome,
+      email,
+      documento,
+      tipo: clienteInput?.tipo,
+      telefone: clienteInput?.telefone,
+      esferaPublica: Boolean(clienteInput?.esferaPublica),
+      ativo: clienteInput?.ativo !== false,
+    });
+    clienteCriadoId = cliente._id as Types.ObjectId;
+
+    const passwordHash = await bcrypt.hash(masterPassword, 12);
+    const usuarioMaster = await UserModel.create({
+      nome: masterNome,
+      email: masterEmail,
+      passwordHash,
+      role: 'cliente',
+      clienteId: cliente._id,
+      isMasterCliente: true,
+      primeiroAcesso: true,
+      ativo: true,
+    });
+    usuarioCriadoId = usuarioMaster._id as Types.ObjectId;
+
+    cliente.usuarioMasterId = usuarioMaster._id as Types.ObjectId;
+    await cliente.save();
+    await registrarAuditoria({
+      entidade: 'Cliente',
+      entidadeId: cliente._id,
+      acao: 'cliente_e_usuario_master_criados',
+      usuarioId: req.user?.id as unknown as Types.ObjectId,
+      origem: 'Painel',
+      detalhes: { usuarioMasterId: String(usuarioMaster._id), esferaPublica: cliente.esferaPublica },
+    });
+
+    const { passwordHash: _passwordHash, ...usuarioSeguro } = usuarioMaster.toObject();
+    res.status(201).json({ cliente, usuarioMaster: usuarioSeguro });
+  } catch (error) {
+    if (usuarioCriadoId) await UserModel.deleteOne({ _id: usuarioCriadoId }).catch(() => undefined);
+    if (clienteCriadoId) await ClienteModel.deleteOne({ _id: clienteCriadoId }).catch(() => undefined);
+    next(error);
+  }
+});
+
 router.get('/:id', authenticate, authorize('admin', 'operador', 'financeiro'), async (req, res, next) => {
   try {
-    const cliente = await ClienteModel.findById(req.params.id);
+    const cliente = await ClienteModel.findById(req.params.id)
+      .populate('usuarioMasterId', 'nome email role ativo primeiroAcesso');
     if (!cliente) return res.status(404).json({ message: 'Cliente não encontrado' });
     res.json(cliente);
   } catch (error) {

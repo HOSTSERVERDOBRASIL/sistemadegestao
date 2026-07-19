@@ -117,6 +117,7 @@ export async function seedBase() {
     documento: '98.765.432/0001-10',
     email: 'parceiro@test.com',
     emissorNFPadrao: 'Revendedor',
+    saldoCreditos: 100000,
   });
 
   return { admin, token, cliente, produto, parceiro };

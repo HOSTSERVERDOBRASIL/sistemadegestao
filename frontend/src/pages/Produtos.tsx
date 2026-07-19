@@ -54,7 +54,7 @@ export default function Produtos() {
   const [rows, setRows] = useState<Produto[]>([])
   const [loading, setLoading] = useState(true)
   const [busca, setBusca] = useState('')
-  const [filtroCategoria, setFiltroCategoria] = useState('')
+  const [filtroCategoria, setFiltroCategoria] = useState<string[]>([])
   const [filtroAtivo, setFiltroAtivo] = useState<FiltroAtivo>('todos')
   const [showModal, setShowModal] = useState(false)
   const [editing, setEditing] = useState<Produto | null>(null)
@@ -78,7 +78,12 @@ export default function Produtos() {
 
   useEffect(() => { load() }, [load])
 
-  const rowsFiltrados = filtroCategoria ? rows.filter(r => r.categoria === filtroCategoria) : rows
+  function toggle(arr: string[], val: string): string[] {
+    if (!val) return []
+    return arr.includes(val) ? arr.filter(x => x !== val) : [...arr, val]
+  }
+
+  const rowsFiltrados = filtroCategoria.length > 0 ? rows.filter(r => filtroCategoria.includes(r.categoria)) : rows
 
   function openCreate() { setEditing(null); setForm(BLANK); setErrs({}); setTouched(false); setShowModal(true) }
   function openEdit(p: Produto) {
@@ -216,10 +221,11 @@ export default function Produtos() {
       <div className={styles.filters}>
         <input className={styles.search} placeholder="Buscar por nome ou código..." value={busca}
           onChange={e => { setBusca(e.target.value); setPage(1) }} />
-        <select value={filtroCategoria} onChange={e => setFiltroCategoria(e.target.value)}>
-          <option value="">Todas as categorias</option>
-          {CATEGORIAS.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
-        </select>
+        <div className={styles.chipRow}>
+          {[{ value: '', label: 'Todas' }, ...CATEGORIAS].map(c => (
+            <button key={c.value} className={`${styles.chip} ${c.value === '' ? filtroCategoria.length === 0 ? styles.chipActive : '' : filtroCategoria.includes(c.value) ? styles.chipActive : ''}`} onClick={() => setFiltroCategoria(toggle(filtroCategoria, c.value))}>{c.label}</button>
+          ))}
+        </div>
       </div>
 
       <Table columns={columns} rows={rowsFiltrados} loading={loading} empty="Nenhum produto encontrado" onRowClick={setDetalhe} />

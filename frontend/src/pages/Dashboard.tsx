@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, Navigate } from 'react-router-dom'
+import { useAuth } from '../context/AuthContext'
 import PageHeader from '../components/PageHeader'
 import StatCard from '../components/StatCard'
 import Badge from '../components/Badge'
@@ -19,6 +20,7 @@ function mesLabel(ano: number, mes: number) {
 
 export default function Dashboard() {
   const navigate = useNavigate()
+  const { user } = useAuth()
   const [resumo, setResumo] = useState<ResumoGeral | null>(null)
   const [porMes, setPorMes] = useState<FaturamentoPorMes[]>([])
   const [porStatus, setPorStatus] = useState<PedidosPorStatus[]>([])
@@ -38,6 +40,10 @@ export default function Dashboard() {
       setRecentes(p.data)
     }).finally(() => setLoading(false))
   }, [])
+
+  if (user?.role === 'revenda') {
+    return <Navigate to="/portal-revenda" replace />
+  }
 
   const maxMes = Math.max(...porMes.map(m => m.total), 1)
 

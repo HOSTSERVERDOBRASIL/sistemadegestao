@@ -1,15 +1,17 @@
-import { NavLink, Outlet, useNavigate, useLocation } from 'react-router-dom'
+import { NavLink, Link, Outlet, useNavigate, useLocation } from 'react-router-dom'
 import {
   LayoutDashboard, Users, FileText, Handshake, ClipboardList, Package,
-  Receipt, FileStack, Zap, Scale, Tag, BarChart2, Search as SearchIcon,
+  Receipt, FileStack, Zap, Scale, Tag, BarChart2,
   Link2, RefreshCw, UserCog, Settings, ScrollText, ShieldCheck,
-  Sun, Moon, LogOut, Bell,
+  Sun, Moon, LogOut, Bell, Wallet, FilePlus,
 } from 'lucide-react'
+
 import { useAuth } from '../context/AuthContext'
 import { useTheme } from '../context/ThemeContext'
 import Notifications from './Notifications'
 import styles from './Layout.module.css'
 import sessionStyles from './SessionBanner.module.css'
+import AtlasLogo from './AtlasLogo'
 
 const NAV_GROUPS = [
   {
@@ -36,8 +38,9 @@ const NAV_GROUPS = [
   {
     label: 'Financeiro',
     items: [
-      { to: '/financeiro',    label: 'Notas Fiscais',    Icon: Receipt },
-      { to: '/notas-empenho', label: 'Notas de Empenho', Icon: FileStack },
+      { to: '/financeiro',        label: 'Notas Fiscais',    Icon: Receipt },
+      { to: '/financeiro/emitir', label: 'Emitir NF',        Icon: FilePlus },
+      { to: '/notas-empenho',     label: 'Notas de Empenho', Icon: FileStack },
       { to: '/cobrancas',     label: 'Cobranças',        Icon: Zap },
       { to: '/conciliacao',   label: 'Conciliação',      Icon: Scale,   adminOnly: true },
       { to: '/cupons',        label: 'Cupons',           Icon: Tag,     adminOnly: true },
@@ -63,14 +66,32 @@ const NAV_GROUPS = [
   },
 ]
 
+const NAV_GROUPS_REVENDA = [
+  {
+    label: null,
+    items: [{ to: '/', label: 'Dashboard', Icon: LayoutDashboard }],
+  },
+  {
+    label: 'Minha Conta',
+    items: [
+      { to: '/portal-revenda?aba=visao-geral', label: 'Visão Geral',      Icon: LayoutDashboard },
+      { to: '/portal-revenda?aba=carteira',    label: 'Carteira',          Icon: Wallet },
+      { to: '/portal-revenda?aba=pedidos',     label: 'Meus Pedidos',      Icon: ClipboardList },
+      { to: '/portal-revenda?aba=relatorio',   label: 'Relatório de Consumo', Icon: BarChart2 },
+    ],
+  },
+]
+
 const ROUTE_LABELS: Record<string, string> = {
   '/': 'Dashboard',
+  '/portal-revenda': 'Portal da Revenda',
   '/clientes': 'Clientes',
   '/contratos': 'Contratos',
   '/parceiros': 'Parceiros / Revendas',
   '/pedidos': 'Pedidos',
   '/produtos': 'Produtos',
   '/financeiro': 'Notas Fiscais',
+  '/financeiro/emitir': 'Emitir Nota Fiscal',
   '/notas-empenho': 'Notas de Empenho',
   '/cobrancas': 'Cobranças',
   '/conciliacao': 'Conciliação',
@@ -96,28 +117,25 @@ export default function Layout() {
   }
 
   const isAdmin = user?.role === 'admin'
+  const groups = user?.role === 'revenda' ? NAV_GROUPS_REVENDA : NAV_GROUPS
 
-  // Breadcrumb: resolve current path label
-  const pathKey = '/' + location.pathname.split('/')[1]
+  // Breadcrumb: resolve current path label (try full path first, then first segment)
+  const pathKey = ROUTE_LABELS[location.pathname]
+    ? location.pathname
+    : '/' + location.pathname.split('/')[1]
   const pageLabel = ROUTE_LABELS[pathKey] ?? ''
-  const isDetail = location.pathname.split('/').length > 2
+  const isDetail = location.pathname.split('/').length > 2 && !ROUTE_LABELS[location.pathname]
 
   return (
     <div className={styles.shell}>
       {/* ── Sidebar ──────────────────────────────────────── */}
       <aside className={styles.sidebar}>
         <div className={styles.brand}>
-          <div className={styles.brandLogo}>
-            <span className={styles.brandLogoX}>X</span>
-          </div>
-          <div className={styles.brandTextBlock}>
-            <span className={styles.brandName}>AtlasX</span>
-            <span className={styles.brandSub}>by XDigital Brasil</span>
-          </div>
+          <AtlasLogo variant={theme === 'dark' ? 'white' : 'navy'} width={152} />
         </div>
 
         <nav className={styles.nav}>
-          {NAV_GROUPS.map((group, gi) => {
+          {groups.map((group, gi) => {
             if (group.adminOnly && !isAdmin) return null
             const visibleItems = group.items.filter(item => {
               if ((item as { adminOnly?: boolean }).adminOnly && !isAdmin) return false
@@ -128,17 +146,34 @@ export default function Layout() {
             return (
               <div key={gi} className={styles.navGroup}>
                 {group.label && <span className={styles.navGroupLabel}>{group.label}</span>}
-                {visibleItems.map(({ to, label, Icon }) => (
-                  <NavLink
-                    key={to}
-                    to={to}
-                    end={to === '/'}
-                    className={({ isActive }) => `${styles.navItem} ${isActive ? styles.active : ''}`}
-                  >
-                    <Icon size={16} className={styles.navIcon} strokeWidth={1.75} />
-                    <span>{label}</span>
-                  </NavLink>
-                ))}
+                {visibleItems.map(({ to, label, Icon }) => {
+                  const hasQuery = to.includes('?')
+                  if (hasQuery) {
+                    const fullPath = location.pathname + location.search
+                    const isActive = fullPath === to || (fullPath.startsWith(to.split('?')[0]) && fullPath.includes(to.split('?')[1]))
+                    return (
+                      <Link
+                        key={to}
+                        to={to}
+                        className={`${styles.navItem} ${isActive ? styles.active : ''}`}
+                      >
+                        <Icon size={16} className={styles.navIcon} strokeWidth={1.75} />
+                        <span>{label}</span>
+                      </Link>
+                    )
+                  }
+                  return (
+                    <NavLink
+                      key={to}
+                      to={to}
+                      end={to === '/'}
+                      className={({ isActive }) => `${styles.navItem} ${isActive ? styles.active : ''}`}
+                    >
+                      <Icon size={16} className={styles.navIcon} strokeWidth={1.75} />
+                      <span>{label}</span>
+                    </NavLink>
+                  )
+                })}
               </div>
             )
           })}

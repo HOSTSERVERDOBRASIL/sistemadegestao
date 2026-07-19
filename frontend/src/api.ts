@@ -47,6 +47,22 @@ function patch<T>(path: string, body: unknown) {
   return request<T>(path, { method: 'PATCH', body: JSON.stringify(body) })
 }
 
+async function patchForm<T>(path: string, fd: FormData): Promise<T> {
+  const res = await fetch(`${BASE}${path}`, {
+    method: 'PATCH',
+    headers: { Authorization: `Bearer ${token()}` },
+    body: fd,
+  })
+  if (res.status === 401) { localStorage.removeItem('token'); window.location.href = '/login' }
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}))
+    const message = (body as { message?: string }).message || `Erro ${res.status}`
+    if (res.status >= 500) notifyError(message)
+    throw new Error(message)
+  }
+  return res.json() as Promise<T>
+}
+
 function del<T>(path: string) {
   return request<T>(path, { method: 'DELETE' })
 }
@@ -75,6 +91,10 @@ export const clientes = {
     get<Page<Cliente>>(`/clientes${qs({ page: 1, limit: 20, ...p })}`),
   get: (id: string) => get<Cliente>(`/clientes/${id}`),
   create: (body: ClientePayload) => post<Cliente>('/clientes', body),
+  onboard: (body: {
+    cliente: ClientePayload
+    usuarioMaster: { nome: string; email: string; password: string }
+  }) => post<{ cliente: Cliente; usuarioMaster: import('./types').User }>('/clientes/onboarding', body),
   update: (id: string, body: Partial<ClientePayload>) => put<Cliente>(`/clientes/${id}`, body),
   toggleAtivo: (id: string, ativo: boolean) => patch<Cliente>(`/clientes/${id}/ativo`, { ativo }),
   remove: (id: string) => del<{ message: string; cliente: Cliente }>(`/clientes/${id}`),
@@ -110,6 +130,18 @@ export const parceiros = {
   toggleAtivo: (id: string, ativo: boolean) => patch<Parceiro>(`/parceiros/${id}/ativo`, { ativo }),
   remove: (id: string) => del<{ message: string; parceiro: Parceiro }>(`/parceiros/${id}`),
   pedidos: (id: string) => get<import('./types').Pedido[]>(`/parceiros/${id}/pedidos`),
+  regrasCobranca: (id: string) => get<{
+    origem: 'padrao' | 'revenda'
+    regras: import('./types').RegraCobrancaRevenda
+    saldoCreditos: number
+  }>(`/parceiros/${id}/regras-cobranca`),
+  creditos: (id: string) => get<{ saldo: number; movimentos: import('./types').MovimentoCreditoRevenda[] }>(`/parceiros/${id}/creditos`),
+  adicionarCreditos: (id: string, body: { valor: number; descricao?: string; tipo?: 'Aporte' | 'Ajuste' }) =>
+    post<{ saldo: number; movimento: import('./types').MovimentoCreditoRevenda }>(`/parceiros/${id}/creditos`, body),
+  usuarios: (id: string) => get<{ _id: string; nome: string; email: string; ativo: boolean; createdAt: string }[]>(`/parceiros/${id}/usuarios`),
+  criarUsuario: (id: string, body: { nome: string; email: string; password: string }) =>
+    post<{ message: string; usuario: { _id: string; nome: string; email: string; role: string } }>(`/parceiros/${id}/usuarios`, body),
+  relatorio: (id: string) => get<import('./types').RelatorioRevenda>(`/parceiros/${id}/relatorio`),
 }
 
 // Contratos
@@ -127,7 +159,7 @@ export const contratos = {
     post<OrdemFornecimento>(`/contratos/${id}/ordens-fornecimento`, body),
   pedidos: (id: string) => get<import('./types').Pedido[]>(`/contratos/${id}/pedidos`),
   resumoFinanceiro: (id: string) => get<ResumoFinanceiroContrato>(`/contratos/${id}/resumo-financeiro`),
-  criarAditivo: (id: string, body: { numero: string; valor: number; motivo: string; dataAssinatura: string; vigenciaAte?: string }) =>
+  criarAditivo: (id: string, body: { numero: string; valor: number; motivo: string; dataAssinatura: string; vigenciaAte?: string; tipo?: string }) =>
     post<Contrato>(`/contratos/${id}/aditivos`, body),
 }
 
@@ -161,7 +193,7 @@ export const clm = {
 // Financeiro
 import type { NotaFiscal } from './types'
 export const financeiro = {
-  notas: (p?: { page?: number; limit?: number; status?: string; emissor?: string; pedidoId?: string }) =>
+  notas: (p?: { page?: number; limit?: number; status?: string; emissor?: string; tipoFaturamento?: string; pedidoId?: string }) =>
     get<Page<NotaFiscal>>(`/financeiro/notas${qs({ page: 1, limit: 20, ...p })}`),
   nota: (id: string) => get<NotaFiscal>(`/financeiro/notas/${id}`),
   cancelarNota: (id: string, observacoes?: string) =>
@@ -181,6 +213,16 @@ export const financeiro = {
     get<{ notasEmitidas: number; totalFaturado: number; pedidosFaturados: number; notasPendentes: number }>(
       `/financeiro/resumo${qs(p || {})}`
     ),
+  criarAvulsa: (body: {
+    numero: string; valor: number; emissor: 'XDigital' | 'Revendedor';
+    clienteId: string;
+    tipoFaturamento?: 'Total' | 'Demanda' | 'Fechamento';
+    competencia?: string; dataVencimento?: string;
+    codigoServico?: string; aliquotaISS?: number; municipioPrestacao?: string;
+    itensCertificados?: { tipo: string; quantidade: number }[];
+    descricao?: string; observacoes?: string; pedidoId?: string;
+  }) =>
+    post<NotaFiscal>('/financeiro/notas/avulsa', body),
 }
 
 // Relatórios
@@ -373,8 +415,13 @@ export const conciliacao = {
     get<ConciliacaoResumo>(`/conciliacao/resumo${qs(p || {})}`),
   lotes: () => get<ConciliacaoLote[]>('/conciliacao/lotes'),
   auto: () => post<{ ok: boolean; conciliados: number; total: number }>('/conciliacao/auto', {}),
-  conciliar: (id: string, body: { pedidoId?: string; cobrancaId?: string }) =>
-    patch<LancamentoBancario>(`/conciliacao/lancamentos/${id}/conciliar`, body),
+  conciliar: (id: string, body: { pedidoId?: string; cobrancaId?: string; comprovante?: File | null }) => {
+    const fd = new FormData()
+    if (body.pedidoId)   fd.append('pedidoId', body.pedidoId)
+    if (body.cobrancaId) fd.append('cobrancaId', body.cobrancaId)
+    if (body.comprovante) fd.append('comprovante', body.comprovante)
+    return patchForm<LancamentoBancario>(`/conciliacao/lancamentos/${id}/conciliar`, fd)
+  },
   ignorar: (id: string, observacoes?: string) =>
     patch<{ ok: boolean }>(`/conciliacao/lancamentos/${id}/ignorar`, { observacoes }),
   reabrir: (id: string) =>

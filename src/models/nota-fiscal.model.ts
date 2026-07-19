@@ -2,9 +2,18 @@ import mongoose, { Schema, Document, Model, Types } from 'mongoose';
 
 export interface INotaFiscal extends Document {
   numero: string;
-  pedidoId: Types.ObjectId;
+  clienteId?: Types.ObjectId;
+  pedidoId?: Types.ObjectId;
+  descricao?: string;
   valor: number;
   tipo: 'Fiscal' | 'Credito';
+  tipoFaturamento?: 'Total' | 'Demanda' | 'Fechamento';
+  competencia?: string;
+  dataVencimento?: Date;
+  codigoServico?: string;
+  aliquotaISS?: number;
+  municipioPrestacao?: string;
+  itensCertificados?: { tipo: string; quantidade: number }[];
   notaOriginalId?: Types.ObjectId;
   aprovacaoEstornoSaldo?: 'Pendente' | 'Aprovado' | 'Negado';
   emissor: 'XDigital' | 'Revendedor';
@@ -20,9 +29,18 @@ export interface INotaFiscal extends Document {
 
 const notaSchema = new Schema<INotaFiscal>({
   numero: { type: String, required: true, unique: true },
-  pedidoId: { type: Schema.Types.ObjectId, ref: 'Pedido', required: true },
+  clienteId: { type: Schema.Types.ObjectId, ref: 'Cliente', required: false },
+  pedidoId: { type: Schema.Types.ObjectId, ref: 'Pedido', required: false },
+  descricao: { type: String },
   valor: { type: Number, required: true },
   tipo: { type: String, enum: ['Fiscal', 'Credito'], default: 'Fiscal' },
+  tipoFaturamento: { type: String, enum: ['Total', 'Demanda', 'Fechamento'] },
+  competencia: { type: String },
+  dataVencimento: { type: Date },
+  codigoServico: { type: String },
+  aliquotaISS: { type: Number },
+  municipioPrestacao: { type: String },
+  itensCertificados: [{ tipo: { type: String }, quantidade: { type: Number } }],
   notaOriginalId: { type: Schema.Types.ObjectId, ref: 'NotaFiscal' },
   aprovacaoEstornoSaldo: { type: String, enum: ['Pendente', 'Aprovado', 'Negado'] },
   emissor: { type: String, enum: ['XDigital', 'Revendedor'], required: true },
@@ -35,6 +53,7 @@ const notaSchema = new Schema<INotaFiscal>({
   erroEmissao: String,
 }, { timestamps: true });
 
+notaSchema.index({ clienteId: 1 });
 notaSchema.index({ pedidoId: 1 });
 notaSchema.index({ status: 1 });
 notaSchema.index({ emissor: 1 });

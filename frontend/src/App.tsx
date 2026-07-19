@@ -10,6 +10,7 @@ import PedidoDetalhe from './pages/PedidoDetalhe'
 import Contratos from './pages/Contratos'
 import ContratoDetalhe from './pages/ContratoDetalhe'
 import Clientes from './pages/Clientes'
+import ClienteDetalhe from './pages/ClienteDetalhe'
 import Produtos from './pages/Produtos'
 import Parceiros from './pages/Parceiros'
 import Financeiro from './pages/Financeiro'
@@ -24,12 +25,16 @@ import NotasEmpenho from './pages/NotasEmpenho'
 import Logs from './pages/Logs'
 import Auditoria from './pages/Auditoria'
 import IntegracaoCLM from './pages/IntegracaoCLM'
+import ParceiroDetalhe from './pages/ParceiroDetalhe'
+import PortalRevenda from './pages/PortalRevenda'
+import EmitirNF from './pages/EmitirNF'
 
-function PrivateRoute({ children, adminOnly = false }: { children: React.ReactNode; adminOnly?: boolean }) {
+function PrivateRoute({ children, adminOnly = false, revendaOnly = false }: { children: React.ReactNode; adminOnly?: boolean; revendaOnly?: boolean }) {
   const { user, loading } = useAuth()
   if (loading) return <div style={{ display: 'grid', placeItems: 'center', minHeight: '100vh', color: '#64748b', fontSize: '0.875rem' }}>Carregando...</div>
   if (!user) return <Navigate to="/login" replace />
   if (adminOnly && user.role !== 'admin') return <Navigate to="/" replace />
+  if (revendaOnly && user.role !== 'revenda') return <Navigate to="/" replace />
   return <>{children}</>
 }
 
@@ -47,9 +52,12 @@ function AppRoutes() {
         <Route path="contratos" element={<Contratos />} />
         <Route path="contratos/:id" element={<ContratoDetalhe />} />
         <Route path="clientes" element={<Clientes />} />
+        <Route path="clientes/:id" element={<ClienteDetalhe />} />
         <Route path="produtos" element={<Produtos />} />
         <Route path="parceiros" element={<Parceiros />} />
+        <Route path="parceiros/:id" element={<ParceiroDetalhe />} />
         <Route path="financeiro" element={<Financeiro />} />
+        <Route path="financeiro/emitir" element={<EmitirNF />} />
         <Route path="relatorios" element={<Relatorios />} />
         <Route path="cobrancas" element={<Cobrancas />} />
         <Route path="cupons" element={<PrivateRoute adminOnly><Cupons /></PrivateRoute>} />
@@ -61,6 +69,7 @@ function AppRoutes() {
         <Route path="logs" element={<PrivateRoute adminOnly><Logs /></PrivateRoute>} />
         <Route path="auditoria" element={<Auditoria />} />
         <Route path="integracao-clm" element={<PrivateRoute adminOnly><IntegracaoCLM /></PrivateRoute>} />
+        <Route path="portal-revenda" element={<PrivateRoute revendaOnly><PortalRevenda /></PrivateRoute>} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

@@ -10,6 +10,12 @@ import { registrarAuditoria } from '../services/auditoria.service.js';
 
 const router = Router();
 
+function toFilter(v: string | undefined) {
+  if (!v) return undefined
+  const arr = v.split(',').map(s => s.trim()).filter(Boolean)
+  return arr.length === 1 ? arr[0] : { $in: arr }
+}
+
 router.get('/', authenticate, authorize('admin', 'operador', 'financeiro'), async (req, res, next) => {
   try {
     const { clienteId, ativo, modalidade, busca } = req.query as Record<string, string>;
@@ -18,7 +24,8 @@ router.get('/', authenticate, authorize('admin', 'operador', 'financeiro'), asyn
     const filter: Record<string, unknown> = {};
     if (clienteId) filter.clienteId = clienteId;
     if (ativo !== undefined) filter.ativo = ativo === 'true';
-    if (modalidade) filter.modalidade = modalidade;
+    const modalidadeFilter = toFilter(modalidade)
+    if (modalidadeFilter) filter.modalidade = modalidadeFilter;
     if (busca) filter.numero = { $regex: escapeRegex(busca), $options: 'i' };
 
     const skip = (page - 1) * limit;
@@ -159,6 +166,7 @@ router.post('/:id/aditivos', authenticate, authorize('admin', 'operador'), async
     const valor = Number(req.body.valor);
     const dataAssinatura = new Date(req.body.dataAssinatura);
     const vigenciaAte = req.body.vigenciaAte ? new Date(req.body.vigenciaAte) : undefined;
+    const tipo = req.body.tipo as string | undefined;
     if (!numero || !motivo || !Number.isFinite(valor) || valor <= 0 || Number.isNaN(dataAssinatura.getTime())) {
       throw new ContratoFluxoError('Número, motivo, valor positivo e data de assinatura são obrigatórios', 400);
     }
@@ -166,7 +174,7 @@ router.post('/:id/aditivos', authenticate, authorize('admin', 'operador'), async
       throw new ContratoFluxoError('Já existe um aditivo com este número', 409);
     }
     if (vigenciaAte && Number.isNaN(vigenciaAte.getTime())) throw new ContratoFluxoError('Vigência do aditivo inválida', 400);
-    contrato.aditivos.push({ numero, motivo, valor, dataAssinatura, vigenciaAte });
+    contrato.aditivos.push({ numero, motivo, valor, dataAssinatura, vigenciaAte, tipo } as any);
     if (vigenciaAte && vigenciaAte > contrato.dataFim) contrato.dataFim = vigenciaAte;
     await contrato.save();
     await registrarAuditoria({

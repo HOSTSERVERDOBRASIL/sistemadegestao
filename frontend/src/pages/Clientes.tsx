@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from 'react'
+import { useNavigate } from 'react-router-dom'
 import PageHeader from '../components/PageHeader'
 import Table from '../components/Table'
 import Badge from '../components/Badge'
@@ -12,6 +13,9 @@ import styles from './Page.module.css'
 const BLANK: ClientePayload = { nome: '', email: '', documento: '', tipo: 'pessoa-juridica', esferaPublica: false, ativo: true }
 
 type Errs = FieldErrors<ClientePayload>
+type MasterForm = { nome: string; email: string; password: string }
+
+const BLANK_MASTER: MasterForm = { nome: '', email: '', password: '' }
 
 function validate(f: ClientePayload): Errs {
   return {
@@ -24,16 +28,18 @@ function validate(f: ClientePayload): Errs {
 type FiltroAtivo = 'todos' | 'ativos' | 'inativos'
 
 export default function Clientes() {
+  const navigate = useNavigate()
   const [page, setPage] = useState(1)
   const [total, setTotal] = useState(0)
   const [rows, setRows] = useState<Cliente[]>([])
   const [loading, setLoading] = useState(true)
   const [busca, setBusca] = useState('')
-  const [filtroTipo, setFiltroTipo] = useState('')
+  const [filtroTipo, setFiltroTipo] = useState<string[]>([])
   const [filtroAtivo, setFiltroAtivo] = useState<FiltroAtivo>('todos')
   const [showModal, setShowModal] = useState(false)
   const [editing, setEditing] = useState<Cliente | null>(null)
   const [form, setForm] = useState<ClientePayload>(BLANK)
+  const [masterForm, setMasterForm] = useState<MasterForm>(BLANK_MASTER)
   const [errs, setErrs] = useState<Errs>({})
   const [touched, setTouched] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -45,16 +51,29 @@ export default function Clientes() {
 
   const ativoParam = filtroAtivo === 'ativos' ? 'true' : filtroAtivo === 'inativos' ? 'false' : undefined
 
+  function toggle(arr: string[], val: string): string[] {
+    if (!val) return []
+    return arr.includes(val) ? arr.filter(x => x !== val) : [...arr, val]
+  }
+
   const load = useCallback(() => {
     setLoading(true)
-    api.list({ page, busca, tipo: filtroTipo, ativo: ativoParam })
+    api.list({ page, busca, tipo: filtroTipo.length > 0 ? filtroTipo.join(',') : undefined, ativo: ativoParam })
       .then(res => { setRows(res.data); setTotal(res.total) })
       .finally(() => setLoading(false))
   }, [page, busca, filtroTipo, ativoParam])
 
   useEffect(() => { load() }, [load])
 
-  function openCreate() { setEditing(null); setForm(BLANK); setErrs({}); setTouched(false); setShowModal(true) }
+  function openCreate() {
+    setEditing(null)
+    setForm(BLANK)
+    setMasterForm(BLANK_MASTER)
+    setErrs({})
+    setTouched(false)
+    setError('')
+    setShowModal(true)
+  }
   function openEdit(c: Cliente) {
     setEditing(c)
     setForm({ nome: c.nome, email: c.email, documento: c.documento, tipo: c.tipo, telefone: c.telefone, esferaPublica: c.esferaPublica, ativo: c.ativo })
@@ -73,10 +92,18 @@ export default function Clientes() {
     const v = validate(form)
     setErrs(v)
     if (hasErrors(v)) return
+    if (!editing && (!masterForm.nome.trim() || !masterForm.email.trim())) {
+      setError('Preencha o nome e o e-mail do usuário master')
+      return
+    }
+    if (!editing && masterForm.password.length < 6) {
+      setError('A senha inicial do usuário master deve ter ao menos 6 caracteres')
+      return
+    }
     setSaving(true); setError('')
     try {
       if (editing) await api.update(editing._id, form)
-      else await api.create(form)
+      else await api.onboard({ cliente: form, usuarioMaster: masterForm })
       setShowModal(false); load()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erro ao salvar')
@@ -200,14 +227,20 @@ export default function Clientes() {
       <div className={styles.filters}>
         <input className={styles.search} placeholder="Buscar por nome, e-mail ou documento..." value={busca}
           onChange={e => { setBusca(e.target.value); setPage(1) }} />
-        <select value={filtroTipo} onChange={e => { setFiltroTipo(e.target.value); setPage(1) }}>
-          <option value="">Todos os tipos</option>
-          <option value="pessoa-juridica">Pessoa Jurídica</option>
-          <option value="pessoa-fisica">Pessoa Física</option>
-        </select>
+        <div className={styles.chipRow}>
+          {[{ v: '', l: 'Todos os tipos' }, { v: 'pessoa-juridica', l: 'Pessoa Jurídica' }, { v: 'pessoa-fisica', l: 'Pessoa Física' }].map(({ v, l }) => (
+            <button key={v} className={`${styles.chip} ${v === '' ? filtroTipo.length === 0 ? styles.chipActive : '' : filtroTipo.includes(v) ? styles.chipActive : ''}`} onClick={() => { setFiltroTipo(toggle(filtroTipo, v)); setPage(1) }}>{l}</button>
+          ))}
+        </div>
       </div>
 
-      <Table columns={columns} rows={rows} loading={loading} empty="Nenhum cliente encontrado" onRowClick={setDetalhe} />
+      <Table
+        columns={columns}
+        rows={rows}
+        loading={loading}
+        empty="Nenhum cliente encontrado"
+        onRowClick={cliente => navigate(`/clientes/${cliente._id}`)}
+      />
       <Pagination page={page} total={total} limit={20} onChange={setPage} />
 
       {/* Drawer de detalhe */}
@@ -254,7 +287,7 @@ export default function Clientes() {
       )}
 
       {showModal && (
-        <Modal title={editing ? 'Editar Cliente' : 'Novo Cliente'} onClose={() => setShowModal(false)}>
+        <Modal title={editing ? 'Editar Cliente' : 'Novo Cliente e Usuário Master'} onClose={() => setShowModal(false)} size="lg">
           <form onSubmit={handleSave} noValidate className={styles.form}>
             <div className={styles.formGrid2}>
               <label>Nome *
@@ -303,6 +336,41 @@ export default function Clientes() {
                 </div>
               </label>
             </div>
+            {!editing && (
+              <>
+                <div className={styles.formDivider}>
+                  <strong>Usuário master</strong>
+                  <span>Primeiro acesso administrativo do cliente</span>
+                </div>
+                <div className={styles.formGrid2}>
+                  <label>Nome do responsável *
+                    <input
+                      value={masterForm.nome}
+                      onChange={e => setMasterForm(prev => ({ ...prev, nome: e.target.value }))}
+                      autoComplete="name"
+                    />
+                  </label>
+                  <label>E-mail de acesso *
+                    <input
+                      type="email"
+                      value={masterForm.email}
+                      onChange={e => setMasterForm(prev => ({ ...prev, email: e.target.value }))}
+                      autoComplete="email"
+                    />
+                  </label>
+                  <label>Senha inicial *
+                    <input
+                      type="password"
+                      value={masterForm.password}
+                      onChange={e => setMasterForm(prev => ({ ...prev, password: e.target.value }))}
+                      minLength={6}
+                      autoComplete="new-password"
+                    />
+                    <span className={styles.fieldHint}>Mínimo de 6 caracteres; deverá ser alterada no primeiro acesso.</span>
+                  </label>
+                </div>
+              </>
+            )}
             {error && <p className={styles.error}>{error}</p>}
             <div className={styles.formActions}>
               <button type="button" className={styles.btnSecondary} onClick={() => setShowModal(false)}>Cancelar</button>

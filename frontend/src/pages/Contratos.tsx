@@ -47,7 +47,7 @@ export default function Contratos() {
   const [rows, setRows] = useState<Contrato[]>([])
   const [loading, setLoading] = useState(true)
   const [busca, setBusca] = useState('')
-  const [filtroModalidade, setFiltroModalidade] = useState('')
+  const [filtroModalidade, setFiltroModalidade] = useState<string[]>([])
   const [showModal, setShowModal] = useState(false)
   const [editing, setEditing] = useState<Contrato | null>(null)
   const [form, setForm] = useState<ContratoPayload>(BLANK)
@@ -57,9 +57,14 @@ export default function Contratos() {
   const [error, setError] = useState('')
   const [clientesList, setClientesList] = useState<Cliente[]>([])
 
+  function toggle(arr: string[], val: string): string[] {
+    if (!val) return []
+    return arr.includes(val) ? arr.filter(x => x !== val) : [...arr, val]
+  }
+
   const load = useCallback(() => {
     setLoading(true)
-    api.list({ page, busca, modalidade: filtroModalidade })
+    api.list({ page, busca, modalidade: filtroModalidade.length > 0 ? filtroModalidade.join(',') : undefined })
       .then(res => { setRows(res.data); setTotal(res.total) })
       .finally(() => setLoading(false))
   }, [page, busca, filtroModalidade])
@@ -157,10 +162,11 @@ export default function Contratos() {
       <div className={styles.filters}>
         <input className={styles.search} placeholder="Buscar por número..." value={busca}
           onChange={e => { setBusca(e.target.value); setPage(1) }} />
-        <select value={filtroModalidade} onChange={e => { setFiltroModalidade(e.target.value); setPage(1) }}>
-          <option value="">Todas as modalidades</option>
-          {['Total', 'Parcial', 'Por Ordem de Fornecimento'].map(m => <option key={m} value={m}>{m}</option>)}
-        </select>
+        <div className={styles.chipRow}>
+          {[{ v: '', l: 'Todas' }, { v: 'Total', l: 'Total' }, { v: 'Parcial', l: 'Parcial' }, { v: 'Por Ordem de Fornecimento', l: 'Por OF' }].map(({ v, l }) => (
+            <button key={v} className={`${styles.chip} ${v === '' ? filtroModalidade.length === 0 ? styles.chipActive : '' : filtroModalidade.includes(v) ? styles.chipActive : ''}`} onClick={() => { setFiltroModalidade(toggle(filtroModalidade, v)); setPage(1) }}>{l}</button>
+          ))}
+        </div>
       </div>
       <Table
         columns={columns}

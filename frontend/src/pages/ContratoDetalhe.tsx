@@ -16,6 +16,241 @@ function fmt(d: string) {
   return new Date(d).toLocaleDateString('pt-BR')
 }
 
+const TIPO_COLOR: Record<string, string> = {
+  'Acréscimo':              '#15803d',
+  'Supressão':              '#b91c1c',
+  'Reequilíbrio Econômico': '#1d4ed8',
+  'Prorrogação':            '#7c3aed',
+}
+const TIPO_BG: Record<string, string> = {
+  'Acréscimo':              '#dcfce7',
+  'Supressão':              '#fee2e2',
+  'Reequilíbrio Econômico': '#dbeafe',
+  'Prorrogação':            '#ede9fe',
+}
+
+function ContratoHistorico({ contrato, moeda, fmt }: { contrato: Contrato; moeda: (v: number) => string; fmt: (d: string) => string }) {
+  const aditivos = contrato.aditivos ?? []
+
+  // Monta eventos ordenados por data
+  const eventos: Array<{
+    tipo: 'original' | 'aditivo' | 'atual'
+    data: string
+    label: string
+    subLabel?: string
+    tipoAditivo?: string
+    deltaValor?: number
+    valorAcumulado: number
+    vigenciaAte?: string
+    motivo?: string
+  }> = []
+
+  let acumulado = contrato.valorTotal
+  const vigenciaOriginal = contrato.dataFim
+
+  eventos.push({
+    tipo: 'original',
+    data: contrato.dataInicio,
+    label: 'Contrato Original',
+    subLabel: `Início: ${fmt(contrato.dataInicio)}`,
+    valorAcumulado: acumulado,
+    vigenciaAte: vigenciaOriginal,
+  })
+
+  const sorted = [...aditivos].sort(
+    (a, b) => new Date(a.dataAssinatura).getTime() - new Date(b.dataAssinatura).getTime()
+  )
+
+  for (const ad of sorted) {
+    acumulado += ad.valor
+    eventos.push({
+      tipo: 'aditivo',
+      data: ad.dataAssinatura,
+      label: `Aditivo ${ad.numero}`,
+      subLabel: ad.motivo,
+      tipoAditivo: ad.tipo,
+      deltaValor: ad.valor,
+      valorAcumulado: acumulado,
+      vigenciaAte: ad.vigenciaAte,
+      motivo: ad.motivo,
+    })
+  }
+
+  // Situação atual é o último ponto
+  const vigenciaFinal = sorted.filter(a => a.vigenciaAte).at(-1)?.vigenciaAte ?? contrato.dataFim
+
+  eventos.push({
+    tipo: 'atual',
+    data: '',
+    label: contrato.ativo ? 'Vigente' : 'Encerrado',
+    subLabel: `Vigência até ${fmt(vigenciaFinal)}`,
+    valorAcumulado: acumulado,
+    vigenciaAte: vigenciaFinal,
+  })
+
+  const valorMax = Math.max(...eventos.map(e => e.valorAcumulado), 0.01)
+
+  return (
+    <div className={pageStyles.panel} style={{ marginBottom: 20 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+        <h3 className={pageStyles.panelTitle} style={{ margin: 0 }}>
+          Histórico do Contrato
+        </h3>
+        <span style={{ fontSize: '0.78rem', color: '#64748b' }}>
+          {aditivos.length} aditivo{aditivos.length !== 1 ? 's' : ''} · {sorted.filter(a => a.vigenciaAte).length} prorrogação{sorted.filter(a => a.vigenciaAte).length !== 1 ? 'ões' : ''}
+        </span>
+      </div>
+
+      {/* Tabela de evolução de valor */}
+      {aditivos.length > 0 && (
+        <div style={{ marginBottom: 24, overflowX: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem' }}>
+            <thead>
+              <tr style={{ borderBottom: '2px solid var(--border, #e2e8f0)' }}>
+                <th style={{ textAlign: 'left', padding: '6px 12px', color: '#64748b', fontWeight: 700, fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Data</th>
+                <th style={{ textAlign: 'left', padding: '6px 12px', color: '#64748b', fontWeight: 700, fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Evento</th>
+                <th style={{ textAlign: 'left', padding: '6px 12px', color: '#64748b', fontWeight: 700, fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Tipo</th>
+                <th style={{ textAlign: 'right', padding: '6px 12px', color: '#64748b', fontWeight: 700, fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Variação</th>
+                <th style={{ textAlign: 'right', padding: '6px 12px', color: '#64748b', fontWeight: 700, fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Valor Acumulado</th>
+                <th style={{ textAlign: 'left', padding: '6px 12px', color: '#64748b', fontWeight: 700, fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Vigência</th>
+              </tr>
+            </thead>
+            <tbody>
+              {eventos.filter(e => e.tipo !== 'atual').map((ev, i) => (
+                <tr key={i} style={{ borderBottom: '1px solid var(--border, #f1f5f9)', background: i % 2 === 0 ? 'transparent' : 'var(--row-alt, #fafbfc)' }}>
+                  <td style={{ padding: '10px 12px', color: '#475569', whiteSpace: 'nowrap' }}>
+                    {ev.data ? fmt(ev.data) : '—'}
+                  </td>
+                  <td style={{ padding: '10px 12px' }}>
+                    <strong style={{ fontSize: '0.85rem' }}>{ev.label}</strong>
+                    {ev.subLabel && ev.tipo === 'aditivo' && (
+                      <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: 2, maxWidth: 280 }}>{ev.subLabel}</div>
+                    )}
+                  </td>
+                  <td style={{ padding: '10px 12px' }}>
+                    {ev.tipoAditivo ? (
+                      <span style={{
+                        fontSize: '0.72rem', fontWeight: 700,
+                        background: TIPO_BG[ev.tipoAditivo] ?? '#f1f5f9',
+                        color: TIPO_COLOR[ev.tipoAditivo] ?? '#475569',
+                        padding: '2px 8px', borderRadius: 4,
+                      }}>
+                        {ev.tipoAditivo}
+                      </span>
+                    ) : (
+                      ev.tipo === 'original' ? (
+                        <span style={{ fontSize: '0.72rem', fontWeight: 700, background: '#f0fdf4', color: '#15803d', padding: '2px 8px', borderRadius: 4 }}>
+                          Original
+                        </span>
+                      ) : '—'
+                    )}
+                  </td>
+                  <td style={{ padding: '10px 12px', textAlign: 'right', whiteSpace: 'nowrap' }}>
+                    {ev.deltaValor !== undefined ? (
+                      <span style={{ color: ev.deltaValor >= 0 ? '#15803d' : '#b91c1c', fontWeight: 700 }}>
+                        {ev.deltaValor >= 0 ? '+' : ''}{moeda(ev.deltaValor)}
+                      </span>
+                    ) : '—'}
+                  </td>
+                  <td style={{ padding: '10px 12px', textAlign: 'right', whiteSpace: 'nowrap' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
+                      <strong style={{ fontSize: '0.88rem' }}>{moeda(ev.valorAcumulado)}</strong>
+                      <div style={{ width: 100, height: 4, background: 'var(--border, #e2e8f0)', borderRadius: 999, overflow: 'hidden' }}>
+                        <div style={{
+                          width: `${(ev.valorAcumulado / valorMax) * 100}%`,
+                          height: '100%',
+                          background: 'var(--btn-primary-bg, #0F3961)',
+                          borderRadius: 999,
+                          transition: 'width 0.3s',
+                        }} />
+                      </div>
+                    </div>
+                  </td>
+                  <td style={{ padding: '10px 12px', color: '#475569', fontSize: '0.8rem', whiteSpace: 'nowrap' }}>
+                    {ev.tipo === 'original'
+                      ? `até ${fmt(contrato.dataFim)}`
+                      : ev.vigenciaAte
+                        ? <span style={{ color: '#7c3aed', fontWeight: 600 }}>↗ até {fmt(ev.vigenciaAte)}</span>
+                        : 'sem alteração'
+                    }
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+            <tfoot>
+              <tr style={{ borderTop: '2px solid var(--border, #e2e8f0)', background: 'var(--sidebar-bg-subtle, #f8fafc)' }}>
+                <td colSpan={4} style={{ padding: '10px 12px', fontWeight: 700, fontSize: '0.82rem', color: '#374151' }}>Situação Atual</td>
+                <td style={{ padding: '10px 12px', textAlign: 'right', fontWeight: 800, fontSize: '0.92rem', color: 'var(--btn-primary-bg, #0F3961)' }}>
+                  {moeda(acumulado)}
+                </td>
+                <td style={{ padding: '10px 12px', fontSize: '0.8rem', color: '#475569' }}>
+                  até {fmt(vigenciaFinal)}
+                </td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      )}
+
+      {/* Timeline vertical */}
+      <div style={{ position: 'relative', paddingLeft: 32 }}>
+        <div style={{ position: 'absolute', left: 11, top: 12, bottom: 12, width: 2, background: 'var(--border, #e2e8f0)', borderRadius: 999 }} />
+        {eventos.map((ev, i) => {
+          const isFirst = i === 0
+          const isLast = ev.tipo === 'atual'
+          const dotColor = isFirst ? '#0F3961' : isLast ? (contrato.ativo ? '#15803d' : '#94a3b8') : (TIPO_COLOR[ev.tipoAditivo ?? ''] ?? '#64748b')
+          return (
+            <div key={i} style={{ position: 'relative', paddingBottom: isLast ? 0 : 24 }}>
+              <div style={{
+                position: 'absolute', left: -21, top: 2,
+                width: 14, height: 14, borderRadius: '50%',
+                background: dotColor, border: '2px solid #fff',
+                boxShadow: `0 0 0 2px ${dotColor}`,
+                zIndex: 1,
+              }} />
+              <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start', flexWrap: 'wrap' }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                    <span style={{ fontWeight: 700, fontSize: '0.875rem', color: '#1e293b' }}>{ev.label}</span>
+                    {ev.tipoAditivo && (
+                      <span style={{
+                        fontSize: '0.68rem', fontWeight: 700,
+                        background: TIPO_BG[ev.tipoAditivo] ?? '#f1f5f9',
+                        color: TIPO_COLOR[ev.tipoAditivo] ?? '#475569',
+                        padding: '1px 6px', borderRadius: 4,
+                      }}>{ev.tipoAditivo}</span>
+                    )}
+                    {ev.data && (
+                      <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>{fmt(ev.data)}</span>
+                    )}
+                  </div>
+                  {ev.motivo && (
+                    <p style={{ margin: '2px 0 0', fontSize: '0.78rem', color: '#64748b' }}>{ev.motivo}</p>
+                  )}
+                  {ev.subLabel && ev.tipo !== 'aditivo' && (
+                    <p style={{ margin: '2px 0 0', fontSize: '0.78rem', color: '#64748b' }}>{ev.subLabel}</p>
+                  )}
+                </div>
+                <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                  {ev.deltaValor !== undefined && (
+                    <div style={{ fontSize: '0.78rem', color: ev.deltaValor >= 0 ? '#15803d' : '#b91c1c', fontWeight: 700 }}>
+                      {ev.deltaValor >= 0 ? '+' : ''}{moeda(ev.deltaValor)}
+                    </div>
+                  )}
+                  <div style={{ fontWeight: 700, fontSize: '0.85rem', color: '#1e293b' }}>{moeda(ev.valorAcumulado)}</div>
+                  {ev.vigenciaAte && ev.tipo === 'aditivo' && (
+                    <div style={{ fontSize: '0.72rem', color: '#7c3aed' }}>vigência ↗ {fmt(ev.vigenciaAte)}</div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
 export default function ContratoDetalhe() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
@@ -27,7 +262,7 @@ export default function ContratoDetalhe() {
   const [showOrdemModal, setShowOrdemModal] = useState(false)
   const [showAditivoModal, setShowAditivoModal] = useState(false)
   const [ordemForm, setOrdemForm] = useState({ numero: '', valor: 0, dataEmissao: '', dataFim: '', observacoes: '' })
-  const [aditivoForm, setAditivoForm] = useState({ numero: '', valor: 0, motivo: '', dataAssinatura: '', vigenciaAte: '' })
+  const [aditivoForm, setAditivoForm] = useState({ numero: '', valor: 0, motivo: '', dataAssinatura: '', vigenciaAte: '', tipo: '' })
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [faturando, setFaturando] = useState(false)
@@ -104,9 +339,9 @@ export default function ContratoDetalhe() {
     if (!id) return
     setSaving(true); setError('')
     try {
-      await api.criarAditivo(id, { ...aditivoForm, vigenciaAte: aditivoForm.vigenciaAte || undefined })
+      await api.criarAditivo(id, { ...aditivoForm, vigenciaAte: aditivoForm.vigenciaAte || undefined, tipo: aditivoForm.tipo || undefined })
       setShowAditivoModal(false)
-      setAditivoForm({ numero: '', valor: 0, motivo: '', dataAssinatura: '', vigenciaAte: '' })
+      setAditivoForm({ numero: '', valor: 0, motivo: '', dataAssinatura: '', vigenciaAte: '', tipo: '' })
       load()
     } catch (err) { setError(err instanceof Error ? err.message : 'Erro ao criar aditivo') }
     finally { setSaving(false) }
@@ -231,14 +466,7 @@ export default function ContratoDetalhe() {
         </div>
       </div>
 
-      {(contrato.aditivos?.length ?? 0) > 0 && <div className={pageStyles.panel}>
-        <h3 className={pageStyles.panelTitle}>Aditivos ({contrato.aditivos.length})</h3>
-        {contrato.aditivos.map(aditivo => <div key={aditivo.numero} style={{ display: 'grid', gridTemplateColumns: '1fr auto auto', gap: 16, padding: '10px 0', borderBottom: '1px solid #e2e8f0' }}>
-          <span><strong>{aditivo.numero}</strong><br /><small>{aditivo.motivo}</small></span>
-          <span>{fmt(aditivo.dataAssinatura)}{aditivo.vigenciaAte ? ` · vigência até ${fmt(aditivo.vigenciaAte)}` : ''}</span>
-          <strong style={{ color: '#15803d' }}>+ {moeda(aditivo.valor)}</strong>
-        </div>)}
-      </div>}
+      <ContratoHistorico contrato={contrato} moeda={moeda} fmt={fmt} />
 
       {/* Ordens de Fornecimento */}
       {contrato.modalidade === 'Por Ordem de Fornecimento' && (
@@ -304,6 +532,15 @@ export default function ContratoDetalhe() {
       {showAditivoModal && <Modal title="Novo Aditivo" onClose={() => setShowAditivoModal(false)} size="sm">
         <form onSubmit={handleCriarAditivo} className={pageStyles.form}>
           <label>Número *<input required value={aditivoForm.numero} onChange={e => setAditivoForm({ ...aditivoForm, numero: e.target.value })} /></label>
+          <label>Tipo de Aditivo
+            <select value={aditivoForm.tipo} onChange={e => setAditivoForm({ ...aditivoForm, tipo: e.target.value })}>
+              <option value="">Selecione (opcional)</option>
+              <option value="Reequilíbrio Econômico">Reequilíbrio Econômico</option>
+              <option value="Acréscimo">Acréscimo</option>
+              <option value="Supressão">Supressão</option>
+              <option value="Prorrogação">Prorrogação</option>
+            </select>
+          </label>
           <label>Valor *<input required type="number" min="0.01" step="0.01" value={aditivoForm.valor} onChange={e => setAditivoForm({ ...aditivoForm, valor: Number(e.target.value) })} /></label>
           <label>Data de assinatura *<input required type="date" value={aditivoForm.dataAssinatura} onChange={e => setAditivoForm({ ...aditivoForm, dataAssinatura: e.target.value })} /></label>
           <label>Prorrogar vigência até<input type="date" value={aditivoForm.vigenciaAte} onChange={e => setAditivoForm({ ...aditivoForm, vigenciaAte: e.target.value })} /></label>

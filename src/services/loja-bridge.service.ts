@@ -10,6 +10,7 @@ import { montarItensPedido } from './pedido.service.js';
 import { registrarAuditoria } from './auditoria.service.js';
 import { estornarSaldoNotaEmpenho, reservarSaldoNotaEmpenho } from './nota-empenho.service.js';
 import { CadastroPublicoError, consultarCNPJ, serproConfigurado } from './cadastro-publico.service.js';
+import { emitirNotaFiscal } from './faturamento.service.js';
 
 type ModuloLoja = { moduleId: string; name: string; price: number; quantity: number };
 type VinculoLoja = {
@@ -109,6 +110,7 @@ export async function atribuirAssinaturaLoja(input: {
   modules: ModuloLoja[];
   metadata?: { orderNumber?: string; orderId?: string };
   vinculo?: VinculoLoja;
+  emitirNotaFiscal?: boolean;
 }) {
   const cliente = await ClienteModel.findById(input.customerId);
   if (!cliente || !cliente.ativo) throw new ContratoFluxoError('Cliente não encontrado ou inativo', 404);
@@ -177,8 +179,15 @@ export async function atribuirAssinaturaLoja(input: {
     detalhes: { numero: pedido.numero, itens: pedido.itens.length, vinculoContrato: isContrato },
   });
 
+  let notaFiscalId: string | undefined;
+  if (!isContrato && input.emitirNotaFiscal !== false) {
+    const notaFiscal = await emitirNotaFiscal(String(pedido._id));
+    notaFiscalId = String((notaFiscal as { _id: unknown })._id);
+  }
+
   return {
     pedidoId: String(pedido._id), numeroPedido: pedido.numero, idempotente: false,
+    notaFiscalId,
     modules: calculado.itens.map(item => ({ moduleId: String(item.produtoId), status: 'provisioning' as const })),
   };
 }

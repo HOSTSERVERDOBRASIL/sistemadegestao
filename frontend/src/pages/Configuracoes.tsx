@@ -7,6 +7,7 @@ import styles from './Page.module.css'
 import cStyles from './Configuracoes.module.css'
 
 const ICONE: Record<string, string> = {
+  revendas: '🤝',
   efi:      '💳',
   tiny:     '🔗',
   olist:    '📦',
@@ -51,7 +52,7 @@ export default function Configuracoes() {
   function abrirEdicao(s: ServicoConfig) {
     const inicial: Record<string, string> = {}
     for (const c of s.campos) {
-      inicial[c.key] = ''  // sempre começa vazio — usuário preenche só o que quer mudar
+      inicial[c.key] = c.secret ? '' : c.valor
     }
     setForm(inicial)
     setEditando(s)
@@ -135,7 +136,7 @@ export default function Configuracoes() {
     <div className={styles.page}>
       <PageHeader
         title="Configurações"
-        subtitle="Gerencie as integrações e credenciais do sistema"
+        subtitle="Gerencie integrações, credenciais e regras comerciais"
       />
 
       <div className={cStyles.grid}>
@@ -210,13 +211,25 @@ export default function Configuracoes() {
                   )}
                 </span>
                 <div className={cStyles.inputWrap}>
-                  <input
-                    type={c.secret && !mostrarSecrets.has(c.key) ? 'password' : 'text'}
-                    placeholder={c.configurado ? '(manter atual)' : (c.placeholder ?? '')}
-                    value={form[c.key] ?? ''}
-                    onChange={e => setForm(prev => ({ ...prev, [c.key]: e.target.value }))}
-                    autoComplete="off"
-                  />
+                  {c.type === 'select' ? (
+                    <select
+                      value={form[c.key] ?? ''}
+                      onChange={e => setForm(prev => ({ ...prev, [c.key]: e.target.value }))}
+                    >
+                      <option value="">{c.configurado ? 'Manter valor atual' : 'Selecione...'}</option>
+                      {c.options?.map(option => (
+                        <option key={option.value} value={option.value}>{option.label}</option>
+                      ))}
+                    </select>
+                  ) : (
+                    <input
+                      type={c.secret && !mostrarSecrets.has(c.key) ? 'password' : (c.type ?? 'text')}
+                      placeholder={c.configurado ? '(manter atual)' : (c.placeholder ?? '')}
+                      value={form[c.key] ?? ''}
+                      onChange={e => setForm(prev => ({ ...prev, [c.key]: e.target.value }))}
+                      autoComplete="off"
+                    />
+                  )}
                   {c.secret && (
                     <button
                       type="button"

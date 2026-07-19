@@ -9,157 +9,167 @@ html, body, #root {
   width: 100%;
 }
 
-/* ── Design tokens ──────────────────────────────────────────────── */
+/* ── Design tokens — AtlasX brand palette ───────────────────────── */
+/* Brand: #0F3961 navy · #E6BF40 gold · #3D1D77 purple · #0E6446 green */
+
 :root, [data-theme="dark"] {
   /* Sidebar */
-  --sidebar-bg:        #0f172a;
-  --sidebar-hover:     #1e293b;
-  --sidebar-border:    #1e293b;
-  --sidebar-label:     #475569;
-  --sidebar-text:      #94a3b8;
-  --sidebar-text-hover:#e2e8f0;
+  --sidebar-bg:        #0a2540;
+  --sidebar-hover:     #0f3061;
+  --sidebar-border:    #0f3061;
+  --sidebar-label:     #4a6fa3;
+  --sidebar-text:      #8fb3d4;
+  --sidebar-text-hover:#e8f1f9;
 
   /* Nav active */
   --nav-active-bg:     transparent;
-  --nav-active-text:   #f59e0b;
-  --nav-active-bar:    #f59e0b;
+  --nav-active-text:   #E6BF40;
+  --nav-active-bar:    #E6BF40;
 
   /* Brand */
-  --brand-logo-bg:     #f59e0b;
-  --brand-logo-text:   #0f172a;
-  --brand-name:        #f1f5f9;
-  --brand-sub:         #f59e0b;
+  --brand-logo-bg:     #0F3961;
+  --brand-logo-text:   #E6BF40;
+  --brand-name:        #f0f6fc;
+  --brand-sub:         rgba(230,191,64,0.7);
 
   /* User area */
-  --user-avatar-bg:    #f59e0b;
-  --user-avatar-text:  #0f172a;
-  --user-name:         #e2e8f0;
-  --user-role:         #64748b;
+  --user-avatar-bg:    #E6BF40;
+  --user-avatar-text:  #0F3961;
+  --user-name:         #e2edf7;
+  --user-role:         #4a6fa3;
 
   /* Topbar */
-  --topbar-bg:         #0f172a;
-  --topbar-border:     #1e293b;
-  --topbar-text:       #94a3b8;
-  --topbar-text-hover: #e2e8f0;
-  --topbar-icon-hover: #1e293b;
-  --breadcrumb-sep:    #334155;
-  --breadcrumb-active: #f1f5f9;
+  --topbar-bg:         #0a2540;
+  --topbar-border:     #0f3061;
+  --topbar-text:       #8fb3d4;
+  --topbar-text-hover: #e8f1f9;
+  --topbar-icon-hover: #0f3061;
+  --breadcrumb-sep:    #1e4a7a;
+  --breadcrumb-active: #f0f6fc;
 
   /* Content area */
-  --page-bg:           #0b1120;
-  --surface:           #0f172a;
-  --surface-2:         #1e293b;
-  --surface-border:    #1e293b;
+  --page-bg:           #071a2f;
+  --surface:           #0a2540;
+  --surface-2:         #0f3061;
+  --surface-border:    #0f3061;
 
   /* Text */
-  --text-primary:      #f1f5f9;
-  --text-secondary:    #94a3b8;
-  --text-muted:        #64748b;
+  --text-primary:      #f0f6fc;
+  --text-secondary:    #8fb3d4;
+  --text-muted:        #4a6fa3;
 
   /* Inputs */
-  --input-bg:          #1e293b;
-  --input-border:      #334155;
-  --input-text:        #e2e8f0;
-  --input-focus:       #f59e0b;
+  --input-bg:          #0f3061;
+  --input-border:      #1e4a7a;
+  --input-text:        #e2edf7;
+  --input-focus:       #E6BF40;
 
-  /* Buttons */
-  --btn-primary-bg:    #1e40af;
-  --btn-primary-hover: #1d4ed8;
-  --btn-secondary-bg:  #1e293b;
-  --btn-secondary-border: #334155;
-  --btn-secondary-text:#e2e8f0;
-  --btn-secondary-hover: #293548;
+  /* Buttons — primary usa o navy mais claro com gold hover */
+  --btn-primary-bg:    #0F3961;
+  --btn-primary-hover: #1a4f82;
+  --btn-secondary-bg:  #0f3061;
+  --btn-secondary-border: #1e4a7a;
+  --btn-secondary-text:#e2edf7;
+  --btn-secondary-hover: #1a4f82;
 
   /* Accents */
-  --accent:            #f59e0b;
-  --accent-muted:      rgba(245, 158, 11, 0.12);
-  --danger:            #ef4444;
-  --danger-bg:         rgba(239, 68, 68, 0.12);
-  --success:           #22c55e;
-  --success-bg:        rgba(34, 197, 94, 0.12);
+  --accent:            #E6BF40;
+  --accent-muted:      rgba(230, 191, 64, 0.12);
+  --accent-purple:     #3D1D77;
+  --accent-purple-muted: rgba(61, 29, 119, 0.15);
+  --accent-green:      #0E6446;
+  --accent-green-muted: rgba(14, 100, 70, 0.15);
+  --danger:            #f05252;
+  --danger-bg:         rgba(240, 82, 82, 0.12);
+  --success:           #10b981;
+  --success-bg:        rgba(16, 185, 129, 0.12);
 
   /* Focus ring */
-  --focus-ring:        #f59e0b;
+  --focus-ring:        #E6BF40;
 
   /* Scrollbar */
-  --scrollbar-track:   #0f172a;
-  --scrollbar-thumb:   #334155;
+  --scrollbar-track:   #0a2540;
+  --scrollbar-thumb:   #1e4a7a;
 }
 
 [data-theme="light"] {
   /* Sidebar */
   --sidebar-bg:        #ffffff;
-  --sidebar-hover:     #f8fafc;
-  --sidebar-border:    #e2e8f0;
-  --sidebar-label:     #94a3b8;
-  --sidebar-text:      #64748b;
-  --sidebar-text-hover:#0f172a;
+  --sidebar-hover:     #f4f7fb;
+  --sidebar-border:    #dce6f0;
+  --sidebar-label:     #8fb3d4;
+  --sidebar-text:      #4a6fa3;
+  --sidebar-text-hover:#0F3961;
 
   /* Nav active */
   --nav-active-bg:     transparent;
-  --nav-active-text:   #1e40af;
-  --nav-active-bar:    #1e40af;
+  --nav-active-text:   #0F3961;
+  --nav-active-bar:    #E6BF40;
 
   /* Brand */
-  --brand-logo-bg:     #1e40af;
-  --brand-logo-text:   #ffffff;
-  --brand-name:        #0f172a;
-  --brand-sub:         #1e40af;
+  --brand-logo-bg:     #0F3961;
+  --brand-logo-text:   #E6BF40;
+  --brand-name:        #0F3961;
+  --brand-sub:         #E6BF40;
 
   /* User area */
-  --user-avatar-bg:    #1e40af;
-  --user-avatar-text:  #ffffff;
-  --user-name:         #0f172a;
-  --user-role:         #64748b;
+  --user-avatar-bg:    #0F3961;
+  --user-avatar-text:  #E6BF40;
+  --user-name:         #0F3961;
+  --user-role:         #4a6fa3;
 
   /* Topbar */
   --topbar-bg:         #ffffff;
-  --topbar-border:     #e2e8f0;
-  --topbar-text:       #64748b;
-  --topbar-text-hover: #0f172a;
-  --topbar-icon-hover: #f1f5f9;
-  --breadcrumb-sep:    #cbd5e1;
-  --breadcrumb-active: #0f172a;
+  --topbar-border:     #dce6f0;
+  --topbar-text:       #4a6fa3;
+  --topbar-text-hover: #0F3961;
+  --topbar-icon-hover: #f4f7fb;
+  --breadcrumb-sep:    #b3cce0;
+  --breadcrumb-active: #0F3961;
 
   /* Content area */
-  --page-bg:           #f8fafc;
+  --page-bg:           #f4f7fb;
   --surface:           #ffffff;
-  --surface-2:         #f1f5f9;
-  --surface-border:    #e2e8f0;
+  --surface-2:         #eef3f9;
+  --surface-border:    #dce6f0;
 
   /* Text */
-  --text-primary:      #0f172a;
-  --text-secondary:    #475569;
-  --text-muted:        #94a3b8;
+  --text-primary:      #0F3961;
+  --text-secondary:    #2c5282;
+  --text-muted:        #8fb3d4;
 
   /* Inputs */
   --input-bg:          #ffffff;
-  --input-border:      #d1d5db;
-  --input-text:        #0f172a;
-  --input-focus:       #1e40af;
+  --input-border:      #b3cce0;
+  --input-text:        #0F3961;
+  --input-focus:       #0F3961;
 
   /* Buttons */
-  --btn-primary-bg:    #1e40af;
-  --btn-primary-hover: #1d4ed8;
+  --btn-primary-bg:    #0F3961;
+  --btn-primary-hover: #1a4f82;
   --btn-secondary-bg:  #ffffff;
-  --btn-secondary-border: #d1d5db;
-  --btn-secondary-text:#374151;
-  --btn-secondary-hover: #f8fafc;
+  --btn-secondary-border: #b3cce0;
+  --btn-secondary-text:#2c5282;
+  --btn-secondary-hover: #f4f7fb;
 
   /* Accents */
-  --accent:            #1e40af;
-  --accent-muted:      rgba(30, 64, 175, 0.08);
+  --accent:            #E6BF40;
+  --accent-muted:      rgba(230, 191, 64, 0.12);
+  --accent-purple:     #3D1D77;
+  --accent-purple-muted: rgba(61, 29, 119, 0.1);
+  --accent-green:      #0E6446;
+  --accent-green-muted: rgba(14, 100, 70, 0.1);
   --danger:            #dc2626;
   --danger-bg:         rgba(220, 38, 38, 0.08);
-  --success:           #16a34a;
-  --success-bg:        rgba(22, 163, 74, 0.08);
+  --success:           #059669;
+  --success-bg:        rgba(5, 150, 105, 0.08);
 
   /* Focus ring */
-  --focus-ring:        #1e40af;
+  --focus-ring:        #0F3961;
 
   /* Scrollbar */
-  --scrollbar-track:   #f1f5f9;
-  --scrollbar-thumb:   #cbd5e1;
+  --scrollbar-track:   #eef3f9;
+  --scrollbar-thumb:   #b3cce0;
 }
 
 body {

@@ -9,20 +9,87 @@ import { broadcast } from '../services/events.service.js';
 
 const router = Router();
 
+function toFilter(v: string | undefined) {
+  if (!v) return undefined
+  const arr = v.split(',').map(s => s.trim()).filter(Boolean)
+  return arr.length === 1 ? arr[0] : { $in: arr }
+}
+
 router.get('/notas', authenticate, authorize('admin', 'financeiro'), async (req, res, next) => {
   try {
-    const { page = '1', limit = '20', status, emissor, pedidoId } = req.query as Record<string, string>;
+    const { page = '1', limit = '20', status, emissor, pedidoId, tipoFaturamento } = req.query as Record<string, string>;
     const filter: Record<string, unknown> = {};
-    if (status) filter.status = status;
-    if (emissor) filter.emissor = emissor;
+    const statusFilter = toFilter(status)
+    if (statusFilter) filter.status = statusFilter;
+    const emissorFilter = toFilter(emissor)
+    if (emissorFilter) filter.emissor = emissorFilter;
+    const tipoFatFilter = toFilter(tipoFaturamento)
+    if (tipoFatFilter) filter.tipoFaturamento = tipoFatFilter;
     if (pedidoId) filter.pedidoId = pedidoId;
 
     const skip = (Number(page) - 1) * Number(limit);
     const [notas, total] = await Promise.all([
-      NotaFiscalModel.find(filter).populate('pedidoId', 'numero clienteId valorTotal').sort({ createdAt: -1 }).skip(skip).limit(Number(limit)),
+      NotaFiscalModel.find(filter)
+        .populate('pedidoId', 'numero clienteId valorTotal')
+        .populate('clienteId', 'nome documento')
+        .sort({ createdAt: -1 }).skip(skip).limit(Number(limit)),
       NotaFiscalModel.countDocuments(filter)
     ]);
     res.json({ data: notas, total, page: Number(page), limit: Number(limit) });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// POST /financeiro/notas/avulsa — NF avulsa sem pedido vinculado
+router.post('/notas/avulsa', authenticate, authorize('admin', 'financeiro'), async (req, res, next) => {
+  try {
+    const {
+      numero, valor, emissor, descricao, observacoes, pedidoId,
+      tipoFaturamento, clienteId, competencia, dataVencimento,
+      codigoServico, aliquotaISS, municipioPrestacao, itensCertificados,
+    } = req.body;
+
+    if (!numero || !valor || !emissor) {
+      return res.status(400).json({ message: 'Número, valor e emissor são obrigatórios' });
+    }
+    if (!clienteId) {
+      return res.status(400).json({ message: 'Cliente é obrigatório' });
+    }
+    if (!['XDigital', 'Revendedor'].includes(emissor)) {
+      return res.status(400).json({ message: 'Emissor deve ser XDigital ou Revendedor' });
+    }
+    if (Number(valor) <= 0) {
+      return res.status(400).json({ message: 'Valor deve ser maior que zero' });
+    }
+    if (tipoFaturamento && !['Total', 'Demanda', 'Fechamento'].includes(tipoFaturamento)) {
+      return res.status(400).json({ message: 'tipoFaturamento deve ser Total, Demanda ou Fechamento' });
+    }
+
+    const existe = await NotaFiscalModel.findOne({ numero });
+    if (existe) return res.status(409).json({ message: `Já existe uma nota com o número ${numero}` });
+
+    const nota = await NotaFiscalModel.create({
+      numero,
+      valor: Number(valor),
+      emissor,
+      clienteId: clienteId || undefined,
+      descricao: descricao || undefined,
+      observacoes: observacoes || undefined,
+      pedidoId: pedidoId || undefined,
+      tipoFaturamento: tipoFaturamento || undefined,
+      competencia: competencia || undefined,
+      dataVencimento: dataVencimento ? new Date(dataVencimento) : undefined,
+      codigoServico: codigoServico || undefined,
+      aliquotaISS: aliquotaISS ? Number(aliquotaISS) : undefined,
+      municipioPrestacao: municipioPrestacao || undefined,
+      itensCertificados: Array.isArray(itensCertificados) ? itensCertificados : undefined,
+      tipo: 'Fiscal',
+      status: 'Emitida',
+    });
+
+    broadcast({ type: 'nota:avulsa_criada', payload: { notaId: nota._id, numero, valor: nota.valor } });
+    res.status(201).json(nota);
   } catch (error) {
     next(error);
   }

@@ -1,7 +1,7 @@
 import mongoose, { Document, Model, Schema, Types } from 'mongoose';
 
 export interface IAuditoria extends Document {
-  entidade: 'Cliente' | 'Contrato' | 'Pedido' | 'NotaFiscal' | 'Integracao';
+  entidade: 'Cliente' | 'Contrato' | 'Pedido' | 'NotaFiscal' | 'Integracao' | 'Certificacao';
   entidadeId: string;
   acao: string;
   usuarioId?: Types.ObjectId;
@@ -11,7 +11,7 @@ export interface IAuditoria extends Document {
 }
 
 const auditoriaSchema = new Schema<IAuditoria>({
-  entidade: { type: String, enum: ['Cliente', 'Contrato', 'Pedido', 'NotaFiscal', 'Integracao'], required: true },
+  entidade: { type: String, enum: ['Cliente', 'Contrato', 'Pedido', 'NotaFiscal', 'Integracao', 'Certificacao'], required: true },
   entidadeId: { type: String, required: true },
   acao: { type: String, required: true },
   usuarioId: { type: Schema.Types.ObjectId, ref: 'User' },

@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import styles from './Login.module.css'
-import logo from '../assets/logo.svg'
+import AtlasLogo from '../components/AtlasLogo'
 
 export default function Login() {
   const { login } = useAuth()
@@ -30,11 +30,7 @@ export default function Login() {
     <div className={styles.shell}>
       <div className={styles.card}>
         <div className={styles.logoWrapper}>
-          <img src={logo} alt="AtlasX" className={styles.logo} />
-        </div>
-        <div className={styles.brand}>
-          <span className={styles.brandIcon}>⬡</span>
-          <h1>Atlas Ops</h1>
+          <AtlasLogo variant="white" width={220} />
         </div>
         <p className={styles.sub}>Acesso ao painel administrativo</p>
         <form onSubmit={handleSubmit} className={styles.form}>
