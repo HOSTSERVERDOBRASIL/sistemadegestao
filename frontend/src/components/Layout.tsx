@@ -1,7 +1,7 @@
 import { NavLink, Outlet, useNavigate, useLocation } from 'react-router-dom'
 import {
   LayoutDashboard, Users, FileText, Handshake, ClipboardList, Package,
-  Receipt, FileStack, Zap, Scale, Tag, BarChart2, Search as SearchIcon,
+  Receipt, FileStack, Zap, Scale, Tag, BarChart2,
   Link2, RefreshCw, UserCog, Settings, ScrollText, ShieldCheck,
   Sun, Moon, LogOut, Bell,
 } from 'lucide-react'
@@ -201,3 +201,4 @@ export default function Layout() {
     </div>
   )
 }
+
