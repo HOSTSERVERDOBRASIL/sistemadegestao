@@ -268,7 +268,12 @@ export default function ContratoDetalhe() {
   const [faturando, setFaturando] = useState(false)
   const [uploadingVersao, setUploadingVersao] = useState(false)
   const [exportando, setExportando] = useState(false)
+  const [showDocModal, setShowDocModal] = useState(false)
+  const [docForm, setDocForm] = useState({ tipo: 'Edital', descricao: '' })
+  const [docFile, setDocFile] = useState<File | null>(null)
+  const [uploadingDoc, setUploadingDoc] = useState(false)
   const versaoFileRef = useRef<HTMLInputElement>(null)
+  const docFileRef = useRef<HTMLInputElement>(null)
 
   function load() {
     if (!id) return
@@ -322,6 +327,32 @@ export default function ContratoDetalhe() {
   async function handleExportar() {
     setExportando(true)
     try { await exportar.contratos() } catch { /* silent */ } finally { setExportando(false) }
+  }
+
+  async function handleUploadDoc(e: React.FormEvent) {
+    e.preventDefault()
+    if (!id || !docFile) return
+    setUploadingDoc(true)
+    try {
+      await uploads.documentoContrato(id, docFile, docForm.tipo, docForm.descricao || undefined)
+      setShowDocModal(false)
+      setDocForm({ tipo: 'Edital', descricao: '' })
+      setDocFile(null)
+      if (docFileRef.current) docFileRef.current.value = ''
+      load()
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Erro ao enviar documento')
+    } finally { setUploadingDoc(false) }
+  }
+
+  async function handleRemoverDoc(docId: string, nomeOriginal: string) {
+    if (!id || !confirm(`Remover documento "${nomeOriginal}"?`)) return
+    try {
+      await uploads.removerDocumentoContrato(id, docId)
+      load()
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Erro ao remover documento')
+    }
   }
 
   async function handleCriarOrdem(e: React.FormEvent) {
@@ -540,6 +571,74 @@ export default function ContratoDetalhe() {
         </div>
       )}
 
+      {/* Documentos do Contrato */}
+      <div className={pageStyles.panel}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+          <h3 className={pageStyles.panelTitle} style={{ margin: 0 }}>
+            Documentos ({(contrato as any).documentos?.length ?? 0})
+          </h3>
+          <button className={pageStyles.btnPrimary} onClick={() => setShowDocModal(true)}>
+            + Anexar
+          </button>
+        </div>
+        {!((contrato as any).documentos?.length) ? (
+          <p style={{ color: '#94a3b8', fontSize: '0.85rem', margin: 0 }}>
+            Nenhum documento anexado. Edital e Termo de Referência devem ser anexados aqui.
+          </p>
+        ) : (
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
+            <thead>
+              <tr style={{ borderBottom: '2px solid var(--surface-border)', background: 'var(--surface-2)' }}>
+                {['Tipo', 'Arquivo', 'Descrição', 'Enviado em', 'Por', 'Ações'].map(h => (
+                  <th key={h} style={{ padding: '8px 12px', textAlign: 'left', fontWeight: 700, fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {((contrato as any).documentos ?? []).map((doc: any) => {
+                const tipoBg: Record<string, string> = {
+                  'Edital': '#fef3c7', 'Termo de Referência': '#dbeafe', 'Contrato': '#dcfce7',
+                  'Ata de Registro de Preços': '#ede9fe', 'Aditivo': '#fee2e2', 'Garantia': '#f0fdf4', 'Outro': '#f1f5f9',
+                }
+                const tipoColor: Record<string, string> = {
+                  'Edital': '#b45309', 'Termo de Referência': '#1d4ed8', 'Contrato': '#15803d',
+                  'Ata de Registro de Preços': '#7c3aed', 'Aditivo': '#b91c1c', 'Garantia': '#166534', 'Outro': '#475569',
+                }
+                return (
+                  <tr key={doc._id} style={{ borderBottom: '1px solid var(--surface-border)' }}>
+                    <td style={{ padding: '8px 12px' }}>
+                      <span style={{
+                        fontSize: '0.72rem', fontWeight: 700,
+                        background: tipoBg[doc.tipo] ?? '#f1f5f9',
+                        color: tipoColor[doc.tipo] ?? '#475569',
+                        padding: '2px 8px', borderRadius: 4, whiteSpace: 'nowrap',
+                      }}>{doc.tipo}</span>
+                    </td>
+                    <td style={{ padding: '8px 12px' }}>
+                      <a href={doc.arquivoUrl} target="_blank" rel="noreferrer"
+                        style={{ color: 'var(--btn-primary-bg, #0F3961)', textDecoration: 'underline', fontSize: '0.82rem' }}>
+                        {doc.nomeOriginal ?? 'Baixar ↗'}
+                      </a>
+                    </td>
+                    <td style={{ padding: '8px 12px', color: '#64748b', fontSize: '0.8rem' }}>{doc.descricao || '—'}</td>
+                    <td style={{ padding: '8px 12px', color: '#64748b', whiteSpace: 'nowrap' }}>{fmtDate(doc.dataUpload)}</td>
+                    <td style={{ padding: '8px 12px', color: '#64748b', fontSize: '0.8rem' }}>{doc.uploadPorNome || '—'}</td>
+                    <td style={{ padding: '8px 12px' }}>
+                      <button
+                        onClick={() => handleRemoverDoc(doc._id, doc.nomeOriginal ?? doc.tipo)}
+                        style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', fontSize: '0.78rem', padding: 0 }}
+                      >
+                        Remover
+                      </button>
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        )}
+      </div>
+
       {/* Pedidos vinculados */}
       <div className={pageStyles.panel}>
         <h3 className={pageStyles.panelTitle} style={{ marginBottom: 14 }}>
@@ -580,6 +679,46 @@ export default function ContratoDetalhe() {
           </form>
         </Modal>
       )}
+      {showDocModal && (
+        <Modal title="Anexar Documento" onClose={() => setShowDocModal(false)} size="sm">
+          <form onSubmit={handleUploadDoc} className={pageStyles.form}>
+            <label>Tipo de Documento *
+              <select required value={docForm.tipo} onChange={e => setDocForm({ ...docForm, tipo: e.target.value })}>
+                <option value="Edital">Edital</option>
+                <option value="Termo de Referência">Termo de Referência</option>
+                <option value="Contrato">Contrato</option>
+                <option value="Ata de Registro de Preços">Ata de Registro de Preços</option>
+                <option value="Aditivo">Aditivo</option>
+                <option value="Garantia">Garantia</option>
+                <option value="Outro">Outro</option>
+              </select>
+            </label>
+            <label>Descrição (opcional)
+              <input
+                value={docForm.descricao}
+                onChange={e => setDocForm({ ...docForm, descricao: e.target.value })}
+                placeholder="Ex.: Edital Pregão Eletrônico nº 01/2025"
+              />
+            </label>
+            <label>Arquivo * (.pdf, .docx, .xlsx, .jpg, .png)
+              <input
+                ref={docFileRef}
+                type="file"
+                required
+                accept=".pdf,.docx,.xlsx,.jpg,.jpeg,.png"
+                onChange={e => setDocFile(e.target.files?.[0] ?? null)}
+              />
+            </label>
+            <div className={pageStyles.formActions}>
+              <button type="button" className={pageStyles.btnSecondary} onClick={() => setShowDocModal(false)}>Cancelar</button>
+              <button type="submit" className={pageStyles.btnPrimary} disabled={uploadingDoc || !docFile}>
+                {uploadingDoc ? 'Enviando...' : 'Anexar'}
+              </button>
+            </div>
+          </form>
+        </Modal>
+      )}
+
       {showAditivoModal && <Modal title="Novo Aditivo" onClose={() => setShowAditivoModal(false)} size="sm">
         <form onSubmit={handleCriarAditivo} className={pageStyles.form}>
           <label>Número *<input required value={aditivoForm.numero} onChange={e => setAditivoForm({ ...aditivoForm, numero: e.target.value })} /></label>

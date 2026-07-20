@@ -146,4 +146,58 @@ router.post(
   }
 );
 
+// Upload de documento anexo de contrato (edital, termo de referência, etc.)
+router.post(
+  '/contratos/:id/documento',
+  authenticate,
+  authorize('admin', 'operador'),
+  upload.single('arquivo'),
+  async (req, res, next) => {
+    try {
+      if (!req.file) return res.status(400).json({ message: 'Nenhum arquivo enviado' });
+      const { tipo, descricao } = req.body as { tipo?: string; descricao?: string };
+      if (!tipo) return res.status(400).json({ message: 'Tipo de documento é obrigatório' });
+
+      const contrato = await ContratoModel.findById(req.params.id);
+      if (!contrato) return res.status(404).json({ message: 'Contrato não encontrado' });
+
+      const url = `/uploads/${req.file.filename}`;
+      const doc = {
+        tipo: tipo as import('../models/contrato.model.js').TipoDocumentoContrato,
+        descricao: descricao || undefined,
+        arquivoUrl: url,
+        nomeOriginal: req.file.originalname,
+        dataUpload: new Date(),
+        uploadPorNome: (req as any).user?.nome,
+      };
+      contrato.documentos.push(doc);
+      await contrato.save();
+
+      res.json({ url, documento: doc, contrato });
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+// DELETE /uploads/contratos/:id/documento/:docId
+router.delete(
+  '/contratos/:id/documento/:docId',
+  authenticate,
+  authorize('admin'),
+  async (req, res, next) => {
+    try {
+      const contrato = await ContratoModel.findById(req.params.id);
+      if (!contrato) return res.status(404).json({ message: 'Contrato não encontrado' });
+      contrato.documentos = contrato.documentos.filter(
+        d => String((d as any)._id) !== req.params.docId
+      );
+      await contrato.save();
+      res.json({ message: 'Documento removido' });
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
 export { router as uploadsRouter };

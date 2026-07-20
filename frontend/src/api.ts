@@ -417,6 +417,22 @@ export const uploads = {
   },
   removerEvidencia: (pedidoId: string, evidenciaId: string) =>
     request<{ ok: boolean }>(`/uploads/files/pedidos/${pedidoId}/evidencia/${evidenciaId}`, { method: 'DELETE' }),
+  documentoContrato: (contratoId: string, file: File, tipo: string, descricao?: string) => {
+    const fd = new FormData()
+    fd.append('arquivo', file)
+    fd.append('tipo', tipo)
+    if (descricao) fd.append('descricao', descricao)
+    return fetch(`${BASE}/uploads/files/contratos/${contratoId}/documento`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token()}` },
+      body: fd,
+    }).then(async r => {
+      if (!r.ok) { const e = await r.json().catch(() => ({})); throw new Error(e.message || r.statusText) }
+      return r.json()
+    })
+  },
+  removerDocumentoContrato: (contratoId: string, docId: string) =>
+    request<{ message: string }>(`/uploads/files/contratos/${contratoId}/documento/${docId}`, { method: 'DELETE' }),
 }
 
 // Configurações de integrações
