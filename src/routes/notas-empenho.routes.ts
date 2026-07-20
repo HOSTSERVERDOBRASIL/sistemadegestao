@@ -15,13 +15,14 @@ function toFilter(v: string | undefined) {
 
 router.get('/', authenticate, authorize('admin', 'operador', 'financeiro'), async (req, res, next) => {
   try {
-    const { busca, clienteId, status } = req.query as Record<string, string>;
+    const { busca, clienteId, contratoId, status } = req.query as Record<string, string>;
     const page = parsePage(req.query.page as string);
     const limit = parseLimit(req.query.limit as string);
     const filter: Record<string, unknown> = {};
 
     if (busca) filter.numero = { $regex: escapeRegex(busca), $options: 'i' };
     if (clienteId) filter.clienteId = clienteId;
+    if (contratoId) filter.contratoId = contratoId;
     const statusFilter = toFilter(status)
     if (statusFilter) filter.status = statusFilter;
 

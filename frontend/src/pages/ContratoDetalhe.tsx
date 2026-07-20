@@ -256,6 +256,8 @@ export default function ContratoDetalhe() {
   const [ordens, setOrdens] = useState<OrdemFornecimento[]>([])
   const [pedidosVinculados, setPedidosVinculados] = useState<Pedido[]>([])
   const [resumo, setResumo] = useState<ResumoFinanceiroContrato | null>(null)
+  const [notasEmpenho, setNotasEmpenho] = useState<Array<{ _id: string; numero: string; valor: number; valorUtilizado: number; status: string; dataEmissao: string }>>([])
+  const [totalEmpenhado, setTotalEmpenhado] = useState(0)
   const [loading, setLoading] = useState(true)
   const [showOrdemModal, setShowOrdemModal] = useState(false)
   const [showAditivoModal, setShowAditivoModal] = useState(false)
@@ -276,11 +278,15 @@ export default function ContratoDetalhe() {
       api.ordens(id),
       api.pedidos(id),
       api.resumoFinanceiro(id),
-    ]).then(([c, o, p, r]) => {
+      fetch(`/api/notas-empenho?contratoId=${id}&limit=100`, { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } })
+        .then(r => r.json()).then(j => j.data ?? []),
+    ]).then(([c, o, p, r, ne]) => {
       setContrato(c)
       setOrdens(o)
       setPedidosVinculados(p)
       setResumo(r)
+      setNotasEmpenho(ne)
+      setTotalEmpenhado(ne.reduce((s: number, n: any) => s + (n.valor ?? 0), 0))
     }).finally(() => setLoading(false))
   }
 
@@ -429,6 +435,10 @@ export default function ContratoDetalhe() {
             <dt>Faturado</dt><dd>{moeda(contrato.valorFaturado)}</dd>
             <dt>Saldo Disponível</dt>
             <dd><strong style={{ color: saldo > 0 ? '#15803d' : '#94a3b8' }}>{moeda(saldo)}</strong></dd>
+            <dt>Pedidos Vinculados</dt>
+            <dd><strong>{pedidosVinculados.length}</strong></dd>
+            <dt>Notas de Empenho</dt>
+            <dd><strong>{notasEmpenho.length}</strong>{notasEmpenho.length > 0 && <span style={{ fontSize: '0.78rem', color: '#64748b', marginLeft: 6 }}>({moeda(totalEmpenhado)} empenhado)</span>}</dd>
           </dl>
 
           <div className={styles.progressWrap}>
@@ -484,6 +494,49 @@ export default function ContratoDetalhe() {
             rows={ordens}
             empty="Nenhuma ordem de fornecimento"
           />
+        </div>
+      )}
+
+      {/* Notas de Empenho */}
+      {notasEmpenho.length > 0 && (
+        <div className={pageStyles.panel}>
+          <h3 className={pageStyles.panelTitle} style={{ marginBottom: 14 }}>
+            Notas de Empenho ({notasEmpenho.length})
+            <span style={{ fontSize: '0.8rem', fontWeight: 400, color: '#64748b', marginLeft: 12 }}>
+              Total empenhado: {moeda(totalEmpenhado)}
+            </span>
+          </h3>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
+            <thead>
+              <tr style={{ borderBottom: '2px solid var(--surface-border)', background: 'var(--surface-2)' }}>
+                {['Número', 'Emissão', 'Valor', 'Utilizado', 'Saldo', 'Status'].map(h => (
+                  <th key={h} style={{ padding: '8px 12px', textAlign: 'left', fontWeight: 700, fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {notasEmpenho.map((n: any) => {
+                const saldoNE = (n.valor ?? 0) - (n.valorUtilizado ?? 0)
+                return (
+                  <tr key={n._id} style={{ borderBottom: '1px solid var(--surface-border)' }}
+                    onClick={() => navigate(`/notas-empenho`)}
+                    className={pageStyles.clickableRow}
+                  >
+                    <td style={{ padding: '8px 12px' }}><strong style={{ fontFamily: 'monospace', fontSize: '0.82rem' }}>{n.numero}</strong></td>
+                    <td style={{ padding: '8px 12px', color: '#64748b' }}>{n.dataEmissao ? new Date(n.dataEmissao).toLocaleDateString('pt-BR') : '—'}</td>
+                    <td style={{ padding: '8px 12px' }}>{moeda(n.valor ?? 0)}</td>
+                    <td style={{ padding: '8px 12px', color: '#64748b' }}>{moeda(n.valorUtilizado ?? 0)}</td>
+                    <td style={{ padding: '8px 12px' }}>
+                      <strong style={{ color: saldoNE > 0 ? '#15803d' : '#94a3b8' }}>{moeda(saldoNE)}</strong>
+                    </td>
+                    <td style={{ padding: '8px 12px' }}>
+                      <Badge label={n.status ?? '—'} variant={n.status === 'Ativo' ? 'success' : n.status === 'Encerrado' ? 'default' : 'warning'} />
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
         </div>
       )}
 
