@@ -8,7 +8,6 @@ import { relatorios, pedidos as pedidosApi, cobrancas as cobrancasApi, certifica
 import type { ResumoGeral, FaturamentoPorMes, PedidosPorStatus, Pedido } from '../types'
 import styles from './Dashboard.module.css'
 
-const ETAPAS = ['Pedido', 'Pagamento', 'Validacao', 'Preparacao', 'Processamento', 'Entrega', 'Conclusao']
 
 function moeda(v: number) {
   return v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
@@ -24,8 +23,7 @@ export default function Dashboard() {
   const [resumo, setResumo] = useState<ResumoGeral | null>(null)
   const [porMes, setPorMes] = useState<FaturamentoPorMes[]>([])
   const [porStatus, setPorStatus] = useState<PedidosPorStatus[]>([])
-  const [porEtapa, setPorEtapa] = useState<Record<string, number>>({})
-  const [recentes, setRecentes] = useState<Pedido[]>([])
+const [recentes, setRecentes] = useState<Pedido[]>([])
   const [cobrancasAbertas, setCobrancasAbertas] = useState<number>(0)
   const [certsVencendo, setCertsVencendo] = useState<number>(0)
   const [loading, setLoading] = useState(true)
@@ -37,16 +35,13 @@ export default function Dashboard() {
       relatorios.porStatus(),
       pedidosApi.list({ limit: 8 }),
       cobrancasApi.listAll({ status: 'ATIVA', page: 1 }),
-      // conta pedidos por etapa buscando cada uma (max 7 chamadas leves)
-      Promise.all(ETAPAS.map(e => pedidosApi.list({ etapa: e, limit: 1 }).then(r => ({ etapa: e, total: r.total })))),
       certICPApi.vencendo(30).catch(() => []).then(r => Array.isArray(r) ? r.length : 0),
-    ]).then(([r, m, s, p, cob, etapas, certs]) => {
+    ]).then(([r, m, s, p, cob, certs]) => {
       setResumo(r)
       setPorMes(m)
       setPorStatus(s)
       setRecentes(p.data)
       setCobrancasAbertas((cob as { total: number }).total ?? 0)
-      setPorEtapa(Object.fromEntries((etapas as { etapa: string; total: number }[]).map(e => [e.etapa, e.total])))
       setCertsVencendo(certs as number)
     }).finally(() => setLoading(false))
   }, [])
@@ -127,24 +122,6 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Funil de etapas */}
-      <div className={styles.panel}>
-        <h3 className={styles.panelTitle}>Fluxo operacional — 7 etapas</h3>
-        <div className={styles.etapas}>
-          {ETAPAS.map((e, i) => (
-            <div key={e} className={styles.etapa}>
-              <div className={styles.etapaNum}>{i + 1}</div>
-              <div className={styles.etapaInfo}>
-                <span className={styles.etapaLabel}>{e}</span>
-                <span className={styles.etapaCount}>
-                  {loading ? '…' : (porEtapa[e] ?? 0)}
-                </span>
-              </div>
-              {i < ETAPAS.length - 1 && <div className={styles.etapaArrow}>›</div>}
-            </div>
-          ))}
-        </div>
-      </div>
 
       {/* Pedidos recentes */}
       <div className={styles.panel}>
