@@ -21,6 +21,11 @@ export interface IHistoricoEtapa {
   observacao?: string;
 }
 
+export interface IDominioItem {
+  dominio: string;
+  adicionadoEm: Date;
+}
+
 export interface IPedidoItem {
   _id?: Types.ObjectId;
   produtoId: Types.ObjectId;
@@ -32,6 +37,9 @@ export interface IPedidoItem {
   subtotal: number;
   quantidadeExecutada?: number;
   quantidadeFaturada?: number;
+  // Campos para certificados SSL/ICP
+  dominioPrincipal?: string;
+  dominiosAdicionais?: IDominioItem[];
 }
 
 export interface IPedido extends Document {
@@ -84,6 +92,7 @@ export interface IPedido extends Document {
     quantidadeFaturavel: number;
     ultimoEvento?: string;
   };
+  prazoAnos?: 1 | 2 | 3 | 4 | 5;
   observacoes?: string;
 }
 
@@ -108,6 +117,11 @@ const pedidoItemSchema = new Schema<IPedidoItem>({
   subtotal: { type: Number, required: true, min: 0 },
   quantidadeExecutada: { type: Number, default: 0, min: 0 },
   quantidadeFaturada: { type: Number, default: 0, min: 0 },
+  dominioPrincipal: { type: String, trim: true, lowercase: true },
+  dominiosAdicionais: [{
+    dominio: { type: String, required: true, trim: true, lowercase: true },
+    adicionadoEm: { type: Date, default: Date.now },
+  }],
 }, { _id: true });
 
 const pedidoSchema = new Schema<IPedido>({
@@ -192,6 +206,7 @@ const pedidoSchema = new Schema<IPedido>({
     quantidadeFaturavel: { type: Number, default: 0, min: 0 },
     ultimoEvento: String,
   },
+  prazoAnos: { type: Number, enum: [1, 2, 3, 4, 5] },
   observacoes: { type: String, maxlength: 1000 },
 }, { timestamps: true });
 

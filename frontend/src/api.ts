@@ -217,6 +217,10 @@ export const pedidos = {
   solicitarCancelamento: (id: string, motivo: string) => post<{ message: string; pedido: Pedido }>(`/pedidos/${id}/solicitar-cancelamento`, { motivo }),
   aprovarEstorno: (id: string) => post<{ message: string; pedido: Pedido }>(`/pedidos/${id}/aprovar-estorno`, {}),
   enviarClm: (id: string) => post<{ eventId: string; requestId?: string; status: string }>(`/integracoes/clm/pedidos/${id}/enviar`, {}),
+  atualizarPrazo: (id: string, prazoAnos: 1 | 2 | 3 | 4 | 5) =>
+    patch<Pedido>(`/pedidos/${id}/prazo`, { prazoAnos }),
+  atualizarDominios: (id: string, itemId: string, body: { dominioPrincipal?: string; adicionar?: string; remover?: string }) =>
+    patch<Pedido>(`/pedidos/${id}/itens/${itemId}/dominios`, body),
 }
 
 export const clm = {

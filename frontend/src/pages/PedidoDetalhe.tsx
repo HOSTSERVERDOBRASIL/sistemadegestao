@@ -41,6 +41,11 @@ export default function PedidoDetalhe() {
   const [origemEvidencia, setOrigemEvidencia] = useState('')
   const evidenciaFileRef = React.useRef<HTMLInputElement>(null)
 
+  // ── Domínios e Prazo ─────────────────────────────────────────
+  const [salvandoPrazo, setSalvandoPrazo] = useState(false)
+  const [novoDominio, setNovoDominio] = useState<Record<string, string>>({})
+  const [salvandoDominio, setSalvandoDominio] = useState<Record<string, boolean>>({})
+
   // ── Wizard de Liberação de Cadastro ──────────────────────────
   const [showLiberacao, setShowLiberacao] = useState(false)
   const [wizardStep, setWizardStep] = useState(1)
@@ -226,6 +231,45 @@ export default function PedidoDetalhe() {
     } catch (err) {
       alert(err instanceof Error ? err.message : 'Erro ao emitir NF')
     } finally { setEmitindo(false) }
+  }
+
+  async function handleAtualizarPrazo(prazo: 1 | 2 | 3 | 4 | 5) {
+    if (!id) return
+    setSalvandoPrazo(true)
+    try {
+      const updated = await api.atualizarPrazo(id, prazo)
+      setPedido(updated)
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Erro ao salvar prazo')
+    } finally { setSalvandoPrazo(false) }
+  }
+
+  async function handleAdicionarDominio(itemId: string, tipo: 'principal' | 'adicional') {
+    if (!id) return
+    const val = novoDominio[`${itemId}-${tipo}`]?.trim()
+    if (!val) return
+    setSalvandoDominio(p => ({ ...p, [`${itemId}-${tipo}`]: true }))
+    try {
+      const body = tipo === 'principal'
+        ? { dominioPrincipal: val }
+        : { adicionar: val }
+      const updated = await api.atualizarDominios(id, itemId, body)
+      setPedido(updated)
+      setNovoDominio(p => ({ ...p, [`${itemId}-${tipo}`]: '' }))
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Erro ao salvar domínio')
+    } finally { setSalvandoDominio(p => ({ ...p, [`${itemId}-${tipo}`]: false })) }
+  }
+
+  async function handleRemoverDominio(itemId: string, dominio: string) {
+    if (!id || !confirm(`Remover domínio "${dominio}"?`)) return
+    setSalvandoDominio(p => ({ ...p, [`${itemId}-rem-${dominio}`]: true }))
+    try {
+      const updated = await api.atualizarDominios(id, itemId, { remover: dominio })
+      setPedido(updated)
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Erro ao remover domínio')
+    } finally { setSalvandoDominio(p => ({ ...p, [`${itemId}-rem-${dominio}`]: false })) }
   }
 
   if (loading) return <div className={styles.page}><p className={styles.loading}>Carregando...</p></div>
@@ -522,6 +566,153 @@ export default function PedidoDetalhe() {
               </div>
             ))}
           </div>
+        </div>
+      )}
+
+      {/* ── Prazo de Validade ───────────────────────────────────── */}
+      <div className={styles.panel} style={{ marginTop: 20 }}>
+        <h3 className={styles.panelTitle}>Prazo de Validade</h3>
+        <p style={{ fontSize: '0.82rem', color: '#64748b', margin: '0 0 14px' }}>
+          Período de validade contratado para os certificados deste pedido.
+        </p>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+          {([1, 2, 3, 4, 5] as const).map(anos => (
+            <button
+              key={anos}
+              disabled={salvandoPrazo || pedido.status === 'Cancelado'}
+              onClick={() => handleAtualizarPrazo(anos)}
+              style={{
+                padding: '8px 18px',
+                borderRadius: 8,
+                border: pedido.prazoAnos === anos ? '2px solid #1d4ed8' : '1px solid #d1d5db',
+                background: pedido.prazoAnos === anos ? '#dbeafe' : '#f8fafc',
+                color: pedido.prazoAnos === anos ? '#1d4ed8' : '#374151',
+                fontWeight: pedido.prazoAnos === anos ? 700 : 500,
+                fontSize: '0.875rem',
+                cursor: pedido.status === 'Cancelado' ? 'not-allowed' : 'pointer',
+                transition: 'all 0.15s',
+              }}
+            >
+              {anos} {anos === 1 ? 'ano' : 'anos'}
+            </button>
+          ))}
+          {salvandoPrazo && <span style={{ fontSize: '0.8rem', color: '#94a3b8' }}>Salvando...</span>}
+          {pedido.prazoAnos && (
+            <span style={{ marginLeft: 8, fontSize: '0.82rem', color: '#15803d', fontWeight: 600 }}>
+              ✓ {pedido.prazoAnos} {pedido.prazoAnos === 1 ? 'ano' : 'anos'} selecionado
+            </span>
+          )}
+        </div>
+      </div>
+
+      {/* ── Domínios por Item ───────────────────────────────────── */}
+      {pedido.itens?.length > 0 && (
+        <div className={styles.panel} style={{ marginTop: 20 }}>
+          <h3 className={styles.panelTitle}>Domínios dos Certificados</h3>
+          <p style={{ fontSize: '0.82rem', color: '#64748b', margin: '0 0 18px' }}>
+            Configure o domínio principal e os domínios adicionais (SAN/multidomínio) por item.
+          </p>
+          {pedido.itens.map(item => {
+            const itemId = item._id ?? ''
+            const totalDominios = (item.dominiosAdicionais?.length ?? 0) + (item.dominioPrincipal ? 1 : 0)
+            return (
+              <div key={itemId} style={{ border: '1px solid #e2e8f0', borderRadius: 10, padding: 16, marginBottom: 14 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                  <div>
+                    <strong style={{ fontSize: '0.9rem' }}>{item.codigo} — {item.nome}</strong>
+                    <span style={{ marginLeft: 10, fontSize: '0.75rem', color: '#64748b' }}>
+                      {totalDominios} domínio(s) · {item.quantidade} unidade(s)
+                    </span>
+                  </div>
+                </div>
+
+                {/* Domínio principal */}
+                <div style={{ marginBottom: 12 }}>
+                  <label style={{ fontSize: '0.78rem', fontWeight: 700, color: '#374151', display: 'block', marginBottom: 6 }}>
+                    Domínio Principal (CN)
+                  </label>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <input
+                      type="text"
+                      placeholder="ex: empresa.com.br"
+                      value={novoDominio[`${itemId}-principal`] ?? item.dominioPrincipal ?? ''}
+                      onChange={e => setNovoDominio(p => ({ ...p, [`${itemId}-principal`]: e.target.value }))}
+                      disabled={pedido.status === 'Cancelado'}
+                      style={{ flex: 1, padding: '7px 10px', borderRadius: 7, border: '1px solid #d1d5db', fontSize: '0.85rem', fontFamily: 'monospace' }}
+                      onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleAdicionarDominio(itemId, 'principal') } }}
+                    />
+                    <button
+                      className={styles.btnPrimary}
+                      style={{ fontSize: '0.8rem', padding: '6px 14px' }}
+                      disabled={salvandoDominio[`${itemId}-principal`] || pedido.status === 'Cancelado'}
+                      onClick={() => handleAdicionarDominio(itemId, 'principal')}
+                    >
+                      {salvandoDominio[`${itemId}-principal`] ? '...' : 'Salvar'}
+                    </button>
+                  </div>
+                  {item.dominioPrincipal && !(novoDominio[`${itemId}-principal`]) && (
+                    <div style={{ marginTop: 6, padding: '5px 10px', background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 6, fontFamily: 'monospace', fontSize: '0.83rem', color: '#15803d' }}>
+                      ✓ {item.dominioPrincipal}
+                    </div>
+                  )}
+                </div>
+
+                {/* Domínios adicionais */}
+                <div>
+                  <label style={{ fontSize: '0.78rem', fontWeight: 700, color: '#374151', display: 'block', marginBottom: 6 }}>
+                    Domínios Adicionais (SAN)
+                  </label>
+                  {(item.dominiosAdicionais?.length ?? 0) > 0 && (
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 10 }}>
+                      {item.dominiosAdicionais!.map(d => (
+                        <span
+                          key={d.dominio}
+                          style={{
+                            display: 'inline-flex', alignItems: 'center', gap: 5,
+                            padding: '4px 10px', borderRadius: 20,
+                            background: '#eff6ff', border: '1px solid #bfdbfe',
+                            fontFamily: 'monospace', fontSize: '0.8rem', color: '#1d4ed8',
+                          }}
+                        >
+                          {d.dominio}
+                          {pedido.status !== 'Cancelado' && (
+                            <button
+                              onClick={() => handleRemoverDominio(itemId, d.dominio)}
+                              disabled={salvandoDominio[`${itemId}-rem-${d.dominio}`]}
+                              style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#6b7280', fontSize: '0.85rem', lineHeight: 1, padding: 0 }}
+                              title={`Remover ${d.dominio}`}
+                            >×</button>
+                          )}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <input
+                      type="text"
+                      placeholder="ex: www.empresa.com.br"
+                      value={novoDominio[`${itemId}-adicional`] ?? ''}
+                      onChange={e => setNovoDominio(p => ({ ...p, [`${itemId}-adicional`]: e.target.value }))}
+                      disabled={pedido.status === 'Cancelado'}
+                      style={{ flex: 1, padding: '7px 10px', borderRadius: 7, border: '1px solid #d1d5db', fontSize: '0.85rem', fontFamily: 'monospace' }}
+                      onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleAdicionarDominio(itemId, 'adicional') } }}
+                    />
+                    <button
+                      className={styles.btnSecondary}
+                      style={{ fontSize: '0.8rem', padding: '6px 14px' }}
+                      disabled={salvandoDominio[`${itemId}-adicional`] || pedido.status === 'Cancelado'}
+                      onClick={() => handleAdicionarDominio(itemId, 'adicional')}
+                    >
+                      {salvandoDominio[`${itemId}-adicional`] ? '...' : '+ Adicionar'}
+                    </button>
+                  </div>
+                  <p style={{ fontSize: '0.73rem', color: '#94a3b8', margin: '6px 0 0' }}>
+                    Pressione Enter ou clique "+ Adicionar". Domínios são normalizados para minúsculas automaticamente.
+                  </p>
+                </div>
+              </div>
+            )
+          })}
         </div>
       )}
 

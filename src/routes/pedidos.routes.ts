@@ -507,4 +507,69 @@ router.post('/:id/emitir-nf', authenticate, authorize('admin', 'financeiro'), as
   }
 });
 
+// ─── PATCH /:id/prazo ────────────────────────────────────────────────────────
+// Atualiza prazo de validade (1–5 anos) do pedido.
+router.patch('/:id/prazo', authenticate, authorize('admin', 'operador'), async (req, res, next) => {
+  try {
+    const prazo = Number(req.body.prazoAnos);
+    if (![1, 2, 3, 4, 5].includes(prazo)) {
+      return res.status(400).json({ message: 'prazoAnos deve ser 1, 2, 3, 4 ou 5' });
+    }
+    const pedido = await PedidoModel.findByIdAndUpdate(
+      req.params.id,
+      { prazoAnos: prazo },
+      { new: true }
+    ).populate('clienteId', 'nome email documento').populate('produtoId', 'nome codigo');
+    if (!pedido) return res.status(404).json({ message: 'Pedido não encontrado' });
+    res.json(pedido);
+  } catch (error) { next(error); }
+});
+
+// ─── PATCH /:id/itens/:itemId/dominios ───────────────────────────────────────
+// Gerencia domínio principal e domínios adicionais de um item do pedido.
+// body: { dominioPrincipal?: string, adicionar?: string, remover?: string }
+router.patch('/:id/itens/:itemId/dominios', authenticate, authorize('admin', 'operador'), async (req, res, next) => {
+  try {
+    const pedido = await PedidoModel.findById(req.params.id);
+    if (!pedido) return res.status(404).json({ message: 'Pedido não encontrado' });
+    if (pedido.status === 'Cancelado') {
+      return res.status(409).json({ message: 'Pedido cancelado não pode ser alterado' });
+    }
+
+    const item = (pedido.itens as unknown as { _id: { toString(): string }; dominioPrincipal?: string; dominiosAdicionais?: { dominio: string; adicionadoEm: Date }[] }[])
+      .find(i => i._id.toString() === req.params.itemId);
+    if (!item) return res.status(404).json({ message: 'Item não encontrado no pedido' });
+
+    const { dominioPrincipal, adicionar, remover } = req.body as {
+      dominioPrincipal?: string;
+      adicionar?: string;
+      remover?: string;
+    };
+
+    if (dominioPrincipal !== undefined) {
+      item.dominioPrincipal = dominioPrincipal.trim().toLowerCase() || undefined;
+    }
+
+    if (adicionar) {
+      const novo = adicionar.trim().toLowerCase();
+      if (!novo) return res.status(400).json({ message: 'Domínio inválido' });
+      if (!item.dominiosAdicionais) item.dominiosAdicionais = [];
+      const jaExiste = item.dominiosAdicionais.some(d => d.dominio === novo) || item.dominioPrincipal === novo;
+      if (jaExiste) return res.status(409).json({ message: `Domínio "${novo}" já cadastrado neste item` });
+      item.dominiosAdicionais.push({ dominio: novo, adicionadoEm: new Date() });
+    }
+
+    if (remover) {
+      const alvo = remover.trim().toLowerCase();
+      if (item.dominiosAdicionais) {
+        item.dominiosAdicionais = item.dominiosAdicionais.filter(d => d.dominio !== alvo);
+      }
+    }
+
+    pedido.markModified('itens');
+    await pedido.save();
+    res.json(pedido);
+  } catch (error) { next(error); }
+});
+
 export { router as pedidosRouter };

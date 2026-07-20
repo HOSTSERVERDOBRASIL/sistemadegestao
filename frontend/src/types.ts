@@ -297,6 +297,8 @@ export interface PedidoItem {
   subtotal: number
   quantidadeExecutada?: number
   quantidadeFaturada?: number
+  dominioPrincipal?: string
+  dominiosAdicionais?: { dominio: string; adicionadoEm: string }[]
 }
 
 // Cupom de Desconto
@@ -426,6 +428,7 @@ export interface Pedido {
     quantidadeFaturavel: number
     ultimoEvento?: string
   }
+  prazoAnos?: 1 | 2 | 3 | 4 | 5
   observacoes?: string
   createdAt: string
   updatedAt?: string
@@ -450,6 +453,7 @@ export type PedidoPayload = {
     precoUnitario: number
     valorTabelaUnitario?: number
   }>
+  prazoAnos?: 1 | 2 | 3 | 4 | 5
   observacoes?: string
   vinculo: Pedido['vinculo']
 }
