@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import PageHeader from '../components/PageHeader'
 import StatCard from '../components/StatCard'
 import Badge from '../components/Badge'
@@ -41,13 +41,12 @@ export default function Relatorios() {
     try { await exportar.contratos() } catch { /* silent */ } finally { setExportandoContratos(false) }
   }
 
-  function carregar() {
-    const dateParams = {
-      ...(dataInicio ? { dataInicio } : {}),
-      ...(dataFim   ? { dataFim   } : {}),
-    }
+  const carregar = useCallback(() => {
     const meses = dataInicio && dataFim
-      ? Math.max(1, Math.round((new Date(dataFim).getTime() - new Date(dataInicio).getTime()) / (30 * 24 * 60 * 60 * 1000)))
+      ? Math.max(1, Math.ceil(
+          (new Date(dataFim).getFullYear() - new Date(dataInicio).getFullYear()) * 12 +
+          (new Date(dataFim).getMonth() - new Date(dataInicio).getMonth()) + 1
+        ))
       : 12
     setLoading(true)
     Promise.all([
@@ -65,11 +64,16 @@ export default function Relatorios() {
       setClientesAtivos(ca)
       setContratosComSaldo(cs as (Contrato & { saldoDisponivel: number })[])
     }).finally(() => setLoading(false))
-    void dateParams
-  }
+  }, [dataInicio, dataFim])
 
-  useEffect(() => { carregar() }, [])
+  useEffect(() => { carregar() }, [carregar])
 
+  const mesesLabel = dataInicio && dataFim
+    ? `${Math.max(1, Math.ceil(
+        (new Date(dataFim).getFullYear() - new Date(dataInicio).getFullYear()) * 12 +
+        (new Date(dataFim).getMonth() - new Date(dataInicio).getMonth()) + 1
+      ))} meses`
+    : '12 meses'
   const maxMes = Math.max(...porMes.map(m => m.total), 1)
 
   if (loading) return <div className={styles.page}><p style={{ color: '#94a3b8', padding: 40 }}>Carregando relatórios...</p></div>
@@ -100,11 +104,8 @@ export default function Relatorios() {
           Até
           <input type="date" value={dataFim} onChange={e => setDataFim(e.target.value)} />
         </label>
-        <button className={styles.btnPrimary} onClick={carregar}>
-          Filtrar
-        </button>
         {(dataInicio || dataFim) && (
-          <button className={styles.btnSecondary} onClick={() => { setDataInicio(''); setDataFim(''); setTimeout(carregar, 0) }}>
+          <button className={styles.btnSecondary} onClick={() => { setDataInicio(''); setDataFim('') }}>
             Limpar
           </button>
         )}
@@ -123,7 +124,7 @@ export default function Relatorios() {
       <div className={rStyles.grid2}>
         {/* Faturamento por mês */}
         <div className={styles.panel}>
-          <h3 className={styles.panelTitle}>Faturamento Mensal — 12 meses</h3>
+          <h3 className={styles.panelTitle}>Faturamento Mensal — {mesesLabel}</h3>
           {porMes.length === 0 ? <p style={{ color: '#94a3b8', fontSize: '0.875rem' }}>Sem dados</p> : (
             <div className={rStyles.barChart}>
               {porMes.map(m => (
