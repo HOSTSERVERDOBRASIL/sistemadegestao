@@ -5,6 +5,10 @@ export type EventType =
   | 'pedido:nf_emitida'
   | 'nota:cancelada'
   | 'contrato:faturado'
+  | 'cobranca_paga'
+  | 'cobranca_criada'
+  | 'tiny_sync'
+  | 'etapa_atualizada'
   | 'ping'
 
 type Handler = (payload: Record<string, unknown>) => void
@@ -23,7 +27,7 @@ export function useEvents(handlers: Partial<Record<EventType, Handler>>, enabled
     const url = `${base}/events`
     const es = new EventSource(url + `?token=${encodeURIComponent(token)}`)
 
-    const types: EventType[] = ['pedido:etapa', 'pedido:nf_emitida', 'nota:cancelada', 'contrato:faturado', 'ping']
+    const types: EventType[] = ['pedido:etapa', 'pedido:nf_emitida', 'nota:cancelada', 'contrato:faturado', 'cobranca_paga', 'cobranca_criada', 'tiny_sync', 'etapa_atualizada', 'ping']
 
     for (const type of types) {
       es.addEventListener(type, (e: MessageEvent) => {

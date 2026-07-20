@@ -259,6 +259,8 @@ import type { Role } from './types'
 // Cobranças Efi Bank
 import type { Cobranca } from './types'
 export const cobrancas = {
+  listAll: (p?: { status?: string; tipo?: string; page?: number }) =>
+    get<Page<Cobranca>>('/cobrancas' + qs(p || {})),
   criarPix: (body: { pedidoId: string; valor?: number; expiracaoSegundos?: number }) =>
     post<Cobranca>('/cobrancas/pix', body),
   criarPixVencimento: (body: { pedidoId: string; valor?: number; vencimento: string }) =>

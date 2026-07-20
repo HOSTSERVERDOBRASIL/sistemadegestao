@@ -21,10 +21,10 @@ function cfg() {
   const sandbox = process.env.BRADESCO_SANDBOX !== 'false';
   const authBase = sandbox
     ? 'https://proxy.api.prebanco.com.br/auth/server/v1.2.0'
-    : 'https://proxy.api.prebanco.com.br/auth/server/v1.2.0';
+    : 'https://api.bradesco.com.br/bradesco/payment-accounts/v1/auth/server/v1.2.0';
   const apiBase = sandbox
     ? 'https://proxy.api.prebanco.com.br/open-banking/v1'
-    : 'https://proxy.api.prebanco.com.br/open-banking/v1';
+    : 'https://api.bradesco.com.br/bradesco/payment-accounts/v1/open-banking/v1';
   return {
     clientId, clientSecret,
     cnpj:    (process.env.BRADESCO_CNPJ ?? '').replace(/\D/g, ''),

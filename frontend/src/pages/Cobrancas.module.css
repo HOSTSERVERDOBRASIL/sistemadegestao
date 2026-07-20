@@ -138,3 +138,100 @@
 }
 
 .boletoSection { display: flex; flex-direction: column; gap: 10px; padding-top: 8px; }
+
+/* ── Tab toggle ─────────────────────────────────────────────────────────────── */
+.tabBar {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 20px;
+  background: #f1f5f9;
+  border-radius: 10px;
+  padding: 4px;
+  width: fit-content;
+}
+
+.tab {
+  padding: 7px 20px;
+  border: none;
+  border-radius: 7px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  background: transparent;
+  color: #64748b;
+  transition: background 0.15s, color 0.15s;
+  white-space: nowrap;
+}
+
+.tab:hover { background: #e2e8f0; color: #1e293b; }
+
+.tabActive {
+  background: #fff;
+  color: #1e40af;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+}
+
+/* ── Global list filter bar ─────────────────────────────────────────────────── */
+.filterBar {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+}
+
+.chip {
+  padding: 5px 14px;
+  border-radius: 20px;
+  border: 1px solid #e2e8f0;
+  background: #f8fafc;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  color: #475569;
+  transition: background 0.1s, border-color 0.1s, color 0.1s;
+  white-space: nowrap;
+}
+
+.chip:hover { background: #eff6ff; border-color: #bfdbfe; color: #1e40af; }
+
+.chipActive {
+  background: #1e40af;
+  border-color: #1e40af;
+  color: #fff;
+}
+
+.chipActive:hover { background: #1d4ed8; border-color: #1d4ed8; color: #fff; }
+
+.chipSep {
+  width: 1px;
+  height: 20px;
+  background: #e2e8f0;
+  margin: 0 4px;
+}
+
+/* ── Pagination row ─────────────────────────────────────────────────────────── */
+.pagination {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  justify-content: flex-end;
+  margin-top: 14px;
+  font-size: 0.82rem;
+  color: #64748b;
+}
+
+.pagination button {
+  padding: 5px 14px;
+  border: 1px solid #e2e8f0;
+  border-radius: 7px;
+  background: #fff;
+  font-size: 0.82rem;
+  cursor: pointer;
+  font-weight: 600;
+  color: #374151;
+  transition: background 0.1s;
+}
+
+.pagination button:hover:not(:disabled) { background: #f1f5f9; }
+.pagination button:disabled { opacity: 0.4; cursor: not-allowed; }

@@ -215,7 +215,7 @@ router.patch('/notas/:id/cancelar', authenticate, authorize('admin', 'financeiro
     if (req.body.observacoes) nota.observacoes = req.body.observacoes;
     await nota.save();
 
-    await PedidoModel.findByIdAndUpdate(nota.pedidoId, { nfEmitida: false, status: 'Em processo' });
+    await PedidoModel.findByIdAndUpdate(nota.pedidoId, { nfEmitida: false });
     broadcast({ type: 'nota:cancelada', payload: { notaId: nota._id, pedidoId: nota.pedidoId } });
     res.json(nota);
   } catch (error) {

@@ -24,7 +24,13 @@ async function tentarEmissaoTiny(pedidoId: string, nfId: string): Promise<void> 
 
   // Busca o tinyId do pedido já sincronizado
   const sync = await TinySyncModel.findOne({ tipo: 'pedido', localId: pedidoId, status: 'sincronizado' });
-  if (!sync?.tinyId) return; // pedido não sincronizado com Tiny — emissão manual depois
+  if (!sync?.tinyId) {
+    await NotaFiscalModel.findByIdAndUpdate(nfId, {
+      erroEmissao: 'Pedido não sincronizado com o Tiny. Acesse Administração → Tiny/Olist e sincronize o pedido antes de retentar.',
+      status: 'Pendente',
+    });
+    return;
+  }
 
   try {
     const resultado = await tinyAdapter.gerarNotaFiscalTiny({ tinyPedidoId: sync.tinyId });

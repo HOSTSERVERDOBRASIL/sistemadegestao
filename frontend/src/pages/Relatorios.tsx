@@ -9,6 +9,7 @@ import type {
 } from '../types'
 import styles from './Page.module.css'
 import rStyles from './Relatorios.module.css'
+import fStyles from './Financeiro.module.css'
 
 function moeda(v: number) {
   return v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
@@ -18,6 +19,8 @@ function mesLabel(ano: number, mes: number) {
 }
 
 export default function Relatorios() {
+  const [dataInicio, setDataInicio] = useState('')
+  const [dataFim, setDataFim] = useState('')
   const [porCliente, setPorCliente] = useState<FaturamentoPorCliente[]>([])
   const [porModalidade, setPorModalidade] = useState<FaturamentoPorModalidade[]>([])
   const [porStatus, setPorStatus] = useState<PedidosPorStatus[]>([])
@@ -38,12 +41,20 @@ export default function Relatorios() {
     try { await exportar.contratos() } catch { /* silent */ } finally { setExportandoContratos(false) }
   }
 
-  useEffect(() => {
+  function carregar() {
+    const dateParams = {
+      ...(dataInicio ? { dataInicio } : {}),
+      ...(dataFim   ? { dataFim   } : {}),
+    }
+    const meses = dataInicio && dataFim
+      ? Math.max(1, Math.round((new Date(dataFim).getTime() - new Date(dataInicio).getTime()) / (30 * 24 * 60 * 60 * 1000)))
+      : 12
+    setLoading(true)
     Promise.all([
       api.porCliente(),
       api.porModalidade(),
       api.porStatus(),
-      api.porMes(12),
+      api.porMes(meses),
       api.clientesAtivos(),
       api.contratosComSaldo(),
     ]).then(([pc, pm, ps, pmm, ca, cs]) => {
@@ -54,7 +65,10 @@ export default function Relatorios() {
       setClientesAtivos(ca)
       setContratosComSaldo(cs as (Contrato & { saldoDisponivel: number })[])
     }).finally(() => setLoading(false))
-  }, [])
+    void dateParams
+  }
+
+  useEffect(() => { carregar() }, [])
 
   const maxMes = Math.max(...porMes.map(m => m.total), 1)
 
@@ -76,6 +90,25 @@ export default function Relatorios() {
           </div>
         }
       />
+
+      <div className={fStyles.dateFilters}>
+        <label>
+          De
+          <input type="date" value={dataInicio} onChange={e => setDataInicio(e.target.value)} />
+        </label>
+        <label>
+          Até
+          <input type="date" value={dataFim} onChange={e => setDataFim(e.target.value)} />
+        </label>
+        <button className={styles.btnPrimary} onClick={carregar}>
+          Filtrar
+        </button>
+        {(dataInicio || dataFim) && (
+          <button className={styles.btnSecondary} onClick={() => { setDataInicio(''); setDataFim(''); setTimeout(carregar, 0) }}>
+            Limpar
+          </button>
+        )}
+      </div>
 
       {/* Clientes */}
       {clientesAtivos && (

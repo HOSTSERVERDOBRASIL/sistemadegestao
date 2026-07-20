@@ -141,6 +141,26 @@ router.post('/boleto', authenticate, authorize('admin', 'financeiro', 'operador'
   }
 });
 
+// ─── Listar todas as cobranças (com filtros e paginação) ──────────────────────
+router.get('/', authenticate, authorize('admin', 'financeiro'), async (req, res, next) => {
+  try {
+    const { status, tipo, page: pg, limit: lm } = req.query as Record<string, string>;
+    const page = Math.max(1, parseInt(pg || '1'));
+    const limit = Math.min(50, parseInt(lm || '20'));
+    const filter: Record<string, unknown> = {};
+    if (status) filter.status = status;
+    if (tipo) filter.tipo = tipo;
+    const skip = (page - 1) * limit;
+    const [data, total] = await Promise.all([
+      CobrancaModel.find(filter).populate('pedidoId', 'numero').sort({ createdAt: -1 }).skip(skip).limit(limit),
+      CobrancaModel.countDocuments(filter),
+    ]);
+    res.json({ data, total, page, limit });
+  } catch (error) {
+    next(error);
+  }
+});
+
 // ─── Listar cobranças de um pedido ────────────────────────────────────────────
 router.get('/pedido/:pedidoId', authenticate, authorize('admin', 'financeiro', 'operador'), async (req, res, next) => {
   try {

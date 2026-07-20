@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext'
 import PageHeader from '../components/PageHeader'
 import StatCard from '../components/StatCard'
 import Badge from '../components/Badge'
-import { relatorios, pedidos as pedidosApi } from '../api'
+import { relatorios, pedidos as pedidosApi, cobrancas as cobrancasApi } from '../api'
 import type { ResumoGeral, FaturamentoPorMes, PedidosPorStatus, Pedido } from '../types'
 import styles from './Dashboard.module.css'
 
@@ -24,7 +24,9 @@ export default function Dashboard() {
   const [resumo, setResumo] = useState<ResumoGeral | null>(null)
   const [porMes, setPorMes] = useState<FaturamentoPorMes[]>([])
   const [porStatus, setPorStatus] = useState<PedidosPorStatus[]>([])
+  const [porEtapa, setPorEtapa] = useState<Record<string, number>>({})
   const [recentes, setRecentes] = useState<Pedido[]>([])
+  const [cobrancasAbertas, setCobrancasAbertas] = useState<number>(0)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -33,11 +35,16 @@ export default function Dashboard() {
       relatorios.porMes(6),
       relatorios.porStatus(),
       pedidosApi.list({ limit: 8 }),
-    ]).then(([r, m, s, p]) => {
+      cobrancasApi.listAll({ status: 'ATIVA', page: 1 }),
+      // conta pedidos por etapa buscando cada uma (max 7 chamadas leves)
+      Promise.all(ETAPAS.map(e => pedidosApi.list({ etapa: e, limit: 1 }).then(r => ({ etapa: e, total: r.total })))),
+    ]).then(([r, m, s, p, cob, etapas]) => {
       setResumo(r)
       setPorMes(m)
       setPorStatus(s)
       setRecentes(p.data)
+      setCobrancasAbertas((cob as { total: number }).total ?? 0)
+      setPorEtapa(Object.fromEntries((etapas as { etapa: string; total: number }[]).map(e => [e.etapa, e.total])))
     }).finally(() => setLoading(false))
   }, [])
 
@@ -59,6 +66,11 @@ export default function Dashboard() {
           label="Total Faturado"
           value={loading ? '—' : moeda(resumo?.totalFaturado ?? 0)}
           sub="NFs emitidas"
+        />
+        <StatCard
+          label="Cobranças Abertas"
+          value={loading ? '—' : cobrancasAbertas}
+          sub="status ATIVA"
         />
       </div>
 
@@ -113,7 +125,12 @@ export default function Dashboard() {
           {ETAPAS.map((e, i) => (
             <div key={e} className={styles.etapa}>
               <div className={styles.etapaNum}>{i + 1}</div>
-              <span className={styles.etapaLabel}>{e}</span>
+              <div className={styles.etapaInfo}>
+                <span className={styles.etapaLabel}>{e}</span>
+                <span className={styles.etapaCount}>
+                  {loading ? '…' : (porEtapa[e] ?? 0)}
+                </span>
+              </div>
               {i < ETAPAS.length - 1 && <div className={styles.etapaArrow}>›</div>}
             </div>
           ))}

@@ -20,6 +20,19 @@ export default function Notifications() {
     'contrato:faturado': (p) => {
       addToast(`Contrato ${p.numero} faturado integralmente`, 'success')
     },
+    'cobranca_paga': (p) => {
+      addToast(`Cobrança do pedido ${p.pedidoId} paga!`, 'success')
+    },
+    'cobranca_criada': (p) => {
+      const tipo = p.tipo === 'pix' ? 'PIX' : 'boleto'
+      addToast(`Cobrança ${tipo} gerada para pedido ${p.pedidoId}`, 'info')
+    },
+    'tiny_sync': (p) => {
+      addToast(`Sincronizado com Tiny: ${p.tipo} ${p.id}`, 'info')
+    },
+    'etapa_atualizada': (p) => {
+      addToast(`Pedido ${p.pedidoId} avançou para etapa ${p.etapa} (via Tiny)`, 'info')
+    },
   }, !!user)
 
   if (toasts.length === 0) return null

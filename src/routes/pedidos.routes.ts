@@ -56,7 +56,14 @@ router.get('/', authenticate, authorize('admin', 'operador', 'financeiro', 'reve
     const etapaFilter = toFilter(etapa)
     if (etapaFilter) filter.etapaOperacional = etapaFilter;
     if (nfEmitida !== undefined) filter.nfEmitida = nfEmitida === 'true';
-    if (busca) filter.numero = { $regex: escapeRegex(busca), $options: 'i' };
+    if (busca) {
+      const clientes = await ClienteModel.find({ nome: { $regex: escapeRegex(busca), $options: 'i' } }).select('_id').lean();
+      const clienteIds = clientes.map(c => c._id);
+      filter['$or'] = [
+        { numero: { $regex: escapeRegex(busca), $options: 'i' } },
+        ...(clienteIds.length > 0 ? [{ clienteId: { $in: clienteIds } }] : []),
+      ];
+    }
     const vinculoTipos = vinculoTipo ? vinculoTipo.split(',').map(s => s.trim()).filter(Boolean) : []
     if (vinculoTipos.length > 0) {
       const vinculoOr: Record<string, unknown>[] = []
