@@ -52,6 +52,7 @@ const NAV_GROUPS: NavGroup[] = [
       { to: '/pedidos', label: 'Pedidos', Icon: ClipboardList },
       { to: '/produtos', label: 'Produtos', Icon: Package },
       { to: '/certificados-icp', label: 'Certificados ICP', Icon: ShieldCheck },
+      { to: '/estoque', label: 'Estoque', Icon: Package },
     ],
   },
   {
@@ -129,6 +130,7 @@ const ROUTE_LABELS: Record<string, string> = {
   '/pedidos/cancelados': 'Pedidos — Cancelados',
   '/produtos': 'Produtos',
   '/certificados-icp': 'Certificados ICP',
+  '/estoque': 'Estoque',
 
   '/produtos/ativos': 'Produtos Ativos',
   '/produtos/inativos': 'Produtos Inativos',
