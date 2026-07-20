@@ -105,6 +105,96 @@
   opacity: 1;
 }
 
+/* ── Submenu colapsável ──────────────────────────────────── */
+.navParent {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 7px 10px;
+  border-radius: 6px;
+  color: var(--sidebar-text);
+  font-size: 0.825rem;
+  font-weight: 500;
+  cursor: pointer;
+  background: none;
+  border: none;
+  width: 100%;
+  text-align: left;
+  transition: background 0.12s, color 0.12s;
+  position: relative;
+}
+
+.navParent:hover {
+  background: var(--sidebar-hover);
+  color: var(--sidebar-text-hover);
+}
+
+.navParent.open {
+  color: var(--nav-active-text);
+  font-weight: 600;
+}
+
+.navChevron {
+  margin-left: auto;
+  flex-shrink: 0;
+  opacity: 0.5;
+  transition: transform 0.18s;
+}
+
+.navParent.open .navChevron {
+  transform: rotate(90deg);
+}
+
+.navSubmenu {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  overflow: hidden;
+  max-height: 0;
+  transition: max-height 0.22s ease;
+}
+
+.navSubmenu.open {
+  max-height: 300px;
+}
+
+.navSubItem {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 6px 10px 6px 30px;
+  border-radius: 6px;
+  color: var(--sidebar-text);
+  text-decoration: none;
+  font-size: 0.8rem;
+  font-weight: 500;
+  transition: background 0.12s, color 0.12s;
+  position: relative;
+}
+
+.navSubItem:hover {
+  background: var(--sidebar-hover);
+  color: var(--sidebar-text-hover);
+}
+
+.navSubItem.active {
+  color: var(--nav-active-text);
+  background: var(--accent-muted);
+  font-weight: 600;
+}
+
+.navSubItem.active::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 3px;
+  height: 60%;
+  background: var(--nav-active-bar);
+  border-radius: 0 2px 2px 0;
+}
+
 /* User info */
 .userInfo {
   display: flex;
