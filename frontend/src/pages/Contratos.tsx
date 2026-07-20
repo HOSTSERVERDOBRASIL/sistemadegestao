@@ -40,7 +40,7 @@ function toDateInput(d: string) {
   return d ? d.slice(0, 10) : ''
 }
 
-export default function Contratos() {
+export default function Contratos({ vencendo }: { vencendo?: boolean }) {
   const navigate = useNavigate()
   const [page, setPage] = useState(1)
   const [total, setTotal] = useState(0)
@@ -64,10 +64,10 @@ export default function Contratos() {
 
   const load = useCallback(() => {
     setLoading(true)
-    api.list({ page, busca, modalidade: filtroModalidade.length > 0 ? filtroModalidade.join(',') : undefined })
+    api.list({ page, busca, modalidade: filtroModalidade.length > 0 ? filtroModalidade.join(',') : undefined, vencendo: vencendo ? 'true' : undefined })
       .then(res => { setRows(res.data); setTotal(res.total) })
       .finally(() => setLoading(false))
-  }, [page, busca, filtroModalidade])
+  }, [page, busca, filtroModalidade, vencendo])
 
   useEffect(() => { load() }, [load])
 
@@ -156,7 +156,7 @@ export default function Contratos() {
 
   return (
     <div className={styles.page}>
-      <PageHeader title="Contratos" subtitle={`${total} registro(s)`}
+      <PageHeader title={vencendo ? 'Contratos Vencendo' : 'Contratos'} subtitle={vencendo ? `${total} vencendo nos próximos 30 dias` : `${total} registro(s)`}
         action={<button className={styles.btnPrimary} onClick={openCreate}>+ Novo Contrato</button>}
       />
       <div className={styles.filters}>

@@ -48,14 +48,14 @@ function moeda(v: number) {
   return v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
 }
 
-export default function Produtos() {
+export default function Produtos({ ativoFixo }: { ativoFixo?: 'ativos' | 'inativos' }) {
   const [page, setPage] = useState(1)
   const [total, setTotal] = useState(0)
   const [rows, setRows] = useState<Produto[]>([])
   const [loading, setLoading] = useState(true)
   const [busca, setBusca] = useState('')
   const [filtroCategoria, setFiltroCategoria] = useState<string[]>([])
-  const [filtroAtivo, setFiltroAtivo] = useState<FiltroAtivo>('todos')
+  const [filtroAtivo, setFiltroAtivo] = useState<FiltroAtivo>(ativoFixo ?? 'todos')
   const [showModal, setShowModal] = useState(false)
   const [editing, setEditing] = useState<Produto | null>(null)
   const [form, setForm] = useState<ProdutoPayload>(BLANK)
@@ -83,7 +83,7 @@ export default function Produtos() {
     return arr.includes(val) ? arr.filter(x => x !== val) : [...arr, val]
   }
 
-  const rowsFiltrados = filtroCategoria.length > 0 ? rows.filter(r => filtroCategoria.includes(r.categoria)) : rows
+  const rowsFiltrados = filtroCategoria.length > 0 ? rows.filter(r => filtroCategoria.includes(r.categoria ?? '')) : rows
 
   function openCreate() { setEditing(null); setForm(BLANK); setErrs({}); setTouched(false); setShowModal(true) }
   function openEdit(p: Produto) {
@@ -201,7 +201,7 @@ export default function Produtos() {
   return (
     <div className={styles.page}>
       <PageHeader
-        title="Produtos"
+        title={ativoFixo === 'ativos' ? 'Produtos Ativos' : ativoFixo === 'inativos' ? 'Produtos Inativos' : 'Produtos'}
         subtitle={`${total} registro(s)`}
         action={<button className={styles.btnPrimary} onClick={openCreate}>+ Novo Produto</button>}
       />

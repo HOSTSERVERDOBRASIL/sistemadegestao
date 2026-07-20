@@ -18,7 +18,7 @@ function toFilter(v: string | undefined) {
 
 router.get('/', authenticate, authorize('admin', 'operador', 'financeiro'), async (req, res, next) => {
   try {
-    const { clienteId, ativo, modalidade, busca } = req.query as Record<string, string>;
+    const { clienteId, ativo, modalidade, busca, vencendo } = req.query as Record<string, string>;
     const page = parsePage(req.query.page as string);
     const limit = parseLimit(req.query.limit as string);
     const filter: Record<string, unknown> = {};
@@ -27,6 +27,12 @@ router.get('/', authenticate, authorize('admin', 'operador', 'financeiro'), asyn
     const modalidadeFilter = toFilter(modalidade)
     if (modalidadeFilter) filter.modalidade = modalidadeFilter;
     if (busca) filter.numero = { $regex: escapeRegex(busca), $options: 'i' };
+    if (vencendo === 'true') {
+      const hoje = new Date();
+      const em30dias = new Date(); em30dias.setDate(hoje.getDate() + 30);
+      filter.dataFim = { $gte: hoje, $lte: em30dias };
+      filter.ativo = true;
+    }
 
     const skip = (page - 1) * limit;
     const [data, total] = await Promise.all([

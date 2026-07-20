@@ -42,14 +42,25 @@ function validate(f: PedidoPayload): Errors {
   return errors
 }
 
-export default function Pedidos() {
+type PedidoStatus = 'Rascunho' | 'Aprovado' | 'Em processo' | 'Faturado' | 'Concluido' | 'Cancelado'
+
+const PEDIDO_TITULO: Record<PedidoStatus, string> = {
+  Rascunho:    'Pedidos — Rascunho',
+  Aprovado:    'Pedidos — Aprovados',
+  'Em processo': 'Pedidos — Em Processo',
+  Faturado:    'Pedidos — Faturados',
+  Concluido:   'Pedidos — Concluídos',
+  Cancelado:   'Pedidos — Cancelados',
+}
+
+export default function Pedidos({ statusFixo }: { statusFixo?: PedidoStatus }) {
   const navigate = useNavigate()
   const [page, setPage] = useState(1)
   const [total, setTotal] = useState(0)
   const [rows, setRows] = useState<Pedido[]>([])
   const [loading, setLoading] = useState(true)
   const [busca, setBusca] = useState('')
-  const [filtroStatus, setFiltroStatus] = useState<string[]>([])
+  const [filtroStatus, setFiltroStatus] = useState<string[]>(statusFixo ? [statusFixo] : [])
   const [filtroEtapa, setFiltroEtapa] = useState<string[]>([])
   const [filtroVinculo, setFiltroVinculo] = useState<string[]>([])
   const [filtroNF, setFiltroNF] = useState('')
@@ -254,7 +265,7 @@ export default function Pedidos() {
   ]
 
   return <div className={styles.page}>
-    <PageHeader title="Pedidos" subtitle={`${total} registro(s)`} action={<div style={{ display: 'flex', gap: 8 }}>
+    <PageHeader title={statusFixo ? PEDIDO_TITULO[statusFixo] : 'Pedidos'} subtitle={`${total} registro(s)`} action={<div style={{ display: 'flex', gap: 8 }}>
       <button className={styles.btnSecondary} onClick={handleExportar} disabled={exportando}>{exportando ? 'Exportando...' : '⬇ CSV'}</button>
       <button className={styles.btnPrimary} onClick={() => { setForm(blankForm()); setErrors({}); setError(''); setShowModal(true) }}>+ Novo Pedido</button>
     </div>} />

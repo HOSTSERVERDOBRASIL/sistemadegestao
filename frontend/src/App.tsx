@@ -48,13 +48,24 @@ function AppRoutes() {
       <Route path="/" element={<PrivateRoute><Layout /></PrivateRoute>}>
         <Route index element={<Dashboard />} />
         <Route path="pedidos" element={<Pedidos />} />
+        <Route path="pedidos/rascunho" element={<Pedidos statusFixo="Rascunho" />} />
+        <Route path="pedidos/aprovados" element={<Pedidos statusFixo="Aprovado" />} />
+        <Route path="pedidos/em-processo" element={<Pedidos statusFixo="Em processo" />} />
+        <Route path="pedidos/faturados" element={<Pedidos statusFixo="Faturado" />} />
+        <Route path="pedidos/concluidos" element={<Pedidos statusFixo="Concluido" />} />
+        <Route path="pedidos/cancelados" element={<Pedidos statusFixo="Cancelado" />} />
         <Route path="pedidos/:id" element={<PedidoDetalhe />} />
         <Route path="contratos" element={<Contratos />} />
+        <Route path="contratos/vencendo" element={<Contratos vencendo />} />
         <Route path="contratos/:id" element={<ContratoDetalhe />} />
         <Route path="clientes" element={<Clientes />} />
         <Route path="clientes/:id" element={<ClienteDetalhe />} />
         <Route path="produtos" element={<Produtos />} />
+        <Route path="produtos/ativos" element={<Produtos ativoFixo="ativos" />} />
+        <Route path="produtos/inativos" element={<Produtos ativoFixo="inativos" />} />
         <Route path="parceiros" element={<Parceiros />} />
+        <Route path="parceiros/ativos" element={<Parceiros ativoFixo="ativos" />} />
+        <Route path="parceiros/inativos" element={<Parceiros ativoFixo="inativos" />} />
         <Route path="parceiros/:id" element={<ParceiroDetalhe />} />
         <Route path="financeiro" element={<Financeiro />} />
         <Route path="financeiro/emitidas" element={<Financeiro statusFixo="Emitida" />} />

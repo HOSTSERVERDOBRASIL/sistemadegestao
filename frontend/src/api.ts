@@ -147,7 +147,7 @@ export const parceiros = {
 // Contratos
 import type { Contrato, ContratoPayload, OrdemFornecimento, ResumoFinanceiroContrato } from './types'
 export const contratos = {
-  list: (p?: { page?: number; limit?: number; clienteId?: string; ativo?: string; modalidade?: string; busca?: string }) =>
+  list: (p?: { page?: number; limit?: number; clienteId?: string; ativo?: string; modalidade?: string; busca?: string; vencendo?: string }) =>
     get<Page<Contrato>>(`/contratos${qs({ page: 1, limit: 20, ...p })}`),
   get: (id: string) => get<Contrato>(`/contratos/${id}`),
   create: (body: ContratoPayload) => post<Contrato>('/contratos', body),

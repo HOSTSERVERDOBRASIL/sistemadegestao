@@ -5,7 +5,8 @@ import {
   Receipt, FileStack, Zap, Scale, Tag, BarChart2,
   Link2, RefreshCw, UserCog, Settings, ScrollText, ShieldCheck,
   Sun, Moon, LogOut, Bell, Wallet, FilePlus, CheckCircle, Clock, XCircle,
-  ChevronRight,
+  ChevronRight, CircleDot, AlertTriangle, Ban, Layers, UserCheck, UserX,
+  FileCheck, FileClock, PackageCheck, PackageX,
 } from 'lucide-react'
 
 import { useAuth } from '../context/AuthContext'
@@ -34,16 +35,51 @@ const NAV_GROUPS: NavGroup[] = [
   {
     label: 'Comercial',
     entries: [
-      { to: '/clientes',  label: 'Clientes',            Icon: Users },
-      { to: '/contratos', label: 'Contratos',            Icon: FileText },
-      { to: '/parceiros', label: 'Parceiros / Revendas', Icon: Handshake },
+      { to: '/clientes', label: 'Clientes', Icon: Users },
+      {
+        label: 'Contratos',
+        Icon: FileText,
+        items: [
+          { to: '/contratos',          label: 'Todos',           Icon: FileText },
+          { to: '/contratos/vencendo', label: 'Vencendo (30d)',  Icon: AlertTriangle },
+        ],
+      },
+      {
+        label: 'Parceiros / Revendas',
+        Icon: Handshake,
+        items: [
+          { to: '/parceiros',         label: 'Todos',    Icon: Handshake },
+          { to: '/parceiros/ativos',  label: 'Ativos',   Icon: UserCheck },
+          { to: '/parceiros/inativos', label: 'Inativos', Icon: UserX },
+        ],
+      },
     ],
   },
   {
     label: 'Operações',
     entries: [
-      { to: '/pedidos',  label: 'Pedidos',  Icon: ClipboardList },
-      { to: '/produtos', label: 'Produtos', Icon: Package },
+      {
+        label: 'Pedidos',
+        Icon: ClipboardList,
+        items: [
+          { to: '/pedidos',            label: 'Todos',        Icon: ClipboardList },
+          { to: '/pedidos/aprovados',  label: 'Aprovados',    Icon: CheckCircle },
+          { to: '/pedidos/em-processo', label: 'Em Processo', Icon: CircleDot },
+          { to: '/pedidos/faturados',  label: 'Faturados',    Icon: FileCheck },
+          { to: '/pedidos/concluidos', label: 'Concluídos',   Icon: FileClock },
+          { to: '/pedidos/rascunho',   label: 'Rascunho',     Icon: Layers },
+          { to: '/pedidos/cancelados', label: 'Cancelados',   Icon: Ban },
+        ],
+      },
+      {
+        label: 'Produtos',
+        Icon: Package,
+        items: [
+          { to: '/produtos',         label: 'Todos',    Icon: Package },
+          { to: '/produtos/ativos',  label: 'Ativos',   Icon: PackageCheck },
+          { to: '/produtos/inativos', label: 'Inativos', Icon: PackageX },
+        ],
+      },
     ],
   },
   {
@@ -107,9 +143,20 @@ const ROUTE_LABELS: Record<string, string> = {
   '/portal-revenda': 'Portal da Revenda',
   '/clientes': 'Clientes',
   '/contratos': 'Contratos',
+  '/contratos/vencendo': 'Contratos Vencendo',
   '/parceiros': 'Parceiros / Revendas',
+  '/parceiros/ativos': 'Parceiros Ativos',
+  '/parceiros/inativos': 'Parceiros Inativos',
   '/pedidos': 'Pedidos',
+  '/pedidos/rascunho': 'Pedidos — Rascunho',
+  '/pedidos/aprovados': 'Pedidos — Aprovados',
+  '/pedidos/em-processo': 'Pedidos — Em Processo',
+  '/pedidos/faturados': 'Pedidos — Faturados',
+  '/pedidos/concluidos': 'Pedidos — Concluídos',
+  '/pedidos/cancelados': 'Pedidos — Cancelados',
   '/produtos': 'Produtos',
+  '/produtos/ativos': 'Produtos Ativos',
+  '/produtos/inativos': 'Produtos Inativos',
   '/financeiro': 'Notas Fiscais',
   '/financeiro/emitidas': 'Notas Emitidas',
   '/financeiro/pendentes': 'Notas Pendentes',

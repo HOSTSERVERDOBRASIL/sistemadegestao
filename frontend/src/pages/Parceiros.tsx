@@ -39,7 +39,7 @@ function moeda(v: number) {
   return v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
 }
 
-export default function Parceiros() {
+export default function Parceiros({ ativoFixo }: { ativoFixo?: 'ativos' | 'inativos' }) {
   const navigate = useNavigate()
   const { user } = useAuth()
   const [page, setPage] = useState(1)
@@ -47,7 +47,7 @@ export default function Parceiros() {
   const [rows, setRows] = useState<Parceiro[]>([])
   const [loading, setLoading] = useState(true)
   const [busca, setBusca] = useState('')
-  const [filtroAtivo, setFiltroAtivo] = useState<FiltroAtivo>('todos')
+  const [filtroAtivo, setFiltroAtivo] = useState<FiltroAtivo>(ativoFixo ?? 'todos')
   const [showModal, setShowModal] = useState(false)
   const [editing, setEditing] = useState<Parceiro | null>(null)
   const [form, setForm] = useState<ParceiroPayload>(BLANK)
@@ -205,7 +205,7 @@ export default function Parceiros() {
   return (
     <div className={styles.page}>
       <PageHeader
-        title="Parceiros / Revendedores"
+        title={ativoFixo === 'ativos' ? 'Parceiros Ativos' : ativoFixo === 'inativos' ? 'Parceiros Inativos' : 'Parceiros / Revendas'}
         subtitle={`${total} cadastrado(s)`}
         action={<button className={styles.btnPrimary} onClick={openCreate}>+ Novo Parceiro</button>}
       />
