@@ -18,6 +18,50 @@ import type {
 import { required, selectRequired, hasErrors } from '../utils/validate'
 import styles from './Page.module.css'
 
+// ─── tipos ICP ──────────────────────────────────────────────────────────────
+interface PedidoICP {
+  _id: string
+  numero: string
+  clienteId: string
+  clienteNome?: string
+  tipoCert: string
+  midia: 'A1' | 'A3-Token' | 'A3-Cartão' | 'A3-Nuvem' | 'A3-Outro'
+  prazoAnos: number
+  quantidade: number
+  titularNome?: string
+  titularCpfCnpj?: string
+  titularEmail?: string
+  titularTelefone?: string
+  hardware?: {
+    estoqueItemId: string
+    estoqueItemCodigo?: string
+    estoqueItemNome?: string
+    estoqueMovimentoReservaId?: string
+    estoqueMovimentoSaidaId?: string
+    numeroSerie?: string
+    fabricante?: string
+    modelo?: string
+  }
+  valorUnitario?: number
+  valorTotal?: number
+  status: string
+  responsavelNome?: string
+  observacoes?: string
+  historico: Array<{ data: string; status: string; observacao?: string; usuarioNome?: string }>
+  createdAt: string
+}
+
+interface EstoqueItemDisponivel {
+  _id: string
+  codigo: string
+  nome: string
+  tipo: string
+  fabricante?: string
+  modelo?: string
+  quantidadeAtual: number
+  quantidadeReservada: number
+}
+
 // ─── helpers ────────────────────────────────────────────────────────────────
 const ETAPAS: EtapaOperacional[] = ['Pedido', 'Pagamento', 'Validacao', 'Preparacao', 'Processamento', 'Entrega', 'Conclusao']
 const VINCULOS: VinculoTipo[] = ['Contrato', 'EmpenhoSF', 'CompraDireta', 'Revenda']
@@ -334,6 +378,140 @@ export default function Pedidos({ statusFixo }: { statusFixo?: PedidoStatus }) {
     sslVencendo30 > 0 ? `${sslVencendo30} vencendo em 30 dias` : '',
   ].filter(Boolean).join(', ') || `${sslTotal} registro(s)`
 
+  // ── estado aba ICP ──────────────────────────────────────────────────────────
+  const [pedidosICP, setPedidosICP] = useState<PedidoICP[]>([])
+  const [totalICP, setTotalICP] = useState(0)
+  const [pageICP, setPageICP] = useState(1)
+  const [statusFiltroICP, setStatusFiltroICP] = useState('')
+  const [loadingICP, setLoadingICP] = useState(false)
+  const [showModalICP, setShowModalICP] = useState(false)
+  const [selectedICP, setSelectedICP] = useState<PedidoICP | null>(null)
+  const [showHistoricoICP, setShowHistoricoICP] = useState(false)
+  const [itensEstoqueHw, setItensEstoqueHw] = useState<EstoqueItemDisponivel[]>([])
+  const [formICP, setFormICP] = useState({
+    clienteId: '', clienteNome: '', tipoCert: 'e-CPF A3',
+    midia: 'A3-Token' as PedidoICP['midia'], prazoAnos: 1, quantidade: 1,
+    titularNome: '', titularCpfCnpj: '', titularEmail: '', titularTelefone: '',
+    estoqueItemId: '', numeroSerie: '', valorUnitario: '', valorTotal: '', observacoes: '',
+  })
+  const [savingICP, setSavingICP] = useState(false)
+  const [erroICP, setErroICP] = useState('')
+  const [avisoICP, setAvisoICP] = useState('')
+
+  const loadPedidosICP = useCallback(async () => {
+    setLoadingICP(true)
+    try {
+      const p = new URLSearchParams({ page: String(pageICP), limit: '20' })
+      if (statusFiltroICP) p.set('status', statusFiltroICP)
+      const res = await fetch(`/api/pedidos-icp?${p}`, { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } })
+      const json = await res.json()
+      setPedidosICP(json.data ?? [])
+      setTotalICP(json.total ?? 0)
+    } finally { setLoadingICP(false) }
+  }, [pageICP, statusFiltroICP])
+
+  const loadItensEstoqueHw = useCallback(async () => {
+    const res = await fetch('/api/estoque/items?status=Ativo&limit=100', { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } })
+    const json = await res.json()
+    const hw = (json.data ?? []).filter((i: EstoqueItemDisponivel) =>
+      (i.tipo === 'Token USB' || i.tipo === 'Cartão Inteligente') &&
+      (i.quantidadeAtual - i.quantidadeReservada) > 0
+    )
+    setItensEstoqueHw(hw)
+  }, [])
+
+  useEffect(() => { if (aba === 'icp') loadPedidosICP() }, [aba, loadPedidosICP])
+  useEffect(() => { if (showModalICP) loadItensEstoqueHw() }, [showModalICP, loadItensEstoqueHw])
+
+  const handleSaveICP = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setSavingICP(true); setErroICP(''); setAvisoICP('')
+    try {
+      const isHw = formICP.midia === 'A3-Token' || formICP.midia === 'A3-Cartão'
+      const body: Record<string, unknown> = {
+        clienteId: formICP.clienteId,
+        clienteNome: formICP.clienteNome,
+        tipoCert: formICP.tipoCert,
+        midia: formICP.midia,
+        prazoAnos: Number(formICP.prazoAnos),
+        quantidade: Number(formICP.quantidade),
+        titularNome: formICP.titularNome || undefined,
+        titularCpfCnpj: formICP.titularCpfCnpj || undefined,
+        titularEmail: formICP.titularEmail || undefined,
+        titularTelefone: formICP.titularTelefone || undefined,
+        valorUnitario: formICP.valorUnitario ? Number(formICP.valorUnitario) : undefined,
+        valorTotal: formICP.valorTotal ? Number(formICP.valorTotal) : undefined,
+        observacoes: formICP.observacoes || undefined,
+      }
+      if (isHw && formICP.estoqueItemId) {
+        body.hardware = {
+          estoqueItemId: formICP.estoqueItemId,
+          numeroSerie: formICP.numeroSerie || undefined,
+        }
+      }
+      const res = await fetch('/api/pedidos-icp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
+        body: JSON.stringify(body),
+      })
+      const json = await res.json()
+      if (!res.ok) { setErroICP(json.message ?? 'Erro ao criar pedido'); return }
+      if (json.aviso) setAvisoICP(json.aviso)
+      setShowModalICP(false)
+      loadPedidosICP()
+    } catch (err) {
+      setErroICP(err instanceof Error ? err.message : 'Erro ao salvar')
+    } finally { setSavingICP(false) }
+  }
+
+  const handleStatusICP = async (pedido: PedidoICP, novoStatus: string) => {
+    if (!confirm(`Confirmar: ${novoStatus}?`)) return
+    const res = await fetch(`/api/pedidos-icp/${pedido._id}/status`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
+      body: JSON.stringify({ status: novoStatus }),
+    })
+    const json = await res.json()
+    if (!res.ok) { alert(json.message ?? 'Erro'); return }
+    loadPedidosICP()
+  }
+
+  function proximosStatusICP(atual: string): string[] {
+    const mapa: Record<string, string[]> = {
+      'Rascunho': ['Em Análise'],
+      'Em Análise': ['Aguardando Documentos', 'Documentação OK'],
+      'Aguardando Documentos': ['Documentação OK'],
+      'Documentação OK': ['Agendado'],
+      'Agendado': ['Em Emissão'],
+      'Em Emissão': ['Despachado'],
+      'Despachado': ['Entregue'],
+      'Entregue': ['Concluído'],
+    }
+    const proximos = mapa[atual] ?? []
+    if (atual !== 'Concluído' && atual !== 'Cancelado') proximos.push('Cancelado')
+    return proximos
+  }
+
+  function icpStatusVariant(s: string): TipoBadge {
+    switch (s) {
+      case 'Concluído': return 'success'
+      case 'Cancelado': return 'danger'
+      case 'Despachado': return 'warning'
+      case 'Em Emissão':
+      case 'Agendado': return 'info'
+      default: return 'default'
+    }
+  }
+
+  function icpMidiaVariant(m: string): TipoBadge {
+    switch (m) {
+      case 'A1': return 'info'
+      case 'A3-Token':
+      case 'A3-Cartão': return 'warning'
+      default: return 'default'
+    }
+  }
+
   // ── colunas operacional ─────────────────────────────────────────────────────
   const opColumns = [
     { key: 'numero',    header: 'Número',  render: (r: Pedido) => <strong>{r.numero}</strong> },
@@ -386,7 +564,7 @@ export default function Pedidos({ statusFixo }: { statusFixo?: PedidoStatus }) {
       {/* ── header + tabs ── */}
       <PageHeader
         title="Pedidos"
-        subtitle={aba === 'servicos' ? `${opTotal} registro(s)` : aba === 'internacional' ? sslSubtitle : `${opTotal} registro(s)`}
+        subtitle={aba === 'servicos' ? `${opTotal} registro(s)` : aba === 'internacional' ? sslSubtitle : `${totalICP} registro(s)`}
         action={
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
             <div style={{ display: 'flex', gap: 4, background: 'var(--surface-2, #f1f5f9)', borderRadius: 24, padding: 4 }}>
@@ -400,6 +578,9 @@ export default function Pedidos({ statusFixo }: { statusFixo?: PedidoStatus }) {
             </>}
             {aba === 'internacional' && (
               <button className={styles.btnPrimary} onClick={openSslCreate}>+ Novo Pedido SSL</button>
+            )}
+            {aba === 'icp' && (
+              <button className={styles.btnPrimary} onClick={() => { setFormICP({ clienteId: '', clienteNome: '', tipoCert: 'e-CPF A3', midia: 'A3-Token', prazoAnos: 1, quantidade: 1, titularNome: '', titularCpfCnpj: '', titularEmail: '', titularTelefone: '', estoqueItemId: '', numeroSerie: '', valorUnitario: '', valorTotal: '', observacoes: '' }); setErroICP(''); setAvisoICP(''); setShowModalICP(true) }}>+ Novo Pedido ICP</button>
             )}
           </div>
         }
@@ -464,13 +645,73 @@ export default function Pedidos({ statusFixo }: { statusFixo?: PedidoStatus }) {
       </>}
 
       {/* ══ ABA ICP-BRASIL ══ */}
-      {aba === 'icp' && (
-        <div style={{ padding: '40px 0', textAlign: 'center', color: 'var(--text-secondary)' }}>
-          <div style={{ fontSize: '2rem', marginBottom: 12 }}>🔐</div>
-          <div style={{ fontWeight: 600, marginBottom: 6 }}>Pedidos ICP-Brasil</div>
-          <div style={{ fontSize: '0.85rem' }}>Em breve — Identificação, Equipamento, Aplicação/InfoConv e Bancário</div>
+      {aba === 'icp' && <>
+        <div className={styles.filters}>
+          <select value={statusFiltroICP} onChange={e => { setStatusFiltroICP(e.target.value); setPageICP(1) }}>
+            <option value="">Todos os status</option>
+            {['Rascunho', 'Em Análise', 'Aguardando Documentos', 'Documentação OK', 'Agendado', 'Em Emissão', 'Despachado', 'Entregue', 'Concluído', 'Cancelado'].map(s => <option key={s}>{s}</option>)}
+          </select>
         </div>
-      )}
+
+        {loadingICP ? (
+          <div style={{ padding: '40px 0', textAlign: 'center', color: 'var(--text-secondary)' }}>Carregando...</div>
+        ) : pedidosICP.length === 0 ? (
+          <div style={{ padding: '40px 0', textAlign: 'center', color: 'var(--text-secondary)', fontSize: '0.9rem' }}>Nenhum pedido ICP encontrado.</div>
+        ) : (
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
+              <thead>
+                <tr style={{ borderBottom: '2px solid var(--border, #e2e8f0)', background: 'var(--surface-2, #f8fafc)' }}>
+                  {['Número', 'Cliente', 'Tipo Cert.', 'Mídia', 'Hardware', 'Prazo', 'Status', 'Ações'].map(h => (
+                    <th key={h} style={{ padding: '10px 14px', textAlign: 'left', fontWeight: 600, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {pedidosICP.map(p => (
+                  <tr key={p._id} style={{ borderBottom: '1px solid var(--border, #e2e8f0)' }}>
+                    <td style={{ padding: '10px 14px', fontFamily: 'monospace', fontWeight: 700, whiteSpace: 'nowrap' }}>{p.numero}</td>
+                    <td style={{ padding: '10px 14px' }}>{p.clienteNome ?? p.clienteId}</td>
+                    <td style={{ padding: '10px 14px', whiteSpace: 'nowrap' }}>{p.tipoCert}</td>
+                    <td style={{ padding: '10px 14px' }}><Badge label={p.midia} variant={icpMidiaVariant(p.midia)} /></td>
+                    <td style={{ padding: '10px 14px', whiteSpace: 'nowrap' }}>
+                      {p.hardware ? (
+                        <span>
+                          {p.hardware.estoqueItemCodigo ?? p.hardware.estoqueItemId}
+                          {p.hardware.numeroSerie && <span style={{ color: 'var(--text-secondary)', marginLeft: 4 }}>({p.hardware.numeroSerie})</span>}
+                          {p.hardware.estoqueMovimentoSaidaId && <span title="Saída registrada" style={{ marginLeft: 4 }}>&#128274;</span>}
+                        </span>
+                      ) : <span style={{ color: 'var(--text-secondary)' }}>—</span>}
+                    </td>
+                    <td style={{ padding: '10px 14px', whiteSpace: 'nowrap' }}>{p.prazoAnos} ano{p.prazoAnos > 1 ? 's' : ''}</td>
+                    <td style={{ padding: '10px 14px' }}><Badge label={p.status} variant={icpStatusVariant(p.status)} /></td>
+                    <td style={{ padding: '10px 14px', whiteSpace: 'nowrap' }}>
+                      <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                        {proximosStatusICP(p.status).length > 0 && (
+                          <select
+                            defaultValue=""
+                            onChange={e => { if (e.target.value) handleStatusICP(p, e.target.value) }}
+                            style={{ fontSize: '0.78rem', padding: '3px 6px', borderRadius: 6, border: '1px solid var(--border, #e2e8f0)', background: 'var(--surface, #fff)', cursor: 'pointer' }}
+                          >
+                            <option value="">Avançar...</option>
+                            {proximosStatusICP(p.status).map(s => <option key={s} value={s}>{s}</option>)}
+                          </select>
+                        )}
+                        <button
+                          className={styles.btnSecondary}
+                          style={{ fontSize: '0.78rem', padding: '3px 10px' }}
+                          onClick={() => { setSelectedICP(p); setShowHistoricoICP(true) }}
+                        >Histórico</button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+        <Pagination page={pageICP} total={totalICP} limit={20} onChange={setPageICP} />
+      </>}
 
       {/* ══ MODAL — NOVO PEDIDO OPERACIONAL ══ */}
       {showOpModal && <Modal title="Novo Pedido" onClose={() => setShowOpModal(false)} size="lg">
@@ -565,6 +806,108 @@ export default function Pedidos({ statusFixo }: { statusFixo?: PedidoStatus }) {
             <button type="submit" className={styles.btnPrimary} disabled={opSaving}>{opSaving ? 'Salvando...' : 'Criar Pedido'}</button>
           </div>
         </form>
+      </Modal>}
+
+      {/* ══ MODAL — NOVO PEDIDO ICP ══ */}
+      {showModalICP && <Modal title="Novo Pedido ICP-Brasil" onClose={() => setShowModalICP(false)} size="lg">
+        <form onSubmit={handleSaveICP} noValidate className={styles.form}>
+          <div className={styles.formGrid2}>
+            <label>Cliente (nome)<input value={formICP.clienteNome} onChange={e => setFormICP(f => ({ ...f, clienteNome: e.target.value }))} placeholder="Nome do cliente" /></label>
+            <label>ID do Cliente<input value={formICP.clienteId} onChange={e => setFormICP(f => ({ ...f, clienteId: e.target.value }))} placeholder="ID (opcional)" /></label>
+            <label>Nome do Titular<input value={formICP.titularNome} onChange={e => setFormICP(f => ({ ...f, titularNome: e.target.value }))} /></label>
+            <label>CPF/CNPJ do Titular<input value={formICP.titularCpfCnpj} onChange={e => setFormICP(f => ({ ...f, titularCpfCnpj: e.target.value }))} placeholder="000.000.000-00" /></label>
+            <label>E-mail do Titular<input type="email" value={formICP.titularEmail} onChange={e => setFormICP(f => ({ ...f, titularEmail: e.target.value }))} /></label>
+            <label>Telefone do Titular<input value={formICP.titularTelefone} onChange={e => setFormICP(f => ({ ...f, titularTelefone: e.target.value }))} placeholder="(00) 00000-0000" /></label>
+            <label>Tipo de Certificado *
+              <select value={formICP.tipoCert} onChange={e => setFormICP(f => ({ ...f, tipoCert: e.target.value }))}>
+                {['e-CPF A1', 'e-CPF A3', 'e-CNPJ A1', 'e-CNPJ A3', 'NF-e A1', 'NF-e A3', 'Equipamento A3', 'Aplicação/InfoConv A3', 'Bancário A3', 'Outro'].map(t => <option key={t} value={t}>{t}</option>)}
+              </select>
+            </label>
+            <label>Mídia *
+              <select value={formICP.midia} onChange={e => setFormICP(f => ({ ...f, midia: e.target.value as PedidoICP['midia'], estoqueItemId: '', numeroSerie: '' }))}>
+                {(['A1', 'A3-Token', 'A3-Cartão', 'A3-Nuvem', 'A3-Outro'] as const).map(m => <option key={m} value={m}>{m}</option>)}
+              </select>
+            </label>
+            <label>Prazo
+              <select value={formICP.prazoAnos} onChange={e => setFormICP(f => ({ ...f, prazoAnos: Number(e.target.value) }))}>
+                {[1, 2, 3].map(n => <option key={n} value={n}>{n} {n === 1 ? 'ano' : 'anos'}</option>)}
+              </select>
+            </label>
+            <label>Quantidade<input type="number" min="1" step="1" value={formICP.quantidade} onChange={e => setFormICP(f => ({ ...f, quantidade: Number(e.target.value) }))} /></label>
+            <label>Valor unitário (R$)<input type="number" min="0" step="0.01" value={formICP.valorUnitario} onChange={e => setFormICP(f => ({ ...f, valorUnitario: e.target.value }))} placeholder="0,00" /></label>
+            <label>Valor total (R$)<input type="number" min="0" step="0.01" value={formICP.valorTotal} onChange={e => setFormICP(f => ({ ...f, valorTotal: e.target.value }))} placeholder="0,00" /></label>
+          </div>
+
+          {(formICP.midia === 'A3-Token' || formICP.midia === 'A3-Cartão') && (
+            <div style={{ marginTop: 16, padding: 14, border: '1px solid var(--border, #e2e8f0)', borderRadius: 10 }}>
+              <strong style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Mídia Hardware</strong>
+              <div className={styles.formGrid2} style={{ marginTop: 10 }}>
+                <label style={{ gridColumn: 'span 2' }}>Token/Cartão de estoque
+                  {itensEstoqueHw.length === 0 ? (
+                    <div style={{ marginTop: 6, fontSize: '0.8rem', color: '#b45309', background: '#fef3c7', borderRadius: 6, padding: '6px 10px' }}>Nenhum item de hardware disponível em estoque</div>
+                  ) : (
+                    <select value={formICP.estoqueItemId} onChange={e => setFormICP(f => ({ ...f, estoqueItemId: e.target.value }))}>
+                      <option value="">--</option>
+                      {itensEstoqueHw.map(i => (
+                        <option key={i._id} value={i._id}>{i.codigo} — {i.nome}{i.fabricante ? ` (${i.fabricante})` : ''} — Disp: {i.quantidadeAtual - i.quantidadeReservada}</option>
+                      ))}
+                    </select>
+                  )}
+                </label>
+                <label>Número de série<input value={formICP.numeroSerie} onChange={e => setFormICP(f => ({ ...f, numeroSerie: e.target.value }))} placeholder="Serial do dispositivo" /></label>
+              </div>
+            </div>
+          )}
+
+          <label style={{ marginTop: 14 }}>Observações<textarea rows={3} value={formICP.observacoes} onChange={e => setFormICP(f => ({ ...f, observacoes: e.target.value }))} /></label>
+          {avisoICP && <p style={{ color: '#92400e', background: '#fef3c7', borderRadius: 6, padding: '8px 12px', fontSize: '0.85rem', marginTop: 8 }}>{avisoICP}</p>}
+          {erroICP && <p className={styles.error}>{erroICP}</p>}
+          <div className={styles.formActions}>
+            <button type="button" className={styles.btnSecondary} onClick={() => setShowModalICP(false)}>Cancelar</button>
+            <button type="submit" className={styles.btnPrimary} disabled={savingICP}>{savingICP ? 'Salvando...' : 'Criar Pedido ICP'}</button>
+          </div>
+        </form>
+      </Modal>}
+
+      {/* ══ MODAL — HISTÓRICO ICP ══ */}
+      {showHistoricoICP && selectedICP && <Modal title={`Histórico — ${selectedICP.numero}`} onClose={() => setShowHistoricoICP(false)} size="lg">
+        <div>
+          <div style={{ overflowX: 'auto', marginBottom: 16 }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
+              <thead>
+                <tr style={{ borderBottom: '2px solid var(--border, #e2e8f0)', background: 'var(--surface-2, #f8fafc)' }}>
+                  <th style={{ padding: '8px 12px', textAlign: 'left', fontWeight: 600, color: 'var(--text-secondary)' }}>Data</th>
+                  <th style={{ padding: '8px 12px', textAlign: 'left', fontWeight: 600, color: 'var(--text-secondary)' }}>Status</th>
+                  <th style={{ padding: '8px 12px', textAlign: 'left', fontWeight: 600, color: 'var(--text-secondary)' }}>Observação</th>
+                  <th style={{ padding: '8px 12px', textAlign: 'left', fontWeight: 600, color: 'var(--text-secondary)' }}>Responsável</th>
+                </tr>
+              </thead>
+              <tbody>
+                {(selectedICP.historico ?? []).length === 0 ? (
+                  <tr><td colSpan={4} style={{ padding: '20px 12px', textAlign: 'center', color: 'var(--text-secondary)' }}>Nenhum histórico registrado.</td></tr>
+                ) : (selectedICP.historico ?? []).map((h, i) => (
+                  <tr key={i} style={{ borderBottom: '1px solid var(--border, #e2e8f0)' }}>
+                    <td style={{ padding: '8px 12px', whiteSpace: 'nowrap' }}>{fmtDate(h.data)}</td>
+                    <td style={{ padding: '8px 12px' }}><Badge label={h.status} variant={icpStatusVariant(h.status)} /></td>
+                    <td style={{ padding: '8px 12px' }}>{h.observacao ?? '—'}</td>
+                    <td style={{ padding: '8px 12px' }}>{h.usuarioNome ?? '—'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          {selectedICP.hardware && (
+            <div style={{ padding: 12, background: 'var(--surface-2, #f8fafc)', borderRadius: 8, fontSize: '0.83rem', color: 'var(--text-secondary)' }}>
+              <strong>Hardware:</strong>{' '}
+              {selectedICP.hardware.estoqueItemCodigo ?? selectedICP.hardware.estoqueItemId}
+              {selectedICP.hardware.estoqueItemNome && ` — ${selectedICP.hardware.estoqueItemNome}`}
+              {selectedICP.hardware.fabricante && ` (${selectedICP.hardware.fabricante})`}
+              {selectedICP.hardware.numeroSerie && <> &bull; Serial: <strong>{selectedICP.hardware.numeroSerie}</strong></>}
+              {selectedICP.hardware.estoqueMovimentoReservaId && <> &bull; <span style={{ color: '#d97706' }}>Reservado</span></>}
+              {selectedICP.hardware.estoqueMovimentoSaidaId && <> &bull; <span style={{ color: '#16a34a' }}>Saída registrada</span></>}
+            </div>
+          )}
+        </div>
       </Modal>}
 
       {/* ══ MODAL — NOVO PEDIDO SSL ══ */}

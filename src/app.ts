@@ -32,6 +32,7 @@ import { clmIntegrationRouter } from './routes/clm-integration.routes.js';
 import { certificadosICPRouter } from './routes/certificados-icp.routes.js';
 import { pedidosSSLRouter } from './routes/pedidos-ssl.routes.js';
 import { estoqueRouter } from './routes/estoque.routes.js';
+import { pedidosICPRouter } from './routes/pedidos-icp.routes.js';
 import { errorHandler } from './middleware/error.middleware.js';
 import { verificarCertificadosVencendo } from './services/alertas-vencimento.service.js';
 
@@ -110,6 +111,7 @@ app.use(`${apiPrefix}/integracoes/clm`, clmIntegrationRouter);
 app.use(`${apiPrefix}/certificados-icp`, certificadosICPRouter);
 app.use(`${apiPrefix}/pedidos-ssl`, pedidosSSLRouter);
 app.use(`${apiPrefix}/estoque`, estoqueRouter);
+app.use(`${apiPrefix}/pedidos-icp`, pedidosICPRouter);
 // uploads públicos (sem prefixo /api)
 app.use('/uploads', express.static(path.resolve(env.UPLOAD_DIR)));
 
