@@ -105,6 +105,41 @@ export const clientes = {
   }>(`/clientes/consulta/documento/${encodeURIComponent(documento)}`),
   revalidarCadastro: (id: string) => post<Cliente>(`/clientes/${id}/revalidar-cadastro`, {}),
   registrarLgpd: (id: string, body: { tipo: 'Acesso' | 'Correcao' | 'Exclusao' | 'Portabilidade'; motivo?: string }) => post<Cliente>(`/clientes/${id}/lgpd`, body),
+  portfolioSSL: (id: string, body: {
+    produtoId: string; nome: string; tipo: string; fornecedor?: string;
+    quantidade: number; precoCusto?: number; precoVenda?: number; numContrato?: string; ativo?: boolean
+  }) => patch<Cliente>(`/clientes/${id}/portfolio-ssl`, body),
+  portfolioICP: (id: string, body: {
+    produtoId: string; produtoAlias?: string; nome: string; fornecedor: string;
+    tipoCertificado?: string; finalidade?: string; autoridadeCertificadora?: string;
+    quantidade: number; precoCusto?: number; precoVenda?: number; numContrato?: string
+  }) => patch<Cliente>(`/clientes/${id}/portfolio-icp`, body),
+  upsertEquipe: (id: string, body: {
+    email: string; nome: string; primeiroNome?: string; ultimoNome?: string;
+    cargo?: string; telefone?: string; cpf?: string; permissions?: string[]; role?: string
+  }) => patch<Cliente>(`/clientes/${id}/equipe`, body),
+  removerEquipe: (id: string, email: string) =>
+    del<{ message: string }>(`/clientes/${id}/equipe/${encodeURIComponent(email)}`),
+  dadosSectigo: (id: string, body: Record<string, string>) =>
+    patch<Cliente>(`/clientes/${id}/dados-sectigo`, body),
+  dadosFinanceiros: (id: string, body: {
+    paymentMethod?: string; formaAPagar?: string; dataPagamento?: number;
+    dataFechamento?: number; limiteCredito?: number; statusCadastro?: string
+  }) => patch<Cliente>(`/clientes/${id}/financeiro`, body),
+}
+
+// Certificados ICP-Brasil
+import type { CertificadoICP } from './types'
+export const certificadosICP = {
+  list: (p?: { clienteId?: string; status?: string; statusRevogacao?: string; cpfCnpj?: string; page?: number; limit?: number; vencendoEm?: number }) =>
+    get<Page<CertificadoICP>>(`/certificados-icp${qs({ page: 1, limit: 20, ...p })}`),
+  get: (id: string) => get<CertificadoICP>(`/certificados-icp/${id}`),
+  create: (body: Partial<CertificadoICP>) => post<CertificadoICP>('/certificados-icp', body),
+  update: (id: string, body: Partial<CertificadoICP>) => put<CertificadoICP>(`/certificados-icp/${id}`, body),
+  revogar: (id: string, body: { motivo: string; solicitante?: string }) =>
+    patch<CertificadoICP>(`/certificados-icp/${id}/revogar`, body),
+  remove: (id: string) => del<{ message: string }>(`/certificados-icp/${id}`),
+  vencendo: (dias?: number) => get<CertificadoICP[]>(`/certificados-icp/alertas/vencendo${qs({ dias: dias ?? 30 })}`),
 }
 
 // Produtos

@@ -58,10 +58,91 @@ export interface Cliente {
     resolvidaEm?: string
   }>
   ativo: boolean
+  cnae?: string
+  cfps?: string
+  cst?: string
+  aliquota?: string
+  codeMunicipio?: string
+  address?: {
+    rua?: string
+    numero?: string
+    bairro?: string
+    cidade?: string
+    uf?: string
+    cep?: string
+    codeMunicipio?: string
+    complemento?: string
+  }
+  paymentMethod?: 'PrePago' | 'PosPago' | 'Credito' | 'Livre'
+  formaAPagar?: 'Cartao' | 'Pix' | 'Transferencia' | 'NotaEmpenho' | 'Boleto'
+  dataPagamento?: number
+  dataFechamento?: number
+  limiteCredito?: number
+  statusCadastro?: 'Ativo' | 'Desativado' | 'Recusado' | 'Fraude' | 'Pendente' | 'Analise' | 'Revisao' | 'Cancelado'
+  servicosContratados?: string[]
+  permissaoAcme?: boolean
+  validacaoOrg?: boolean
+  observacoes?: string
+  equipe?: Array<{
+    _id?: string
+    userId?: string
+    nome: string
+    primeiroNome?: string
+    ultimoNome?: string
+    cargo?: string
+    email: string
+    telefone?: string
+    cpf?: string
+    permissions: string[]
+    role?: string
+  }>
+  portfolioSSL?: Array<{
+    _id?: string
+    produtoId: string
+    nome: string
+    tipo: string
+    fornecedor?: string
+    quantidade: number
+    quantidadeEmitida: number
+    prazo?: string
+    precoCusto?: number
+    precoVenda?: number
+    numContrato?: string
+    ativo: boolean
+  }>
+  portfolioICP?: Array<{
+    _id?: string
+    produtoId: string
+    produtoAlias?: string
+    nome: string
+    fornecedor: string
+    tipoCertificado?: string
+    finalidade?: string
+    autoridadeCertificadora?: string
+    quantidade: number
+    quantidadeEmitida: number
+    precoCusto?: number
+    precoVenda?: number
+    numContrato?: string
+  }>
+  sectigoData?: {
+    dept?: string
+    poBox?: string
+    applicantEmail?: string
+    evSubscriberEmail?: string
+    dunsNumber?: string
+    dbaName?: string
+    businessCategory?: string
+    companyRegistrationNumber?: string
+    dateOfIncorporation?: string
+    jurisdictionCity?: string
+    jurisdictionState?: string
+    jurisdictionCountry?: string
+  }
   createdAt: string
 }
 
-export type ClientePayload = Omit<Cliente, '_id' | 'createdAt' | 'solicitacoesLgpd' | 'situacaoCadastral' | 'naturezaJuridicaCodigo' | 'naturezaJuridicaDescricao' | 'validadoSerproEm' | 'esferaPublicaRevisao' | 'usuarioMasterId'>
+export type ClientePayload = Omit<Cliente, '_id' | 'createdAt' | 'solicitacoesLgpd' | 'situacaoCadastral' | 'naturezaJuridicaCodigo' | 'naturezaJuridicaDescricao' | 'validadoSerproEm' | 'esferaPublicaRevisao' | 'usuarioMasterId' | 'equipe' | 'portfolioSSL' | 'portfolioICP' | 'sectigoData'>
 
 // Produto
 export interface Produto {
@@ -599,4 +680,63 @@ export interface ConciliacaoResumo {
   porBanco: { _id: string; count: number; valor: number }[]
   totalConciliado: number
   lotes: ConciliacaoLote[]
+}
+
+export interface CertificadoICP {
+  _id: string
+  clienteId: string
+  companyName: string
+  cpfCnpj: string
+  nomeEmitente: string
+  nomeEmpresa?: string
+  numeroCertif: string
+  numeroPedido: string
+  protocolo?: string
+  fornecedor?: string
+  fornecedorId?: string
+  status: string
+  statusRevogacao?: 'ativo' | 'revogado' | 'suspenso' | 'renovado' | 'expirado' | 'solicitado'
+  inicioValidade?: string
+  fimValidade?: string
+  tipoEmissao?: string
+  formaEmissao?: 'presencial' | 'videoconferencia' | 'renovacao' | 'api' | 'manual'
+  valorXdb: number
+  valorVenda: number
+  baixado?: boolean
+  dataPrimeiroDownload?: string
+  dataUltimoDownload?: string
+  motivoRevogacao?: string
+  solicitacao?: {
+    tipoPessoa: 'FISICA' | 'JURIDICA'
+    dadosPessoaFisica?: {
+      nome: string
+      cpf: string
+      dataNascimento: string
+      contato: { ddd: string; telefone: string; email: string }
+    }
+    dadosPessoaJuridica?: {
+      razaoSocial: string
+      cnpj: string
+      municipio: string
+      uf: string
+    }
+  }
+  createdAt: string
+  updatedAt?: string
+}
+
+export interface CertificadoSSL {
+  _id: string
+  clienteId?: string
+  companyId?: string
+  domain: string
+  extraDomain?: string
+  nameCert: string
+  sectigoIdOrder?: string
+  status: string
+  dateEmission?: string
+  dateUntil?: string
+  price?: string
+  user?: { email: string; name: string; doc: string }
+  createdAt: string
 }

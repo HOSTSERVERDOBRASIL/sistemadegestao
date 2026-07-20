@@ -7,8 +7,9 @@ import {
   clientes as clientesApi,
   contratos as contratosApi,
   financeiro as financeiroApi,
+  certificadosICP as certICPApi,
 } from '../api'
-import type { Cliente, ClientePayload, Pedido, Contrato, NotaFiscal } from '../types'
+import type { Cliente, ClientePayload, Pedido, Contrato, NotaFiscal, CertificadoICP } from '../types'
 import {
   email as validateEmail,
   documento as validateDoc,
@@ -19,7 +20,7 @@ import {
 import styles from './ClienteDetalhe.module.css'
 
 // ── Types ──────────────────────────────────────────────────
-type TabKey = 'dados' | 'pedidos' | 'comprasDiretas' | 'contratos' | 'financeiro'
+type TabKey = 'dados' | 'pedidos' | 'comprasDiretas' | 'contratos' | 'financeiro' | 'portfolio' | 'equipe' | 'certificadosICP'
 type Errs = FieldErrors<ClientePayload>
 
 const BLANK: ClientePayload = {
@@ -95,6 +96,21 @@ export default function ClienteDetalhe() {
   const [formError, setFormError] = useState('')
   const [consultandoDocumento, setConsultandoDocumento] = useState(false)
 
+  // Certificados ICP tab
+  const [certICP, setCertICP] = useState<CertificadoICP[]>([])
+  const [certICPTotal, setCertICPTotal] = useState(0)
+  const [certICPPage, setCertICPPage] = useState(1)
+  const [loadingCertICP, setLoadingCertICP] = useState(false)
+  const [certICPLoaded, setCertICPLoaded] = useState(false)
+
+  // Equipe modal
+  const [showEquipeModal, setShowEquipeModal] = useState(false)
+  const [equipeForm, setEquipeForm] = useState({
+    nome: '', email: '', cargo: '', cpf: '', role: 'Atendente' as string,
+  })
+  const [savingEquipe, setSavingEquipe] = useState(false)
+  const [equipeError, setEquipeError] = useState('')
+
   // Revalidar
   const [revalidando, setRevalidando] = useState(false)
 
@@ -145,6 +161,20 @@ export default function ClienteDetalhe() {
       .catch(() => setContratos([]))
       .finally(() => setLoadingContratos(false))
   }, [id, activeTab, contratosLoaded])
+
+  useEffect(() => {
+    if (!id || activeTab !== 'certificadosICP' || certICPLoaded) return
+    setLoadingCertICP(true)
+    certICPApi
+      .list({ clienteId: id, limit: 50, page: certICPPage })
+      .then(res => {
+        setCertICP(res.data)
+        setCertICPTotal(res.total)
+        setCertICPLoaded(true)
+      })
+      .catch(() => setCertICP([]))
+      .finally(() => setLoadingCertICP(false))
+  }, [id, activeTab, certICPLoaded, certICPPage])
 
   useEffect(() => {
     if (!id || activeTab !== 'financeiro' || notasLoaded) return
@@ -269,6 +299,55 @@ export default function ClienteDetalhe() {
       alert(err instanceof Error ? err.message : 'Não foi possível revalidar o cadastro')
     } finally {
       setRevalidando(false)
+    }
+  }
+
+  // ── Equipe ────────────────────────────────────────────────
+  function openEquipeModal() {
+    setEquipeForm({ nome: '', email: '', cargo: '', cpf: '', role: 'Atendente' })
+    setEquipeError('')
+    setShowEquipeModal(true)
+  }
+
+  async function handleSalvarEquipe(e: React.FormEvent) {
+    e.preventDefault()
+    if (!equipeForm.nome.trim() || !equipeForm.email.trim()) {
+      setEquipeError('Nome e e-mail são obrigatórios.')
+      return
+    }
+    if (!cliente || !id) return
+    setSavingEquipe(true)
+    setEquipeError('')
+    try {
+      const updated = await clientesApi.upsertEquipe(id, {
+        nome: equipeForm.nome,
+        email: equipeForm.email,
+        cargo: equipeForm.cargo || undefined,
+        cpf: equipeForm.cpf || undefined,
+        role: equipeForm.role,
+        permissions: [],
+      })
+      setCliente(updated)
+      setShowEquipeModal(false)
+    } catch (err) {
+      setEquipeError(err instanceof Error ? err.message : 'Erro ao salvar membro')
+    } finally {
+      setSavingEquipe(false)
+    }
+  }
+
+  async function handleRemoverEquipe(email: string) {
+    if (!id) return
+    if (!confirm(`Remover ${email} da equipe?`)) return
+    try {
+      await clientesApi.removerEquipe(id, email)
+      setCliente(prev =>
+        prev
+          ? { ...prev, equipe: (prev.equipe ?? []).filter(m => m.email !== email) }
+          : prev
+      )
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Erro ao remover membro')
     }
   }
 
@@ -444,6 +523,11 @@ export default function ClienteDetalhe() {
       : undefined,
     contratos: contratosLoaded ? contratos.length : undefined,
     financeiro: notasLoaded ? notas.length : undefined,
+    portfolio: cliente
+      ? (cliente.portfolioSSL?.length ?? 0) + (cliente.portfolioICP?.length ?? 0)
+      : undefined,
+    equipe: cliente ? (cliente.equipe?.length ?? 0) : undefined,
+    certificadosICP: certICPLoaded ? certICPTotal : undefined,
   }
 
   const tabs: { key: TabKey; label: string }[] = [
@@ -452,6 +536,9 @@ export default function ClienteDetalhe() {
     { key: 'comprasDiretas', label: 'Compras diretas' },
     { key: 'contratos', label: 'Contratos' },
     { key: 'financeiro', label: 'Financeiro' },
+    { key: 'portfolio', label: 'Portfólio' },
+    { key: 'equipe', label: 'Equipe' },
+    { key: 'certificadosICP', label: 'Certificados ICP' },
   ]
 
   return (
@@ -655,6 +742,135 @@ export default function ClienteDetalhe() {
               )}
             </div>
 
+            {/* Endereço */}
+            {cliente.address && Object.values(cliente.address).some(Boolean) && (
+              <>
+                <p className={styles.sectionTitle}>Endereço</p>
+                <div className={styles.infoGrid}>
+                  {cliente.address.rua && (
+                    <div className={styles.infoItem}>
+                      <span className={styles.infoLabel}>Rua</span>
+                      <span className={styles.infoValue}>{cliente.address.rua}</span>
+                    </div>
+                  )}
+                  {cliente.address.numero && (
+                    <div className={styles.infoItem}>
+                      <span className={styles.infoLabel}>Número</span>
+                      <span className={styles.infoValue}>{cliente.address.numero}</span>
+                    </div>
+                  )}
+                  {cliente.address.bairro && (
+                    <div className={styles.infoItem}>
+                      <span className={styles.infoLabel}>Bairro</span>
+                      <span className={styles.infoValue}>{cliente.address.bairro}</span>
+                    </div>
+                  )}
+                  {cliente.address.cidade && (
+                    <div className={styles.infoItem}>
+                      <span className={styles.infoLabel}>Cidade</span>
+                      <span className={styles.infoValue}>{cliente.address.cidade}</span>
+                    </div>
+                  )}
+                  {cliente.address.uf && (
+                    <div className={styles.infoItem}>
+                      <span className={styles.infoLabel}>UF</span>
+                      <span className={styles.infoValue}>{cliente.address.uf}</span>
+                    </div>
+                  )}
+                  {cliente.address.cep && (
+                    <div className={styles.infoItem}>
+                      <span className={styles.infoLabel}>CEP</span>
+                      <span className={styles.infoValue}>{cliente.address.cep}</span>
+                    </div>
+                  )}
+                  {cliente.address.complemento && (
+                    <div className={styles.infoItemFull}>
+                      <span className={styles.infoLabel}>Complemento</span>
+                      <span className={styles.infoValue}>{cliente.address.complemento}</span>
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
+
+            {/* Fiscal */}
+            {(cliente.cnae || cliente.cst || cliente.aliquota || cliente.codeMunicipio) && (
+              <>
+                <p className={styles.sectionTitle}>Fiscal</p>
+                <div className={styles.infoGrid}>
+                  {cliente.cnae && (
+                    <div className={styles.infoItem}>
+                      <span className={styles.infoLabel}>CNAE</span>
+                      <span className={styles.infoValue}>{cliente.cnae}</span>
+                    </div>
+                  )}
+                  {cliente.cst && (
+                    <div className={styles.infoItem}>
+                      <span className={styles.infoLabel}>CST</span>
+                      <span className={styles.infoValue}>{cliente.cst}</span>
+                    </div>
+                  )}
+                  {cliente.aliquota && (
+                    <div className={styles.infoItem}>
+                      <span className={styles.infoLabel}>Alíquota</span>
+                      <span className={styles.infoValue}>{cliente.aliquota}</span>
+                    </div>
+                  )}
+                  {cliente.codeMunicipio && (
+                    <div className={styles.infoItem}>
+                      <span className={styles.infoLabel}>Código Município</span>
+                      <span className={styles.infoValue}>{cliente.codeMunicipio}</span>
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
+
+            {/* Financeiro */}
+            {(cliente.paymentMethod || cliente.formaAPagar || cliente.dataFechamento || cliente.limiteCredito) && (
+              <>
+                <p className={styles.sectionTitle}>Financeiro</p>
+                <div className={styles.infoGrid}>
+                  {cliente.paymentMethod && (
+                    <div className={styles.infoItem}>
+                      <span className={styles.infoLabel}>Método de Pagamento</span>
+                      <span className={styles.infoValue}>{cliente.paymentMethod}</span>
+                    </div>
+                  )}
+                  {cliente.formaAPagar && (
+                    <div className={styles.infoItem}>
+                      <span className={styles.infoLabel}>Forma a Pagar</span>
+                      <span className={styles.infoValue}>{cliente.formaAPagar}</span>
+                    </div>
+                  )}
+                  {cliente.dataFechamento !== undefined && (
+                    <div className={styles.infoItem}>
+                      <span className={styles.infoLabel}>Dia Fechamento</span>
+                      <span className={styles.infoValue}>{cliente.dataFechamento}</span>
+                    </div>
+                  )}
+                  {cliente.limiteCredito !== undefined && (
+                    <div className={styles.infoItem}>
+                      <span className={styles.infoLabel}>Limite de Crédito</span>
+                      <span className={styles.infoValue}>{fmtMoney(cliente.limiteCredito)}</span>
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
+
+            {/* Serviços Contratados */}
+            {(cliente.servicosContratados?.length ?? 0) > 0 && (
+              <>
+                <p className={styles.sectionTitle}>Serviços Contratados</p>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 20 }}>
+                  {cliente.servicosContratados!.map(s => (
+                    <Badge key={s} label={s} variant="info" />
+                  ))}
+                </div>
+              </>
+            )}
+
             {/* LGPD history */}
             {(cliente.solicitacoesLgpd?.length ?? 0) > 0 && (
               <>
@@ -738,7 +954,274 @@ export default function ClienteDetalhe() {
             empty="Nenhuma nota fiscal encontrada para este cliente"
           />
         )}
+
+        {/* ── Portfólio ── */}
+        {activeTab === 'portfolio' && (
+          <>
+            {/* Portfólio SSL/Raiz */}
+            <p className={styles.sectionTitle}>Portfólio SSL / Raiz</p>
+            {(cliente.portfolioSSL?.length ?? 0) === 0 ? (
+              <div className={styles.empty}>Nenhum produto SSL no portfólio</div>
+            ) : (
+              <div style={{ overflowX: 'auto', marginBottom: 28 }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
+                  <thead>
+                    <tr style={{ borderBottom: '2px solid var(--surface-border)' }}>
+                      {['Produto', 'Tipo', 'Fornecedor', 'Qtd Contratada', 'Qtd Emitida', 'Preço Venda', 'Contrato'].map(h => (
+                        <th key={h} style={{ padding: '8px 12px', textAlign: 'left', fontSize: '0.73rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', whiteSpace: 'nowrap' }}>{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {cliente.portfolioSSL!.map((item, i) => (
+                      <tr key={item._id ?? i} style={{ borderBottom: '1px solid var(--surface-border)' }}>
+                        <td style={{ padding: '10px 12px', fontWeight: 600, color: 'var(--text-primary)' }}>{item.nome}</td>
+                        <td style={{ padding: '10px 12px', color: 'var(--text-secondary)' }}>{item.tipo}</td>
+                        <td style={{ padding: '10px 12px', color: 'var(--text-secondary)' }}>{item.fornecedor || '—'}</td>
+                        <td style={{ padding: '10px 12px', color: 'var(--text-secondary)', textAlign: 'center' }}>{item.quantidade}</td>
+                        <td style={{ padding: '10px 12px', color: 'var(--text-secondary)', textAlign: 'center' }}>{item.quantidadeEmitida}</td>
+                        <td style={{ padding: '10px 12px', color: 'var(--text-secondary)' }}>{fmtMoney(item.precoVenda)}</td>
+                        <td style={{ padding: '10px 12px', color: 'var(--text-muted)', fontSize: '0.8rem' }}>{item.numContrato || '—'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            {/* Portfólio ICP-Brasil */}
+            <p className={styles.sectionTitle}>Portfólio ICP-Brasil</p>
+            {(cliente.portfolioICP?.length ?? 0) === 0 ? (
+              <div className={styles.empty}>Nenhum produto ICP-Brasil no portfólio</div>
+            ) : (
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
+                  <thead>
+                    <tr style={{ borderBottom: '2px solid var(--surface-border)' }}>
+                      {['Produto', 'Fornecedor', 'Tipo Cert', 'Finalidade', 'Qtd Contratada', 'Qtd Emitida', 'Contrato'].map(h => (
+                        <th key={h} style={{ padding: '8px 12px', textAlign: 'left', fontSize: '0.73rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', whiteSpace: 'nowrap' }}>{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {cliente.portfolioICP!.map((item, i) => (
+                      <tr key={item._id ?? i} style={{ borderBottom: '1px solid var(--surface-border)' }}>
+                        <td style={{ padding: '10px 12px', fontWeight: 600, color: 'var(--text-primary)' }}>{item.nome}</td>
+                        <td style={{ padding: '10px 12px', color: 'var(--text-secondary)' }}>{item.fornecedor}</td>
+                        <td style={{ padding: '10px 12px', color: 'var(--text-secondary)' }}>{item.tipoCertificado || '—'}</td>
+                        <td style={{ padding: '10px 12px', color: 'var(--text-secondary)' }}>{item.finalidade || '—'}</td>
+                        <td style={{ padding: '10px 12px', color: 'var(--text-secondary)', textAlign: 'center' }}>{item.quantidade}</td>
+                        <td style={{ padding: '10px 12px', color: 'var(--text-secondary)', textAlign: 'center' }}>{item.quantidadeEmitida}</td>
+                        <td style={{ padding: '10px 12px', color: 'var(--text-muted)', fontSize: '0.8rem' }}>{item.numContrato || '—'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </>
+        )}
+
+        {/* ── Equipe ── */}
+        {activeTab === 'equipe' && (
+          <>
+            <div className={styles.actionsRow}>
+              <button className={styles.btnPrimary} onClick={openEquipeModal}>
+                Adicionar Membro
+              </button>
+            </div>
+            {(cliente.equipe?.length ?? 0) === 0 ? (
+              <div className={styles.empty}>Nenhum membro na equipe</div>
+            ) : (
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
+                  <thead>
+                    <tr style={{ borderBottom: '2px solid var(--surface-border)' }}>
+                      {['Nome', 'Cargo', 'Email', 'CPF', 'Permissões', ''].map(h => (
+                        <th key={h} style={{ padding: '8px 12px', textAlign: 'left', fontSize: '0.73rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', whiteSpace: 'nowrap' }}>{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {cliente.equipe!.map((m, i) => (
+                      <tr key={m._id ?? i} style={{ borderBottom: '1px solid var(--surface-border)' }}>
+                        <td style={{ padding: '10px 12px', fontWeight: 600, color: 'var(--text-primary)' }}>{m.nome}</td>
+                        <td style={{ padding: '10px 12px', color: 'var(--text-secondary)' }}>{m.cargo || '—'}</td>
+                        <td style={{ padding: '10px 12px', color: 'var(--text-secondary)' }}>{m.email}</td>
+                        <td style={{ padding: '10px 12px', color: 'var(--text-muted)', fontSize: '0.8rem' }}>{m.cpf || '—'}</td>
+                        <td style={{ padding: '10px 12px' }}>
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                            {m.role && <Badge label={m.role} variant="info" />}
+                            {m.permissions.map(p => (
+                              <Badge key={p} label={p} variant="default" />
+                            ))}
+                          </div>
+                        </td>
+                        <td style={{ padding: '10px 12px' }}>
+                          <button
+                            className={styles.btnLink}
+                            style={{ color: 'var(--danger)' }}
+                            onClick={() => handleRemoverEquipe(m.email)}
+                          >
+                            Remover
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </>
+        )}
+
+        {/* ── Certificados ICP ── */}
+        {activeTab === 'certificadosICP' && (
+          <>
+            {loadingCertICP ? (
+              <div className={styles.loading}>Carregando...</div>
+            ) : certICP.length === 0 ? (
+              <div className={styles.empty}>Nenhum certificado ICP-Brasil encontrado para este cliente</div>
+            ) : (
+              <>
+                <div style={{ overflowX: 'auto' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
+                    <thead>
+                      <tr style={{ borderBottom: '2px solid var(--surface-border)' }}>
+                        {['CPF/CNPJ', 'Nome', 'Fornecedor', 'Validade', 'Status', ''].map(h => (
+                          <th key={h} style={{ padding: '8px 12px', textAlign: 'left', fontSize: '0.73rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', whiteSpace: 'nowrap' }}>{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {certICP.map(cert => (
+                        <tr key={cert._id} style={{ borderBottom: '1px solid var(--surface-border)' }}>
+                          <td style={{ padding: '10px 12px', color: 'var(--text-secondary)', fontFamily: 'monospace', fontSize: '0.82rem' }}>{cert.cpfCnpj}</td>
+                          <td style={{ padding: '10px 12px', fontWeight: 600, color: 'var(--text-primary)' }}>{cert.nomeEmitente}</td>
+                          <td style={{ padding: '10px 12px', color: 'var(--text-secondary)' }}>{cert.fornecedor || '—'}</td>
+                          <td style={{ padding: '10px 12px', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>{fmtDate(cert.fimValidade)}</td>
+                          <td style={{ padding: '10px 12px' }}>
+                            <Badge
+                              label={cert.statusRevogacao ?? cert.status}
+                              variant={
+                                cert.statusRevogacao === 'ativo' ? 'success'
+                                : cert.statusRevogacao === 'revogado' ? 'danger'
+                                : cert.statusRevogacao === 'expirado' ? 'warning'
+                                : cert.statusRevogacao === 'suspenso' ? 'warning'
+                                : 'default'
+                              }
+                            />
+                          </td>
+                          <td style={{ padding: '10px 12px' }}>
+                            <button
+                              className={styles.btnLink}
+                              onClick={() => navigate(`/certificados-icp?id=${cert._id}`)}
+                            >
+                              Ver detalhes
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                {certICPTotal > certICP.length && (
+                  <div style={{ display: 'flex', justifyContent: 'center', gap: 10, marginTop: 20 }}>
+                    {certICPPage > 1 && (
+                      <button className={styles.btnSecondary} onClick={() => { setCertICPPage(p => p - 1); setCertICPLoaded(false) }}>
+                        ← Anterior
+                      </button>
+                    )}
+                    <span style={{ fontSize: '0.83rem', color: 'var(--text-muted)', alignSelf: 'center' }}>
+                      Exibindo {certICP.length} de {certICPTotal}
+                    </span>
+                    {certICP.length < certICPTotal && (
+                      <button className={styles.btnSecondary} onClick={() => { setCertICPPage(p => p + 1); setCertICPLoaded(false) }}>
+                        Próxima →
+                      </button>
+                    )}
+                  </div>
+                )}
+              </>
+            )}
+          </>
+        )}
       </div>
+
+      {/* ── Equipe Modal ── */}
+      {showEquipeModal && (
+        <Modal title="Adicionar Membro" onClose={() => setShowEquipeModal(false)} size="md">
+          <form onSubmit={handleSalvarEquipe} noValidate className={styles.form}>
+            <div className={styles.formGrid2}>
+              <label>
+                Nome *
+                <input
+                  value={equipeForm.nome}
+                  onChange={e => setEquipeForm(f => ({ ...f, nome: e.target.value }))}
+                />
+              </label>
+
+              <label>
+                E-mail *
+                <input
+                  type="email"
+                  value={equipeForm.email}
+                  onChange={e => setEquipeForm(f => ({ ...f, email: e.target.value }))}
+                />
+              </label>
+
+              <label>
+                Cargo
+                <input
+                  value={equipeForm.cargo}
+                  onChange={e => setEquipeForm(f => ({ ...f, cargo: e.target.value }))}
+                />
+              </label>
+
+              <label>
+                CPF
+                <input
+                  value={equipeForm.cpf}
+                  onChange={e => setEquipeForm(f => ({ ...f, cpf: e.target.value }))}
+                  placeholder="Somente números"
+                />
+              </label>
+
+              <label style={{ gridColumn: 'span 2' }}>
+                Perfil de acesso
+                <select
+                  value={equipeForm.role}
+                  onChange={e => setEquipeForm(f => ({ ...f, role: e.target.value }))}
+                >
+                  <option value="Admin">Admin</option>
+                  <option value="Gerente">Gerente</option>
+                  <option value="Atendente">Atendente</option>
+                  <option value="Revenda">Revenda</option>
+                </select>
+              </label>
+            </div>
+
+            {equipeError && <p className={styles.error}>{equipeError}</p>}
+
+            <div className={styles.formActions}>
+              <button
+                type="button"
+                className={styles.btnSecondary}
+                onClick={() => setShowEquipeModal(false)}
+              >
+                Cancelar
+              </button>
+              <button
+                type="submit"
+                className={styles.btnPrimary}
+                disabled={savingEquipe}
+              >
+                {savingEquipe ? 'Salvando...' : 'Adicionar'}
+              </button>
+            </div>
+          </form>
+        </Modal>
+      )}
 
       {/* ── Edit Modal ── */}
       {showModal && (

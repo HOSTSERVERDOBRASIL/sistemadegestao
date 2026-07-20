@@ -80,7 +80,7 @@ router.patch('/:id/lgpd/:solicitacaoId', authenticate, authorize('admin'), async
 
 router.get('/', authenticate, authorize('admin', 'operador', 'financeiro'), async (req, res, next) => {
   try {
-    const { busca, tipo, ativo } = req.query as Record<string, string>;
+    const { busca, tipo, ativo, servicosContratados } = req.query as Record<string, string>;
     const page = parsePage(req.query.page as string);
     const limit = parseLimit(req.query.limit as string);
     const filter: Record<string, unknown> = {};
@@ -95,6 +95,7 @@ router.get('/', authenticate, authorize('admin', 'operador', 'financeiro'), asyn
     const tipoFilter = toFilter(tipo)
     if (tipoFilter) filter.tipo = tipoFilter;
     if (ativo !== undefined) filter.ativo = ativo === 'true';
+    if (servicosContratados) filter.servicosContratados = { $in: [servicosContratados] };
 
     const skip = (page - 1) * limit;
     const [data, total] = await Promise.all([
@@ -180,7 +181,7 @@ router.post('/onboarding', authenticate, authorize('admin', 'operador'), async (
 router.get('/:id', authenticate, authorize('admin', 'operador', 'financeiro'), async (req, res, next) => {
   try {
     const cliente = await ClienteModel.findById(req.params.id)
-      .populate('usuarioMasterId', 'nome email role ativo primeiroAcesso');
+      .populate('usuarioMasterId', 'nome email role');
     if (!cliente) return res.status(404).json({ message: 'Cliente não encontrado' });
     res.json(cliente);
   } catch (error) {
@@ -240,6 +241,150 @@ router.delete('/:id', authenticate, authorize('admin'), async (req, res, next) =
   } catch (error) {
     next(error);
   }
+});
+
+// PATCH /clientes/:id/portfolio-ssl — upsert item no portfolioSSL
+router.patch('/:id/portfolio-ssl', authenticate, authorize('admin', 'operador'), async (req, res, next) => {
+  try {
+    const { produtoId, nome, tipo, fornecedor, quantidade, precoCusto, precoVenda, numContrato, ativo } = req.body as Record<string, unknown>;
+    if (!produtoId || !nome || !tipo || quantidade === undefined) {
+      return res.status(400).json({ message: 'Campos obrigatórios: produtoId, nome, tipo, quantidade' });
+    }
+    const cliente = await ClienteModel.findById(req.params.id);
+    if (!cliente) return res.status(404).json({ message: 'Cliente não encontrado' });
+
+    const arr = (cliente as unknown as Record<string, unknown[]>).portfolioSSL as Record<string, unknown>[] | undefined ?? [];
+    const idx = arr.findIndex(i => String(i.produtoId) === String(produtoId));
+    const item: Record<string, unknown> = { produtoId, nome, tipo, quantidade };
+    if (fornecedor !== undefined) item.fornecedor = fornecedor;
+    if (precoCusto !== undefined) item.precoCusto = precoCusto;
+    if (precoVenda !== undefined) item.precoVenda = precoVenda;
+    if (numContrato !== undefined) item.numContrato = numContrato;
+    if (ativo !== undefined) item.ativo = ativo;
+
+    if (idx >= 0) {
+      await ClienteModel.findByIdAndUpdate(req.params.id, { $set: { [`portfolioSSL.${idx}`]: item } }, { new: true, runValidators: true });
+    } else {
+      await ClienteModel.findByIdAndUpdate(req.params.id, { $push: { portfolioSSL: item } }, { new: true, runValidators: true });
+    }
+    const updated = await ClienteModel.findById(req.params.id).populate('usuarioMasterId', 'nome email role');
+    res.json(updated);
+  } catch (error) { next(error); }
+});
+
+// PATCH /clientes/:id/portfolio-icp — upsert item no portfolioICP
+router.patch('/:id/portfolio-icp', authenticate, authorize('admin', 'operador'), async (req, res, next) => {
+  try {
+    const { produtoId, produtoAlias, nome, fornecedor, tipoCertificado, finalidade, autoridadeCertificadora, quantidade, precoCusto, precoVenda, numContrato } = req.body as Record<string, unknown>;
+    if (!produtoId || !nome || !fornecedor || quantidade === undefined) {
+      return res.status(400).json({ message: 'Campos obrigatórios: produtoId, nome, fornecedor, quantidade' });
+    }
+    const cliente = await ClienteModel.findById(req.params.id);
+    if (!cliente) return res.status(404).json({ message: 'Cliente não encontrado' });
+
+    const arr = (cliente as unknown as Record<string, unknown[]>).portfolioICP as Record<string, unknown>[] | undefined ?? [];
+    const idx = arr.findIndex(i => String(i.produtoId) === String(produtoId));
+    const item: Record<string, unknown> = { produtoId, nome, fornecedor, quantidade };
+    if (produtoAlias !== undefined) item.produtoAlias = produtoAlias;
+    if (tipoCertificado !== undefined) item.tipoCertificado = tipoCertificado;
+    if (finalidade !== undefined) item.finalidade = finalidade;
+    if (autoridadeCertificadora !== undefined) item.autoridadeCertificadora = autoridadeCertificadora;
+    if (precoCusto !== undefined) item.precoCusto = precoCusto;
+    if (precoVenda !== undefined) item.precoVenda = precoVenda;
+    if (numContrato !== undefined) item.numContrato = numContrato;
+
+    if (idx >= 0) {
+      await ClienteModel.findByIdAndUpdate(req.params.id, { $set: { [`portfolioICP.${idx}`]: item } }, { new: true, runValidators: true });
+    } else {
+      await ClienteModel.findByIdAndUpdate(req.params.id, { $push: { portfolioICP: item } }, { new: true, runValidators: true });
+    }
+    const updated = await ClienteModel.findById(req.params.id).populate('usuarioMasterId', 'nome email role');
+    res.json(updated);
+  } catch (error) { next(error); }
+});
+
+// PATCH /clientes/:id/equipe — upsert de membro na equipe pelo email
+router.patch('/:id/equipe', authenticate, authorize('admin', 'operador'), async (req, res, next) => {
+  try {
+    const { email, nome, primeiroNome, ultimoNome, cargo, telefone, cpf, permissions, role } = req.body as Record<string, unknown>;
+    if (!email || !nome) {
+      return res.status(400).json({ message: 'Campos obrigatórios: email, nome' });
+    }
+    const cliente = await ClienteModel.findById(req.params.id);
+    if (!cliente) return res.status(404).json({ message: 'Cliente não encontrado' });
+
+    const arr = (cliente as unknown as Record<string, unknown[]>).equipe as Record<string, unknown>[] | undefined ?? [];
+    const idx = arr.findIndex(i => String(i.email) === String(email).toLowerCase().trim());
+    const member: Record<string, unknown> = { email: String(email).toLowerCase().trim(), nome };
+    if (primeiroNome !== undefined) member.primeiroNome = primeiroNome;
+    if (ultimoNome !== undefined) member.ultimoNome = ultimoNome;
+    if (cargo !== undefined) member.cargo = cargo;
+    if (telefone !== undefined) member.telefone = telefone;
+    if (cpf !== undefined) member.cpf = cpf;
+    if (permissions !== undefined) member.permissions = permissions;
+    if (role !== undefined) member.role = role;
+
+    if (idx >= 0) {
+      await ClienteModel.findByIdAndUpdate(req.params.id, { $set: { [`equipe.${idx}`]: member } }, { new: true, runValidators: true });
+    } else {
+      await ClienteModel.findByIdAndUpdate(req.params.id, { $push: { equipe: member } }, { new: true, runValidators: true });
+    }
+    const updated = await ClienteModel.findById(req.params.id).populate('usuarioMasterId', 'nome email role');
+    res.json(updated);
+  } catch (error) { next(error); }
+});
+
+// DELETE /clientes/:id/equipe/:email — remove membro da equipe pelo email
+router.delete('/:id/equipe/:email', authenticate, authorize('admin', 'operador'), async (req, res, next) => {
+  try {
+    const emailParam = decodeURIComponent(req.params.email as string).toLowerCase().trim();
+    const cliente = await ClienteModel.findByIdAndUpdate(
+      req.params.id,
+      { $pull: { equipe: { email: emailParam } } },
+      { new: true }
+    ).populate('usuarioMasterId', 'nome email role');
+    if (!cliente) return res.status(404).json({ message: 'Cliente não encontrado' });
+    res.json(cliente);
+  } catch (error) { next(error); }
+});
+
+// PATCH /clientes/:id/dados-sectigo — salva sectigoData (somente admin)
+router.patch('/:id/dados-sectigo', authenticate, authorize('admin'), async (req, res, next) => {
+  try {
+    const payload = req.body as Record<string, unknown>;
+    const update: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(payload)) {
+      update[`sectigoData.${key}`] = value;
+    }
+    const cliente = await ClienteModel.findByIdAndUpdate(
+      req.params.id,
+      { $set: update },
+      { new: true, runValidators: true }
+    ).populate('usuarioMasterId', 'nome email role');
+    if (!cliente) return res.status(404).json({ message: 'Cliente não encontrado' });
+    res.json(cliente);
+  } catch (error) { next(error); }
+});
+
+// PATCH /clientes/:id/financeiro — atualiza campos financeiros
+router.patch('/:id/financeiro', authenticate, authorize('admin', 'financeiro'), async (req, res, next) => {
+  try {
+    const { paymentMethod, formaAPagar, dataPagamento, dataFechamento, limiteCredito, statusCadastro } = req.body as Record<string, unknown>;
+    const allowed: Record<string, unknown> = {};
+    if (paymentMethod !== undefined) allowed.paymentMethod = paymentMethod;
+    if (formaAPagar !== undefined) allowed.formaAPagar = formaAPagar;
+    if (dataPagamento !== undefined) allowed.dataPagamento = dataPagamento;
+    if (dataFechamento !== undefined) allowed.dataFechamento = dataFechamento;
+    if (limiteCredito !== undefined) allowed.limiteCredito = limiteCredito;
+    if (statusCadastro !== undefined) allowed.statusCadastro = statusCadastro;
+    const cliente = await ClienteModel.findByIdAndUpdate(
+      req.params.id,
+      { $set: allowed },
+      { new: true, runValidators: true }
+    ).populate('usuarioMasterId', 'nome email role');
+    if (!cliente) return res.status(404).json({ message: 'Cliente não encontrado' });
+    res.json(cliente);
+  } catch (error) { next(error); }
 });
 
 router.get('/:id/pedidos', authenticate, authorize('admin', 'operador', 'financeiro'), async (req, res, next) => {

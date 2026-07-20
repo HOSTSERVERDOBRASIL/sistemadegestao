@@ -33,6 +33,9 @@ export default function Notifications() {
     'etapa_atualizada': (p) => {
       addToast(`Pedido ${p.pedidoId} avançou para etapa ${p.etapa} (via Tiny)`, 'info')
     },
+    'cert_icp:vencendo': (p) => {
+      addToast(`⚠️ ${p.quantidade ?? 1} certificado(s) ICP vencem em ${p.dias ?? 30} dias`, 'warning')
+    },
   }, !!user)
 
   if (toasts.length === 0) return null
