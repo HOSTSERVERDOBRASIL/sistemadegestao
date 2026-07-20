@@ -3,7 +3,7 @@ import {
   LayoutDashboard, Users, FileText, Handshake, ClipboardList, Package,
   Receipt, FileStack, Zap, Scale, Tag, BarChart2,
   Link2, RefreshCw, UserCog, Settings, ScrollText, ShieldCheck,
-  Sun, Moon, LogOut, Bell, Wallet, FilePlus,
+  Sun, Moon, LogOut, Bell, Wallet, FilePlus, CheckCircle, Clock, XCircle,
 } from 'lucide-react'
 
 import { useAuth } from '../context/AuthContext'
@@ -41,12 +41,15 @@ const NAV_GROUPS: NavGroup[] = [
   {
     label: 'Financeiro',
     items: [
-      { to: '/financeiro',        label: 'Notas Fiscais',    Icon: Receipt },
-      { to: '/financeiro/emitir', label: 'Emitir NF',        Icon: FilePlus },
-      { to: '/notas-empenho',     label: 'Notas de Empenho', Icon: FileStack },
-      { to: '/cobrancas',     label: 'Cobranças',        Icon: Zap },
-      { to: '/conciliacao',   label: 'Conciliação',      Icon: Scale,   adminOnly: true },
-      { to: '/cupons',        label: 'Cupons',           Icon: Tag,     adminOnly: true },
+      { to: '/financeiro',             label: 'Todas as NFs',     Icon: Receipt },
+      { to: '/financeiro/emitidas',    label: 'Emitidas',         Icon: CheckCircle },
+      { to: '/financeiro/pendentes',   label: 'Pendentes',        Icon: Clock },
+      { to: '/financeiro/canceladas',  label: 'Canceladas',       Icon: XCircle },
+      { to: '/financeiro/emitir',      label: 'Emitir NF',        Icon: FilePlus },
+      { to: '/notas-empenho',          label: 'Notas de Empenho', Icon: FileStack },
+      { to: '/cobrancas',              label: 'Cobranças',        Icon: Zap },
+      { to: '/conciliacao',            label: 'Conciliação',      Icon: Scale,  adminOnly: true },
+      { to: '/cupons',                 label: 'Cupons',           Icon: Tag,    adminOnly: true },
     ],
   },
   {
@@ -69,7 +72,7 @@ const NAV_GROUPS: NavGroup[] = [
   },
 ]
 
-const NAV_GROUPS_REVENDA = [
+const NAV_GROUPS_REVENDA: NavGroup[] = [
   {
     label: null,
     items: [{ to: '/', label: 'Dashboard', Icon: LayoutDashboard }],
@@ -94,6 +97,9 @@ const ROUTE_LABELS: Record<string, string> = {
   '/pedidos': 'Pedidos',
   '/produtos': 'Produtos',
   '/financeiro': 'Notas Fiscais',
+  '/financeiro/emitidas': 'Notas Emitidas',
+  '/financeiro/pendentes': 'Notas Pendentes',
+  '/financeiro/canceladas': 'Notas Canceladas',
   '/financeiro/emitir': 'Emitir Nota Fiscal',
   '/notas-empenho': 'Notas de Empenho',
   '/cobrancas': 'Cobranças',

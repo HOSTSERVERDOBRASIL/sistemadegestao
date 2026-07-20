@@ -57,6 +57,9 @@ function AppRoutes() {
         <Route path="parceiros" element={<Parceiros />} />
         <Route path="parceiros/:id" element={<ParceiroDetalhe />} />
         <Route path="financeiro" element={<Financeiro />} />
+        <Route path="financeiro/emitidas" element={<Financeiro statusFixo="Emitida" />} />
+        <Route path="financeiro/pendentes" element={<Financeiro statusFixo="Pendente" />} />
+        <Route path="financeiro/canceladas" element={<Financeiro statusFixo="Cancelada" />} />
         <Route path="financeiro/emitir" element={<EmitirNF />} />
         <Route path="relatorios" element={<Relatorios />} />
         <Route path="cobrancas" element={<Cobrancas />} />

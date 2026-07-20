@@ -5,7 +5,7 @@ import Badge from '../components/Badge'
 import Pagination from '../components/Pagination'
 import StatCard from '../components/StatCard'
 import Modal from '../components/Modal'
-import { financeiro as api, exportar } from '../api'
+import { financeiro as api, exportar, clientes as clientesApi } from '../api'
 import type { NotaFiscal } from '../types'
 import styles from './Page.module.css'
 import fStyles from './Financeiro.module.css'
@@ -17,12 +17,20 @@ function fmt(d: string) {
   return new Date(d).toLocaleDateString('pt-BR')
 }
 
-export default function Financeiro() {
+type StatusFixo = 'Emitida' | 'Pendente' | 'Cancelada'
+
+const TITULO: Record<StatusFixo, { title: string; subtitle: string }> = {
+  Emitida:   { title: 'Notas Emitidas',   subtitle: 'Notas fiscais com status Emitida' },
+  Pendente:  { title: 'Notas Pendentes',  subtitle: 'Aguardando emissão ou com falha SEFAZ' },
+  Cancelada: { title: 'Notas Canceladas', subtitle: 'Notas canceladas' },
+} as const
+
+export default function Financeiro({ statusFixo }: { statusFixo?: StatusFixo }) {
   const [page, setPage] = useState(1)
   const [total, setTotal] = useState(0)
   const [rows, setRows] = useState<NotaFiscal[]>([])
   const [loading, setLoading] = useState(true)
-  const [filtroStatus, setFiltroStatus] = useState<string[]>([])
+  const [filtroStatus, setFiltroStatus] = useState<string[]>(statusFixo ? [statusFixo] : [])
   const [filtroEmissor, setFiltroEmissor] = useState<string[]>([])
   const [filtroTipoFat, setFiltroTipoFat] = useState<string[]>([])
   const [resumo, setResumo] = useState<{ notasEmitidas: number; totalFaturado: number; pedidosFaturados: number; notasPendentes: number } | null>(null)
@@ -41,9 +49,14 @@ export default function Financeiro() {
   const [dataFim, setDataFim] = useState('')
   const [exportando, setExportando] = useState(false)
   const [showAvulsa, setShowAvulsa] = useState(false)
-  const [avulsaForm, setAvulsaForm] = useState({ numero: '', valor: '', emissor: 'XDigital' as 'XDigital' | 'Revendedor', tipoFaturamento: '' as '' | 'Total' | 'Demanda' | 'Fechamento', descricao: '', observacoes: '' })
+  const [avulsaForm, setAvulsaForm] = useState({ numero: '', valor: '', clienteId: '', emissor: 'XDigital' as 'XDigital' | 'Revendedor', tipoFaturamento: '' as '' | 'Total' | 'Demanda' | 'Fechamento', descricao: '', observacoes: '' })
+  const [clientesBusca, setClientesBusca] = useState<{ _id: string; nome: string }[]>([])
   const [savingAvulsa, setSavingAvulsa] = useState(false)
   const [avulsaError, setAvulsaError] = useState('')
+
+  useEffect(() => {
+    clientesApi.list({ limit: 200 }).then(r => setClientesBusca(r.data.map(c => ({ _id: c._id, nome: c.nome }))))
+  }, [])
 
   function toggle(arr: string[], val: string): string[] {
     if (!val) return []
@@ -106,24 +119,26 @@ export default function Financeiro() {
     } finally { setBaixando(null) }
   }
 
-  async function handleCriarAvulsa(e: React.FormEvent) {
+  async function handleCriarAvulsa(e: React.SyntheticEvent) {
     e.preventDefault()
     setAvulsaError('')
     const valor = parseFloat(avulsaForm.valor.replace(',', '.'))
     if (!avulsaForm.numero.trim()) return setAvulsaError('Número da NF é obrigatório')
+    if (!avulsaForm.clienteId) return setAvulsaError('Cliente é obrigatório')
     if (isNaN(valor) || valor <= 0) return setAvulsaError('Valor deve ser maior que zero')
     setSavingAvulsa(true)
     try {
       await api.criarAvulsa({
         numero: avulsaForm.numero.trim(),
         valor,
+        clienteId: avulsaForm.clienteId,
         emissor: avulsaForm.emissor,
         tipoFaturamento: avulsaForm.tipoFaturamento || undefined,
         descricao: avulsaForm.descricao.trim() || undefined,
         observacoes: avulsaForm.observacoes.trim() || undefined,
       })
       setShowAvulsa(false)
-      setAvulsaForm({ numero: '', valor: '', emissor: 'XDigital', tipoFaturamento: '', descricao: '', observacoes: '' })
+      setAvulsaForm({ numero: '', valor: '', clienteId: '', emissor: 'XDigital', tipoFaturamento: '', descricao: '', observacoes: '' })
       loadNotas(); loadResumo()
     } catch (err) {
       setAvulsaError(err instanceof Error ? err.message : 'Erro ao criar nota')
@@ -229,8 +244,8 @@ export default function Financeiro() {
   return (
     <div className={styles.page}>
       <PageHeader
-        title="Financeiro"
-        subtitle="Notas Fiscais e conciliação"
+        title={statusFixo ? TITULO[statusFixo].title : 'Notas Fiscais'}
+        subtitle={statusFixo ? TITULO[statusFixo].subtitle : 'Notas Fiscais e conciliação'}
         action={
           <div style={{ display: 'flex', gap: 8 }}>
             <button className={styles.btnPrimary} onClick={() => { setAvulsaError(''); setShowAvulsa(true) }}>
@@ -320,6 +335,12 @@ export default function Financeiro() {
       {showAvulsa && (
         <Modal title="Emitir NF Avulsa" onClose={() => setShowAvulsa(false)} size="sm">
           <form onSubmit={handleCriarAvulsa} className={styles.form}>
+            <label>Cliente *
+              <select value={avulsaForm.clienteId} onChange={e => setAvulsaForm(f => ({ ...f, clienteId: e.target.value }))}>
+                <option value="">Selecione o cliente</option>
+                {clientesBusca.map(c => <option key={c._id} value={c._id}>{c.nome}</option>)}
+              </select>
+            </label>
             <label>Número da NF *
               <input value={avulsaForm.numero} onChange={e => setAvulsaForm(f => ({ ...f, numero: e.target.value }))} placeholder="Ex: 00001234" autoFocus />
             </label>
