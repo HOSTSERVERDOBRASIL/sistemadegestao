@@ -31,6 +31,7 @@ import EmitirNF from './pages/EmitirNF'
 import CertificadosICP from './pages/CertificadosICP'
 import DashboardNF from './pages/DashboardNF'
 import Estoque from './pages/Estoque'
+import Portal from './pages/Portal'
 
 
 function PrivateRoute({ children, adminOnly = false, revendaOnly = false }: { children: React.ReactNode; adminOnly?: boolean; revendaOnly?: boolean }) {
@@ -93,6 +94,7 @@ function AppRoutes() {
         <Route path="estoque" element={<Estoque />} />
 
       </Route>
+      <Route path="/portal/:token" element={<Portal />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   )

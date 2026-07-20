@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react'
+import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import PageHeader from '../components/PageHeader'
 import Badge from '../components/Badge'
@@ -9,6 +9,29 @@ import { useAuth } from '../context/AuthContext'
 import styles from './PedidoDetalhe.module.css'
 
 const ETAPAS: EtapaOperacional[] = ['Pedido', 'Pagamento', 'Validacao', 'Preparacao', 'Processamento', 'Entrega', 'Conclusao']
+
+interface PortalToken {
+  _id: string
+  escopo: string
+  status: string
+  expiresAt: string
+  acessos: number
+  clienteNome: string
+  clienteEmail: string
+  emailEnviado: boolean
+  emailEnviadoEm?: string
+  geradoPorNome: string
+  createdAt: string
+}
+
+interface NovoTokenForm {
+  clienteEmail: string
+  escopo: 'acompanhamento' | 'envio_documentos' | 'aceite' | 'formulario_icp' | 'completo'
+  expiracaoHoras: number
+  maxAcessos: string
+  observacoes: string
+  enviarEmail: boolean
+}
 
 function moeda(v: number) {
   return v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
@@ -40,6 +63,22 @@ export default function PedidoDetalhe() {
   const [tipoEvidencia, setTipoEvidencia] = useState<EvidenciaTipo>('documento')
   const [origemEvidencia, setOrigemEvidencia] = useState('')
   const evidenciaFileRef = React.useRef<HTMLInputElement>(null)
+
+  // ── Portal do Cliente ────────────────────────────────────────
+  const [tokens, setTokens] = useState<PortalToken[]>([])
+  const [tokensLoading, setTokensLoading] = useState(false)
+  const [showPortalModal, setShowPortalModal] = useState(false)
+  const [tokenForm, setTokenForm] = useState<NovoTokenForm>({
+    clienteEmail: '',
+    escopo: 'acompanhamento',
+    expiracaoHoras: 72,
+    maxAcessos: '',
+    observacoes: '',
+    enviarEmail: true,
+  })
+  const [tokenSaving, setTokenSaving] = useState(false)
+  const [tokenErro, setTokenErro] = useState('')
+  const [tokenCriado, setTokenCriado] = useState<{ url: string; expiresAt: string } | null>(null)
 
   // ── Domínios e Prazo ─────────────────────────────────────────
   const [salvandoPrazo, setSalvandoPrazo] = useState(false)
@@ -100,6 +139,59 @@ export default function PedidoDetalhe() {
   }
 
   useEffect(() => { load() }, [id])
+
+  const loadTokens = useCallback(async () => {
+    if (!pedido?._id) return
+    setTokensLoading(true)
+    try {
+      const res = await fetch(`/api/portal-admin/tokens/pedido/${pedido._id}`, {
+        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+      })
+      const json = await res.json()
+      setTokens(Array.isArray(json) ? json : [])
+    } finally { setTokensLoading(false) }
+  }, [pedido?._id])
+
+  useEffect(() => { loadTokens() }, [loadTokens])
+
+  const handleCriarToken = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setTokenSaving(true); setTokenErro(''); setTokenCriado(null)
+    try {
+      const res = await fetch('/api/portal-admin/tokens', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
+        body: JSON.stringify({
+          pedidoId: pedido?._id,
+          pedidoNumero: pedido?.numero,
+          clienteId: pedido?.clienteId,
+          clienteNome: (pedido?.clienteId as { nome?: string } | null)?.nome ?? '',
+          clienteEmail: tokenForm.clienteEmail,
+          escopo: tokenForm.escopo,
+          expiracaoHoras: tokenForm.expiracaoHoras,
+          maxAcessos: tokenForm.maxAcessos ? Number(tokenForm.maxAcessos) : undefined,
+          observacoes: tokenForm.observacoes || undefined,
+          enviarEmail: tokenForm.enviarEmail,
+        })
+      })
+      const json = await res.json()
+      if (!res.ok) { setTokenErro(json.message ?? 'Erro ao gerar token'); return }
+      setTokenCriado({ url: json.url, expiresAt: json.expiresAt })
+      loadTokens()
+    } catch (err) {
+      setTokenErro(err instanceof Error ? err.message : 'Erro ao gerar token')
+    } finally { setTokenSaving(false) }
+  }
+
+  const handleRevogarToken = async (tokenId: string) => {
+    if (!confirm('Revogar este link? O cliente não conseguirá mais acessar.')) return
+    await fetch(`/api/portal-admin/tokens/${tokenId}/revogar`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
+      body: JSON.stringify({ motivo: 'Revogado pelo operador' }),
+    })
+    loadTokens()
+  }
 
   async function handleGerarPix() {
     if (!id || !pedido) return
@@ -817,6 +909,148 @@ export default function PedidoDetalhe() {
           </div>
         )}
       </div>
+
+      {/* ── Portal do Cliente ── */}
+      <div style={{ marginTop: 24, border: '1px solid var(--surface-border)', borderRadius: 10, overflow: 'hidden' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', background: 'var(--surface-2)', borderBottom: '1px solid var(--surface-border)' }}>
+          <span style={{ fontWeight: 700, fontSize: '0.9rem' }}>🔗 Portal do Cliente</span>
+          <button className={styles.btnPrimary} style={{ fontSize: '0.8rem', padding: '5px 14px' }} onClick={() => { setShowPortalModal(true); setTokenCriado(null); setTokenErro('') }}>
+            + Gerar Link
+          </button>
+        </div>
+
+        {tokensLoading ? (
+          <p style={{ padding: '16px', color: '#64748b', fontSize: '0.85rem' }}>Carregando...</p>
+        ) : tokens.length === 0 ? (
+          <p style={{ padding: '16px', color: '#94a3b8', fontSize: '0.85rem' }}>Nenhum link gerado ainda.</p>
+        ) : (
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem' }}>
+            <thead>
+              <tr style={{ background: 'var(--surface-2)', borderBottom: '1px solid var(--surface-border)' }}>
+                {['Escopo', 'Status', 'Cliente / E-mail', 'Expiração', 'Acessos', 'E-mail', ''].map(h => (
+                  <th key={h} style={{ padding: '8px 12px', textAlign: 'left', fontWeight: 600, color: 'var(--text-muted)', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.04em' }}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {tokens.map(t => (
+                <tr key={t._id} style={{ borderBottom: '1px solid var(--surface-border)' }}>
+                  <td style={{ padding: '8px 12px' }}>
+                    <span style={{ fontSize: '0.78rem', fontWeight: 600, background: '#eff6ff', color: '#1d4ed8', padding: '2px 8px', borderRadius: 12 }}>{t.escopo}</span>
+                  </td>
+                  <td style={{ padding: '8px 12px' }}>
+                    <span style={{
+                      fontSize: '0.78rem', fontWeight: 600, padding: '2px 8px', borderRadius: 12,
+                      background: t.status === 'ativo' ? '#f0fdf4' : '#fef2f2',
+                      color: t.status === 'ativo' ? '#16a34a' : '#dc2626',
+                    }}>{t.status}</span>
+                  </td>
+                  <td style={{ padding: '8px 12px', color: '#475569' }}>
+                    <div style={{ fontSize: '0.82rem' }}>{t.clienteNome}</div>
+                    <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>{t.clienteEmail}</div>
+                  </td>
+                  <td style={{ padding: '8px 12px', color: '#64748b', whiteSpace: 'nowrap', fontSize: '0.8rem' }}>
+                    {new Date(t.expiresAt).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })}
+                  </td>
+                  <td style={{ padding: '8px 12px', textAlign: 'center', color: '#64748b' }}>{t.acessos}</td>
+                  <td style={{ padding: '8px 12px', textAlign: 'center' }}>
+                    {t.emailEnviado
+                      ? <span title={`Enviado em ${t.emailEnviadoEm ? new Date(t.emailEnviadoEm).toLocaleString('pt-BR') : ''}`} style={{ color: '#16a34a' }}>✓</span>
+                      : <span style={{ color: '#94a3b8' }}>—</span>}
+                  </td>
+                  <td style={{ padding: '8px 12px' }}>
+                    {t.status === 'ativo' && (
+                      <button
+                        onClick={() => handleRevogarToken(t._id)}
+                        style={{ fontSize: '0.75rem', color: '#dc2626', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+                      >
+                        Revogar
+                      </button>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+
+      {/* ── Modal: Gerar Link de Portal ── */}
+      {showPortalModal && (
+        <Modal title="Gerar Link de Portal" onClose={() => setShowPortalModal(false)}>
+          {tokenCriado ? (
+            <div style={{ textAlign: 'center', padding: '8px 0' }}>
+              <p style={{ color: '#16a34a', fontWeight: 700, marginBottom: 8 }}>✓ Link gerado com sucesso!</p>
+              <p style={{ fontSize: '0.83rem', color: '#475569', marginBottom: 16 }}>
+                Copie e envie ao cliente. Este link só é exibido uma vez.
+              </p>
+              <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 8, padding: '12px 16px', marginBottom: 16 }}>
+                <code style={{ fontSize: '0.78rem', wordBreak: 'break-all', color: '#1e40af' }}>{tokenCriado.url}</code>
+              </div>
+              <button
+                onClick={() => navigator.clipboard.writeText(tokenCriado.url)}
+                style={{ background: '#2563eb', color: '#fff', border: 'none', padding: '9px 20px', borderRadius: 7, cursor: 'pointer', fontWeight: 600, fontSize: '0.85rem', marginBottom: 8 }}
+              >
+                Copiar Link
+              </button>
+              <p style={{ fontSize: '0.78rem', color: '#94a3b8', marginTop: 8 }}>
+                Expira em {new Date(tokenCriado.expiresAt).toLocaleString('pt-BR', { dateStyle: 'long', timeStyle: 'short' })}
+              </p>
+              <div style={{ display: 'flex', justifyContent: 'center', gap: 8, marginTop: 16 }}>
+                <button className={styles.btnSecondary} onClick={() => setShowPortalModal(false)}>Fechar</button>
+                <button className={styles.btnPrimary} onClick={() => setTokenCriado(null)}>Gerar outro</button>
+              </div>
+            </div>
+          ) : (
+            <form onSubmit={handleCriarToken} className={styles.form}>
+              <div className={styles.formGrid2}>
+                <label style={{ gridColumn: 'span 2' }}>E-mail do cliente *
+                  <input
+                    type="email"
+                    value={tokenForm.clienteEmail}
+                    onChange={e => setTokenForm(f => ({ ...f, clienteEmail: e.target.value }))}
+                    placeholder="email@cliente.com.br"
+                    required
+                  />
+                </label>
+                <label>Escopo de acesso
+                  <select value={tokenForm.escopo} onChange={e => setTokenForm(f => ({ ...f, escopo: e.target.value as NovoTokenForm['escopo'] }))}>
+                    <option value="acompanhamento">Acompanhamento (só visualizar)</option>
+                    <option value="envio_documentos">Envio de documentos</option>
+                    <option value="aceite">Aceite de proposta</option>
+                    <option value="formulario_icp">Formulário ICP-Brasil</option>
+                    <option value="completo">Completo (todos)</option>
+                  </select>
+                </label>
+                <label>Expiração
+                  <select value={tokenForm.expiracaoHoras} onChange={e => setTokenForm(f => ({ ...f, expiracaoHoras: Number(e.target.value) }))}>
+                    <option value={24}>24 horas</option>
+                    <option value={48}>48 horas</option>
+                    <option value={72}>72 horas (padrão)</option>
+                    <option value={168}>7 dias</option>
+                    <option value={720}>30 dias</option>
+                  </select>
+                </label>
+                <label>Máx. de acessos
+                  <input type="number" min="1" value={tokenForm.maxAcessos} onChange={e => setTokenForm(f => ({ ...f, maxAcessos: e.target.value }))} placeholder="Sem limite" />
+                </label>
+                <label>Observações
+                  <input value={tokenForm.observacoes} onChange={e => setTokenForm(f => ({ ...f, observacoes: e.target.value }))} placeholder="Opcional" />
+                </label>
+                <label style={{ gridColumn: 'span 2', flexDirection: 'row', alignItems: 'center', gap: 10, cursor: 'pointer' }}>
+                  <input type="checkbox" checked={tokenForm.enviarEmail} onChange={e => setTokenForm(f => ({ ...f, enviarEmail: e.target.checked }))} style={{ width: 16, height: 16, accentColor: '#2563eb' }} />
+                  <span style={{ fontSize: '0.85rem' }}>Enviar link por e-mail automaticamente</span>
+                </label>
+              </div>
+              {tokenErro && <p className={styles.error}>{tokenErro}</p>}
+              <div className={styles.formActions}>
+                <button type="button" className={styles.btnSecondary} onClick={() => setShowPortalModal(false)}>Cancelar</button>
+                <button type="submit" className={styles.btnPrimary} disabled={tokenSaving}>{tokenSaving ? 'Gerando...' : 'Gerar Link'}</button>
+              </div>
+            </form>
+          )}
+        </Modal>
+      )}
 
       {/* ── Wizard de Liberação de Cadastro ────────────────────── */}
       {showLiberacao && (
