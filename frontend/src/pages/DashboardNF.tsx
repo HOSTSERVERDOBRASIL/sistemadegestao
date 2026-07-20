@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import PageHeader from '../components/PageHeader'
+import { fmtDate } from '../utils/fmt'
 
 import Badge from '../components/Badge'
 import { financeiro as api } from '../api'
@@ -9,9 +10,6 @@ import pageStyles from './Page.module.css'
 
 function moeda(v: number) {
   return v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
-}
-function fmt(d: string) {
-  return new Date(d).toLocaleDateString('pt-BR')
 }
 function mesLabel(ano: number, mes: number) {
   return new Date(ano, mes - 1).toLocaleDateString('pt-BR', { month: 'short', year: '2-digit' })
@@ -333,7 +331,7 @@ export default function DashboardNF() {
                         : <span style={{ color: '#94a3b8', fontSize: '0.75rem' }}>—</span>
                       }
                     </td>
-                    <td style={{ fontSize: '0.8rem', color: '#64748b' }}>{fmt(nf.createdAt)}</td>
+                    <td style={{ fontSize: '0.8rem', color: '#64748b' }}>{fmtDate(nf.createdAt)}</td>
                     <td style={{ fontSize: '0.72rem', color: '#b91c1c', maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={nf.erroEmissao}>
                       {nf.erroEmissao || '—'}
                     </td>

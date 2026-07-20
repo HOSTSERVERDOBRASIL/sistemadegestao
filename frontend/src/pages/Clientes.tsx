@@ -8,6 +8,7 @@ import Modal from '../components/Modal'
 import { clientes as api } from '../api'
 import type { Cliente, ClientePayload } from '../types'
 import { email as validateEmail, documento as validateDoc, required, hasErrors, type FieldErrors } from '../utils/validate'
+import { fmtDate, fmtDateTime } from '../utils/fmt'
 import styles from './Page.module.css'
 
 const BLANK: ClientePayload = { nome: '', email: '', documento: '', tipo: 'pessoa-juridica', esferaPublica: false, ativo: true }
@@ -267,8 +268,8 @@ export default function Clientes() {
               {detalhe.situacaoCadastral && <><dt>Situação Serpro</dt><dd><Badge label={detalhe.situacaoCadastral} variant={detalhe.situacaoCadastral.toUpperCase() === 'ATIVA' ? 'success' : 'warning'} /></dd></>}
               {detalhe.naturezaJuridicaDescricao && <><dt>Natureza jurídica</dt><dd>{detalhe.naturezaJuridicaCodigo} — {detalhe.naturezaJuridicaDescricao}</dd></>}
               {detalhe.esferaPublicaRevisao && <><dt>Classificação</dt><dd><Badge label="Revisão manual" variant="warning" /></dd></>}
-              {detalhe.validadoSerproEm && <><dt>Última validação</dt><dd>{new Date(detalhe.validadoSerproEm).toLocaleString('pt-BR')}</dd></>}
-              {(detalhe.solicitacoesLgpd?.length ?? 0) > 0 && <><dt>LGPD</dt><dd>{detalhe.solicitacoesLgpd!.slice(-3).reverse().map(item => <div key={item._id} style={{ marginBottom: 5 }}><Badge label={`${item.tipo}: ${item.status}`} variant={item.status === 'Atendida' ? 'success' : 'warning'} /><br /><small>{new Date(item.solicitadaEm).toLocaleDateString('pt-BR')}</small></div>)}</dd></>}
+              {detalhe.validadoSerproEm && <><dt>Última validação</dt><dd>{fmtDateTime(detalhe.validadoSerproEm)}</dd></>}
+              {(detalhe.solicitacoesLgpd?.length ?? 0) > 0 && <><dt>LGPD</dt><dd>{detalhe.solicitacoesLgpd!.slice(-3).reverse().map(item => <div key={item._id} style={{ marginBottom: 5 }}><Badge label={`${item.tipo}: ${item.status}`} variant={item.status === 'Atendida' ? 'success' : 'warning'} /><br /><small>{fmtDate(item.solicitadaEm)}</small></div>)}</dd></>}
             </dl>
             <div className={styles.drawerFooter}>
               <button className={styles.btnPrimary} onClick={() => { openEdit(detalhe); setDetalhe(null) }}>Editar dados</button>

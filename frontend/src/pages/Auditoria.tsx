@@ -6,8 +6,7 @@ import Badge from '../components/Badge'
 import { auditoria as api, usuarios as usuariosApi } from '../api'
 import type { AuditoriaEntry, User } from '../types'
 import styles from './Page.module.css'
-
-function fmt(data: string) { return new Date(data).toLocaleString('pt-BR') }
+import { fmtDateTime } from '../utils/fmt'
 
 const ENTIDADES = ['Cliente', 'Contrato', 'Pedido', 'NotaFiscal', 'Integracao', 'Cupom', 'Produto', 'Parceiro', 'NotaEmpenho', 'Usuario']
 
@@ -66,7 +65,7 @@ export default function Auditoria() {
     },
     {
       key: 'data', header: 'Data / Hora', width: '160px',
-      render: (r: AuditoriaEntry) => <span style={{ fontSize: '0.78rem', color: '#64748b' }}>{fmt(r.createdAt)}</span>,
+      render: (r: AuditoriaEntry) => <span style={{ fontSize: '0.78rem', color: '#64748b' }}>{fmtDateTime(r.createdAt)}</span>,
     },
     {
       key: 'origem', header: 'Origem', width: '90px',

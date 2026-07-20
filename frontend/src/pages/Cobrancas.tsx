@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from 'react'
+import { fmtDate, fmtDateTime } from '../utils/fmt'
 import PageHeader from '../components/PageHeader'
 import Table from '../components/Table'
 import Badge from '../components/Badge'
@@ -10,10 +11,6 @@ import cStyles from './Cobrancas.module.css'
 
 function moeda(v: number) {
   return v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
-}
-function fmt(d?: string) {
-  if (!d) return '—'
-  return new Date(d).toLocaleString('pt-BR')
 }
 
 const STATUS_LABEL: Record<string, { label: string; variant: string }> = {
@@ -171,9 +168,9 @@ export default function Cobrancas() {
         return <Badge label={s.label} variant={s.variant as 'success' | 'warning' | 'danger' | 'default'} />
       }
     },
-    { key: 'vencimento', header: 'Vencimento', render: (r: Cobranca) => r.vencimento ? fmt(r.vencimento).slice(0, 10) : '—' },
-    { key: 'pagoEm', header: 'Pago em', render: (r: Cobranca) => fmt(r.pagoEm) },
-    { key: 'createdAt', header: 'Criada em', render: (r: Cobranca) => fmt(r.createdAt) },
+    { key: 'vencimento', header: 'Vencimento', render: (r: Cobranca) => r.vencimento ? fmtDate(r.vencimento) : '—' },
+    { key: 'pagoEm', header: 'Pago em', render: (r: Cobranca) => fmtDateTime(r.pagoEm) },
+    { key: 'createdAt', header: 'Criada em', render: (r: Cobranca) => fmtDateTime(r.createdAt) },
     {
       key: '_actions', header: '',
       render: (r: Cobranca) => (
@@ -203,9 +200,9 @@ export default function Cobrancas() {
         return <Badge label={s.label} variant={s.variant as 'success' | 'warning' | 'danger' | 'default'} />
       }
     },
-    { key: 'vencimento', header: 'Vencimento', render: (r: Cobranca) => r.vencimento ? fmt(r.vencimento).slice(0, 10) : '—' },
-    { key: 'pagoEm', header: 'Pago em', render: (r: Cobranca) => fmt(r.pagoEm) },
-    { key: 'createdAt', header: 'Criada em', render: (r: Cobranca) => fmt(r.createdAt) },
+    { key: 'vencimento', header: 'Vencimento', render: (r: Cobranca) => r.vencimento ? fmtDate(r.vencimento) : '—' },
+    { key: 'pagoEm', header: 'Pago em', render: (r: Cobranca) => fmtDateTime(r.pagoEm) },
+    { key: 'createdAt', header: 'Criada em', render: (r: Cobranca) => fmtDateTime(r.createdAt) },
     {
       key: '_actions', header: '',
       render: (r: Cobranca) => (
@@ -456,8 +453,8 @@ export default function Cobrancas() {
               />
             </div>
             {cobrancaDetalhe.txid && <div className={cStyles.detalheRow}><span>TxID</span><code>{cobrancaDetalhe.txid}</code></div>}
-            {cobrancaDetalhe.vencimento && <div className={cStyles.detalheRow}><span>Vencimento</span><span>{fmt(cobrancaDetalhe.vencimento)}</span></div>}
-            {cobrancaDetalhe.pagoEm && <div className={cStyles.detalheRow}><span>Pago em</span><span style={{ color: '#15803d', fontWeight: 700 }}>{fmt(cobrancaDetalhe.pagoEm)}</span></div>}
+            {cobrancaDetalhe.vencimento && <div className={cStyles.detalheRow}><span>Vencimento</span><span>{fmtDateTime(cobrancaDetalhe.vencimento)}</span></div>}
+            {cobrancaDetalhe.pagoEm && <div className={cStyles.detalheRow}><span>Pago em</span><span style={{ color: '#15803d', fontWeight: 700 }}>{fmtDateTime(cobrancaDetalhe.pagoEm)}</span></div>}
 
             {/* PIX QR Code */}
             {(cobrancaDetalhe.tipo === 'pix' || cobrancaDetalhe.tipo === 'pix_vencimento') && cobrancaDetalhe.pixCopiaECola && (

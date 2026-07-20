@@ -8,14 +8,12 @@ import Modal from '../components/Modal'
 import { notasEmpenho as api, clientes as clientesApi, contratos as contratosApi } from '../api'
 import type { NotaEmpenho, NotaEmpenhoPayload, Cliente, Contrato, Pedido } from '../types'
 import styles from './Page.module.css'
+import { fmtDate } from '../utils/fmt'
 
 const STATUS_OPTS = ['Aberto', 'Parcialmente utilizado', 'Encerrado']
 
 function moeda(v: number) {
   return v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
-}
-function fmt(d: string) {
-  return new Date(d).toLocaleDateString('pt-BR')
 }
 
 const BLANK: NotaEmpenhoPayload = {
@@ -156,7 +154,7 @@ export default function NotasEmpenho() {
       key: 'clienteId', header: 'Cliente',
       render: (r: NotaEmpenho) => typeof r.clienteId === 'object' ? r.clienteId.nome : r.clienteId
     },
-    { key: 'dataEmissao', header: 'Emissão', render: (r: NotaEmpenho) => fmt(r.dataEmissao) },
+    { key: 'dataEmissao', header: 'Emissão', render: (r: NotaEmpenho) => fmtDate(r.dataEmissao) },
     { key: 'valor', header: 'Valor', render: (r: NotaEmpenho) => moeda(r.valor) },
     {
       key: 'saldo', header: 'Saldo',
@@ -236,8 +234,8 @@ export default function NotasEmpenho() {
               {detalhe.contratoId && typeof detalhe.contratoId === 'object' && (
                 <><dt>Contrato</dt><dd>{detalhe.contratoId.numero}</dd></>
               )}
-              <dt>Emissão</dt><dd>{fmt(detalhe.dataEmissao)}</dd>
-              {detalhe.dataVencimento && <><dt>Vencimento</dt><dd>{fmt(detalhe.dataVencimento)}</dd></>}
+              <dt>Emissão</dt><dd>{fmtDate(detalhe.dataEmissao)}</dd>
+              {detalhe.dataVencimento && <><dt>Vencimento</dt><dd>{fmtDate(detalhe.dataVencimento)}</dd></>}
               <dt>Valor total</dt><dd><strong>{moeda(detalhe.valor)}</strong></dd>
               <dt>Utilizado</dt><dd>{moeda(detalhe.valorUtilizado)}</dd>
               <dt>Saldo</dt>

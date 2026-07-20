@@ -7,6 +7,7 @@ import Modal from '../components/Modal'
 import { usuarios as api } from '../api'
 import type { User, Role } from '../types'
 import { email as validateEmail, required, minLength, hasErrors, type FieldErrors } from '../utils/validate'
+import { fmtDate } from '../utils/fmt'
 import styles from './Page.module.css'
 
 const ROLES: Role[] = ['admin', 'operador', 'financeiro', 'cliente']
@@ -101,7 +102,7 @@ export default function Usuarios() {
     { key: 'email', header: 'E-mail' },
     { key: 'role', header: 'Perfil', render: (r: User) => <Badge label={ROLE_LABELS[r.role]} variant={ROLE_VARIANTS[r.role]} /> },
     { key: 'ativo', header: 'Status', render: (r: User) => <Badge label={r.ativo ? 'Ativo' : 'Inativo'} variant={r.ativo ? 'success' : 'default'} /> },
-    { key: 'createdAt', header: 'Criado em', render: (r: User) => new Date(r.createdAt).toLocaleDateString('pt-BR') },
+    { key: 'createdAt', header: 'Criado em', render: (r: User) => fmtDate(r.createdAt) },
     {
       key: '_actions', header: '', width: '120px',
       render: (r: User) => (

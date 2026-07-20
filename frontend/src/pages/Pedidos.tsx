@@ -17,6 +17,7 @@ import type {
 } from '../types'
 import { required, selectRequired, hasErrors } from '../utils/validate'
 import styles from './Page.module.css'
+import { fmtDate } from '../utils/fmt'
 
 // ─── tipos ICP ──────────────────────────────────────────────────────────────
 interface PedidoICP {
@@ -70,11 +71,6 @@ const DCV_OPTIONS = ['HTTP-01', 'DNS-01', 'Email'] as const
 
 function moeda(v: number) {
   return v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
-}
-
-function fmtDate(d?: string) {
-  if (!d) return '—'
-  return new Date(d).toLocaleDateString('pt-BR')
 }
 
 function isVencendoEm30(d?: string) {

@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { cupons as cuponsApi, produtos as produtosApi, clientes as clientesApi } from '../api'
 import type { Cupom, CupomPayload, TipoDesconto, Produto, Cliente } from '../types'
 import styles from './Cupons.module.css'
+import { fmtDate } from '../utils/fmt'
 
 const EMPTY_FORM: CupomPayload = {
   codigo: '',
@@ -16,11 +17,6 @@ const EMPTY_FORM: CupomPayload = {
   produtoIds: [],
   clienteIds: [],
   ativo: true,
-}
-
-function formatDate(iso?: string) {
-  if (!iso) return '—'
-  return new Date(iso).toLocaleDateString('pt-BR')
 }
 
 function formatCurrency(v: number) {
@@ -223,7 +219,7 @@ export default function Cupons() {
                 <td>
                   {c.validoDe || c.validoAte ? (
                     <span className={styles.validade}>
-                      {c.validoDe ? formatDate(c.validoDe) : '—'} → {c.validoAte ? formatDate(c.validoAte) : '—'}
+                      {c.validoDe ? fmtDate(c.validoDe) : '—'} → {c.validoAte ? fmtDate(c.validoAte) : '—'}
                     </span>
                   ) : <span className={styles.muted}>Sem limite</span>}
                 </td>
@@ -439,8 +435,8 @@ export default function Cupons() {
                 <div className={styles.detailItem}>
                   <span className={styles.detailLabel}>Validade</span>
                   <span>
-                    {showDetail.validoDe ? formatDate(showDetail.validoDe) : 'Sem início'} →{' '}
-                    {showDetail.validoAte ? formatDate(showDetail.validoAte) : 'Sem fim'}
+                    {showDetail.validoDe ? fmtDate(showDetail.validoDe) : 'Sem início'} →{' '}
+                    {showDetail.validoAte ? fmtDate(showDetail.validoAte) : 'Sem fim'}
                   </span>
                 </div>
                 <div className={styles.detailItem}>
@@ -451,7 +447,7 @@ export default function Cupons() {
                 </div>
                 <div className={styles.detailItem}>
                   <span className={styles.detailLabel}>Criado em</span>
-                  <span>{formatDate(showDetail.createdAt)}</span>
+                  <span>{fmtDate(showDetail.createdAt)}</span>
                 </div>
                 {showDetail.descricao && (
                   <div className={`${styles.detailItem} ${styles.fullWidth}`}>

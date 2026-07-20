@@ -9,14 +9,12 @@ import { parceiros as parceiroApi } from '../api'
 import type { MovimentoCreditoRevenda, Pedido, RegraCobrancaRevenda, RelatorioRevenda as RelatorioRevendaType } from '../types'
 import { useAuth } from '../context/AuthContext'
 import styles from './Page.module.css'
+import { fmtDate } from '../utils/fmt'
 
 type Aba = 'visao-geral' | 'carteira' | 'pedidos' | 'relatorio'
 
 function moeda(v: number) {
   return v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
-}
-function fmt(d: string) {
-  return new Date(d).toLocaleDateString('pt-BR')
 }
 function badgeTipoCredito(tipo: MovimentoCreditoRevenda['tipo']): 'success' | 'danger' | 'info' | 'default' {
   if (tipo === 'Aporte') return 'success'
@@ -116,7 +114,7 @@ export default function PortalRevenda() {
   const valorAFaturar = pedidosAFaturar.reduce((s, p) => s + (p.cobrancaRevenda?.valorCobrado ?? 0), 0)
 
   const colsCreditos = [
-    { key: 'createdAt', header: 'Data', render: (r: MovimentoCreditoRevenda) => fmt(r.createdAt) },
+    { key: 'createdAt', header: 'Data', render: (r: MovimentoCreditoRevenda) => fmtDate(r.createdAt) },
     { key: 'tipo', header: 'Tipo', render: (r: MovimentoCreditoRevenda) => <Badge label={r.tipo} variant={badgeTipoCredito(r.tipo)} /> },
     { key: 'descricao', header: 'Descrição', render: (r: MovimentoCreditoRevenda) => <span style={{ fontSize: '0.82rem' }}>{r.descricao}</span> },
     { key: 'saldoAnterior', header: 'Saldo anterior', render: (r: MovimentoCreditoRevenda) => <span style={{ color: '#64748b' }}>{moeda(r.saldoAnterior)}</span> },
@@ -143,7 +141,7 @@ export default function PortalRevenda() {
         ? <Badge label={p.cobrancaRevenda.situacao} variant={badgeCobranca(p.cobrancaRevenda.situacao)} />
         : <span style={{ color: '#94a3b8', fontSize: '0.8rem' }}>—</span>,
     },
-    { key: 'createdAt', header: 'Data', render: (p: Pedido) => fmt(p.createdAt) },
+    { key: 'createdAt', header: 'Data', render: (p: Pedido) => fmtDate(p.createdAt) },
   ]
 
   return (
@@ -231,7 +229,7 @@ export default function PortalRevenda() {
                     <strong style={{ color: m.valor >= 0 ? '#15803d' : '#b91c1c', fontSize: '0.875rem' }}>
                       {m.valor >= 0 ? '+' : ''}{moeda(m.valor)}
                     </strong>
-                    <div style={{ fontSize: '0.72rem', color: '#94a3b8' }}>{fmt(m.createdAt)}</div>
+                    <div style={{ fontSize: '0.72rem', color: '#94a3b8' }}>{fmtDate(m.createdAt)}</div>
                   </div>
                 </div>
               ))}

@@ -17,6 +17,7 @@ import {
   hasErrors,
   type FieldErrors,
 } from '../utils/validate'
+import { fmtDate, fmtDateTime } from '../utils/fmt'
 import styles from './ClienteDetalhe.module.css'
 
 // ── Types ──────────────────────────────────────────────────
@@ -38,16 +39,6 @@ function validate(f: ClientePayload): Errs {
     email: validateEmail(f.email),
     documento: validateDoc(f.documento),
   }
-}
-
-function fmtDate(iso?: string) {
-  if (!iso) return '—'
-  return new Date(iso).toLocaleDateString('pt-BR')
-}
-
-function fmtDateTime(iso?: string) {
-  if (!iso) return '—'
-  return new Date(iso).toLocaleString('pt-BR')
 }
 
 function fmtMoney(v?: number) {

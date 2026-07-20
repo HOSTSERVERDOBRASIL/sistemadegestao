@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef, ChangeEvent, DragEvent } from 'react'
 import { useParams } from 'react-router-dom'
 import AtlasLogo from '../components/AtlasLogo'
+import { fmtDate, fmtDateTime } from '../utils/fmt'
 
 // ─── Interfaces ──────────────────────────────────────────────────────────────
 
@@ -332,21 +333,6 @@ const s = {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function formatDate(iso: string) {
-  if (!iso) return '—'
-  const d = new Date(iso)
-  return d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' })
-}
-
-function formatDateTime(iso: string) {
-  if (!iso) return '—'
-  const d = new Date(iso)
-  return d.toLocaleString('pt-BR', {
-    day: '2-digit', month: '2-digit', year: 'numeric',
-    hour: '2-digit', minute: '2-digit',
-  })
-}
-
 function formatBytes(bytes: number) {
   if (bytes < 1024) return `${bytes} B`
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
@@ -604,7 +590,7 @@ export default function Portal() {
                     {!isLast && <div style={s.line} />}
                   </div>
                   <div style={s.timelineContent(isLast)}>
-                    <div style={s.timelineDate}>{formatDateTime(ev.data)}</div>
+                    <div style={s.timelineDate}>{fmtDateTime(ev.data)}</div>
                     {ev.etapa && (
                       <div style={s.timelineLabel(isLast)}>{ev.etapa}</div>
                     )}
@@ -657,7 +643,7 @@ export default function Portal() {
                 <div style={{ fontSize: 13, fontWeight: 600, color: '#334155' }}>
                   {sub.tipo ?? 'Documento'}
                   <span style={{ fontWeight: 400, color: '#94a3b8', marginLeft: 8 }}>
-                    {formatDate(sub.createdAt)}
+                    {fmtDate(sub.createdAt)}
                   </span>
                 </div>
                 {sub.observacao && (
@@ -786,7 +772,7 @@ export default function Portal() {
             Aceite confirmado
           </div>
           <div style={{ fontSize: 14, color: '#64748b' }}>
-            Pedido <strong>{pedido.numero}</strong> aceito em {new Date().toLocaleString('pt-BR')}.
+            Pedido <strong>{pedido.numero}</strong> aceito em {fmtDateTime(new Date())}.
           </div>
         </div>
       ) : (
@@ -864,7 +850,7 @@ export default function Portal() {
             </span>
           </div>
           <div style={s.expiry}>
-            Acesso expira em {formatDateTime(tokenInfo.expiresAt)}
+            Acesso expira em {fmtDateTime(tokenInfo.expiresAt)}
           </div>
         </div>
 

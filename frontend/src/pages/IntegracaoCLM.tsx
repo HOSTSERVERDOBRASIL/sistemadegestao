@@ -4,8 +4,7 @@ import Badge from '../components/Badge'
 import { clm as api } from '../api'
 import type { ClmEvent } from '../types'
 import styles from './Page.module.css'
-
-function fmt(d: string) { return new Date(d).toLocaleString('pt-BR') }
+import { fmtDateTime } from '../utils/fmt'
 
 const STATUS_VARIANT: Record<string, 'success' | 'warning' | 'danger' | 'default' | 'info'> = {
   processed: 'success',
@@ -118,7 +117,7 @@ export default function IntegracaoCLM() {
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontWeight: 600, fontSize: '0.85rem' }}>{ev.type}</div>
                 <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: 2 }}>
-                  {fmt(ev.createdAt)}
+                  {fmtDateTime(ev.createdAt)}
                   {ev.retries > 0 && ` · ${ev.retries} retentativa(s)`}
                 </div>
                 {ev.error && (

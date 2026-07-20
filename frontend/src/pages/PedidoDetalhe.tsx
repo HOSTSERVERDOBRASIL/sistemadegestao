@@ -7,6 +7,7 @@ import { pedidos as api, uploads, cobrancas as cobrancasApi, tiny as tinyApi } f
 import type { Pedido, EtapaOperacional, Cobranca, EvidenciaTipo } from '../types'
 import { useAuth } from '../context/AuthContext'
 import styles from './PedidoDetalhe.module.css'
+import { fmtDateTime } from '../utils/fmt'
 
 const ETAPAS: EtapaOperacional[] = ['Pedido', 'Pagamento', 'Validacao', 'Preparacao', 'Processamento', 'Entrega', 'Conclusao']
 
@@ -37,9 +38,6 @@ function moeda(v: number) {
   return v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
 }
 
-function fmt(d: string) {
-  return new Date(d).toLocaleString('pt-BR')
-}
 
 export default function PedidoDetalhe() {
   const { id } = useParams<{ id: string }>()
@@ -384,7 +382,7 @@ export default function PedidoDetalhe() {
     <div className={styles.page}>
       <PageHeader
         title={`Pedido ${pedido.numero}`}
-        subtitle={`Criado em ${fmt(pedido.createdAt)}`}
+        subtitle={`Criado em ${fmtDateTime(pedido.createdAt)}`}
         action={
           <div className={styles.actions}>
             <button className={styles.btnSecondary} onClick={() => navigate(-1)}>← Voltar</button>
@@ -482,7 +480,7 @@ export default function PedidoDetalhe() {
             )}
             <dt>NF</dt><dd><Badge label={pedido.nfEmitida ? 'Emitida' : 'Pendente'} /></dd>
             <dt>Saldo</dt><dd><Badge label={pedido.saldoStatus ?? 'Reservado'} variant={pedido.saldoStatus === 'Confirmado' ? 'success' : pedido.saldoStatus === 'Estornado' ? 'danger' : 'warning'} /></dd>
-            {pedido.protocolo && <><dt>Protocolo CLM</dt><dd><strong>{pedido.protocolo}</strong>{pedido.protocoloConfirmadoEm && <><br /><small>{fmt(pedido.protocoloConfirmadoEm)}</small></>}</dd></>}
+            {pedido.protocolo && <><dt>Protocolo CLM</dt><dd><strong>{pedido.protocolo}</strong>{pedido.protocoloConfirmadoEm && <><br /><small>{fmtDateTime(pedido.protocoloConfirmadoEm)}</small></>}</dd></>}
           </dl>
         </div>
 
@@ -514,7 +512,7 @@ export default function PedidoDetalhe() {
               <dt>Executado</dt><dd>{pedido.clm.quantidadeExecutada ?? 0} unidade(s)</dd>
               <dt>Elegível para faturar</dt><dd>{pedido.clm.quantidadeFaturavel ?? 0} unidade(s)</dd>
               {pedido.clm.ultimoEvento && <><dt>Último evento</dt><dd>{pedido.clm.ultimoEvento}</dd></>}
-              {pedido.clm.atualizadoEm && <><dt>Atualizado</dt><dd>{fmt(pedido.clm.atualizadoEm)}</dd></>}
+              {pedido.clm.atualizadoEm && <><dt>Atualizado</dt><dd>{fmtDateTime(pedido.clm.atualizadoEm)}</dd></>}
             </dl>
             {pedido.itens.some(item => (item.quantidadeExecutada ?? 0) > 0) && <div style={{ marginTop: 14 }}>
               {pedido.itens.map(item => <div key={item._id ?? item.codigo} style={{ display: 'flex', justifyContent: 'space-between', padding: '7px 0', borderTop: '1px solid #e2e8f0', fontSize: '0.82rem' }}>
@@ -630,7 +628,7 @@ export default function PedidoDetalhe() {
                   <div key={i} className={styles.historicoItem}>
                     <div className={styles.historicoEtapa}><Badge label={h.etapa} variant="info" /></div>
                     <div className={styles.historicoMeta}>
-                      <span className={styles.historicoData}>{fmt(h.data)}</span>
+                      <span className={styles.historicoData}>{fmtDateTime(h.data)}</span>
                       {usuario && <span className={styles.historicoObs} style={{ color: '#64748b' }}>por {usuario}</span>}
                       {h.observacao && <span className={styles.historicoObs}>{h.observacao}</span>}
                     </div>
@@ -658,7 +656,7 @@ export default function PedidoDetalhe() {
                     <Badge label={c.status === 'CONCLUIDA' ? 'Pago' : c.status === 'ATIVA' ? 'Aguardando' : 'Cancelado'}
                       variant={c.status === 'CONCLUIDA' ? 'success' : c.status === 'ATIVA' ? 'warning' : 'danger'} />
                   </span>
-                  {c.pagoEm && <span className={styles.historicoObs} style={{ color: '#15803d' }}>Pago em {fmt(c.pagoEm)}</span>}
+                  {c.pagoEm && <span className={styles.historicoObs} style={{ color: '#15803d' }}>Pago em {fmtDateTime(c.pagoEm)}</span>}
                 </div>
               </div>
             ))}
@@ -871,7 +869,7 @@ export default function PedidoDetalhe() {
                       <Badge label={ev.tipo} variant="info" />
                       <span style={{ fontSize: '0.82rem', fontWeight: 500 }}>{ev.arquivoNome ?? 'Sem arquivo'}</span>
                       {ev.origem && <span style={{ fontSize: '0.75rem', color: '#64748b' }}>via {ev.origem}</span>}
-                      <span style={{ fontSize: '0.72rem', color: '#94a3b8' }}>{new Date(ev.dataRegistro).toLocaleString('pt-BR')}</span>
+                      <span style={{ fontSize: '0.72rem', color: '#94a3b8' }}>{fmtDateTime(ev.dataRegistro)}</span>
                     </div>
                     <div style={{ display: 'flex', gap: 6 }}>
                       {fileUrl && (
@@ -950,12 +948,12 @@ export default function PedidoDetalhe() {
                     <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>{t.clienteEmail}</div>
                   </td>
                   <td style={{ padding: '8px 12px', color: '#64748b', whiteSpace: 'nowrap', fontSize: '0.8rem' }}>
-                    {new Date(t.expiresAt).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })}
+                    {fmtDateTime(t.expiresAt)}
                   </td>
                   <td style={{ padding: '8px 12px', textAlign: 'center', color: '#64748b' }}>{t.acessos}</td>
                   <td style={{ padding: '8px 12px', textAlign: 'center' }}>
                     {t.emailEnviado
-                      ? <span title={`Enviado em ${t.emailEnviadoEm ? new Date(t.emailEnviadoEm).toLocaleString('pt-BR') : ''}`} style={{ color: '#16a34a' }}>✓</span>
+                      ? <span title={`Enviado em ${t.emailEnviadoEm ? fmtDateTime(t.emailEnviadoEm) : ''}`} style={{ color: '#16a34a' }}>✓</span>
                       : <span style={{ color: '#94a3b8' }}>—</span>}
                   </td>
                   <td style={{ padding: '8px 12px' }}>
@@ -994,7 +992,7 @@ export default function PedidoDetalhe() {
                 Copiar Link
               </button>
               <p style={{ fontSize: '0.78rem', color: '#94a3b8', marginTop: 8 }}>
-                Expira em {new Date(tokenCriado.expiresAt).toLocaleString('pt-BR', { dateStyle: 'long', timeStyle: 'short' })}
+                Expira em {fmtDateTime(tokenCriado.expiresAt)}
               </p>
               <div style={{ display: 'flex', justifyContent: 'center', gap: 8, marginTop: 16 }}>
                 <button className={styles.btnSecondary} onClick={() => setShowPortalModal(false)}>Fechar</button>

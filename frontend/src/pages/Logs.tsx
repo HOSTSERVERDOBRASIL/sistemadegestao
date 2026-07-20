@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
+import { fmtDateTime } from '../utils/fmt'
 import PageHeader from '../components/PageHeader'
 import Pagination from '../components/Pagination'
 import Badge from '../components/Badge'
@@ -14,9 +15,6 @@ function levelVariant(level: string): 'warning' | 'danger' | 'default' {
   return 'default'
 }
 
-function fmt(d: string) {
-  return new Date(d).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'medium' })
-}
 
 export default function Logs() {
   const [rows, setRows] = useState<LogEntry[]>([])
@@ -132,7 +130,7 @@ export default function Logs() {
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
                 <Badge label={row.level.toUpperCase()} variant={levelVariant(row.level)} />
-                <span style={{ fontSize: '0.75rem', color: '#64748b', flexShrink: 0 }}>{fmt(row.createdAt)}</span>
+                <span style={{ fontSize: '0.75rem', color: '#64748b', flexShrink: 0 }}>{fmtDateTime(row.createdAt)}</span>
                 {row.req && (
                   <span style={{ fontSize: '0.72rem', color: '#94a3b8', flexShrink: 0 }}>
                     {row.req.method} {row.req.url}

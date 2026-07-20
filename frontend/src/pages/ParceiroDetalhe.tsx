@@ -9,6 +9,7 @@ import { parceiros as api } from '../api'
 import type { Parceiro, ParceiroPayload, Pedido, MovimentoCreditoRevenda, RegraCobrancaRevenda, RelatorioRevenda as RelatorioRevendaType } from '../types'
 import { useAuth } from '../context/AuthContext'
 import { email as validateEmail, documento as validateDoc, required, hasErrors, type FieldErrors } from '../utils/validate'
+import { fmtDate } from '../utils/fmt'
 import styles from './Page.module.css'
 
 type Aba = 'dados' | 'carteira' | 'pedidos' | 'usuarios' | 'relatorio'
@@ -37,9 +38,6 @@ const BLANK_PARCEIRO: ParceiroPayload = {
 
 function moeda(v: number) {
   return v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
-}
-function fmt(d: string) {
-  return new Date(d).toLocaleDateString('pt-BR')
 }
 
 export default function ParceiroDetalhe() {
@@ -245,7 +243,7 @@ export default function ParceiroDetalhe() {
         : <span style={{ color: '#94a3b8', fontSize: '0.8rem' }}>—</span>
     },
     { key: 'status', header: 'Status', render: (r: Pedido) => <Badge label={r.status} /> },
-    { key: 'createdAt', header: 'Data', render: (r: Pedido) => fmt(r.createdAt) },
+    { key: 'createdAt', header: 'Data', render: (r: Pedido) => fmtDate(r.createdAt) },
   ]
 
   return (
@@ -345,7 +343,7 @@ export default function ParceiroDetalhe() {
                 <><dt style={{ color: '#64748b', fontWeight: 600 }}>Comissão</dt><dd style={{ margin: 0, color: '#6d28d9', fontWeight: 700 }}>{parceiro.comissaoPercentual}%</dd></>
               )}
               <dt style={{ color: '#64748b', fontWeight: 600 }}>Emissor NF</dt><dd style={{ margin: 0 }}><Badge label={parceiro.emissorNFPadrao} /></dd>
-              <dt style={{ color: '#64748b', fontWeight: 600 }}>Cadastro</dt><dd style={{ margin: 0, color: '#64748b' }}>{fmt(parceiro.createdAt)}</dd>
+              <dt style={{ color: '#64748b', fontWeight: 600 }}>Cadastro</dt><dd style={{ margin: 0, color: '#64748b' }}>{fmtDate(parceiro.createdAt)}</dd>
               {parceiro.observacoes && <><dt style={{ color: '#64748b', fontWeight: 600 }}>Obs.</dt><dd style={{ margin: 0, fontSize: '0.82rem', color: '#475569' }}>{parceiro.observacoes}</dd></>}
             </dl>
           </div>
@@ -479,7 +477,7 @@ export default function ParceiroDetalhe() {
                     : '—'
                   return (
                     <tr key={m._id} style={{ borderBottom: '1px solid var(--surface-border)', background: i % 2 === 0 ? 'transparent' : 'var(--surface-2, #fafbfc)' }}>
-                      <td style={{ padding: '10px 12px', color: '#475569', whiteSpace: 'nowrap' }}>{fmt(m.createdAt)}</td>
+                      <td style={{ padding: '10px 12px', color: '#475569', whiteSpace: 'nowrap' }}>{fmtDate(m.createdAt)}</td>
                       <td style={{ padding: '10px 12px' }}>
                         <span style={{
                           fontSize: '0.72rem', fontWeight: 700, padding: '2px 8px', borderRadius: 4,
@@ -614,7 +612,7 @@ export default function ParceiroDetalhe() {
                     <td style={{ padding: '10px 12px' }}>
                       <Badge label={u.ativo ? 'Ativo' : 'Inativo'} variant={u.ativo ? 'success' : 'default'} />
                     </td>
-                    <td style={{ padding: '10px 12px', color: '#64748b', fontSize: '0.8rem' }}>{fmt(u.createdAt)}</td>
+                    <td style={{ padding: '10px 12px', color: '#64748b', fontSize: '0.8rem' }}>{fmtDate(u.createdAt)}</td>
                   </tr>
                 ))}
               </tbody>

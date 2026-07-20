@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from 'react'
+import { fmtDate } from '../utils/fmt'
 import PageHeader from '../components/PageHeader'
 import Table from '../components/Table'
 import Badge from '../components/Badge'
@@ -10,7 +11,6 @@ import styles from './Page.module.css'
 import cStyles from './Conciliacao.module.css'
 
 function moeda(v: number) { return v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) }
-function fmtData(d?: string) { if (!d) return '—'; return new Date(d).toLocaleDateString('pt-BR') }
 
 const STATUS_BADGE: Record<string, { label: string; variant: 'success' | 'warning' | 'danger' | 'default' | 'info' }> = {
   pendente:    { label: 'Pendente',    variant: 'warning' },
@@ -201,7 +201,7 @@ export default function Conciliacao() {
           variant={r.tipo === 'credito' ? 'success' : 'danger'} />
       ),
     },
-    { key: 'data',     header: 'Data',      render: (r: LancamentoBancario) => fmtData(r.data) },
+    { key: 'data',     header: 'Data',      render: (r: LancamentoBancario) => fmtDate(r.data) },
     { key: 'descricao',header: 'Descrição', render: (r: LancamentoBancario) => (
         <span title={r.descricao} className={cStyles.descCell}>{r.descricao}</span>
       )
@@ -359,7 +359,7 @@ export default function Conciliacao() {
             {resumo.lotes.map(l => (
               <div key={l._id} className={cStyles.resumoRow}>
                 <span className={cStyles.bancoBadge} style={{ borderColor: BANCO_COR[l.banco] ?? '#94a3b8' }}>{l.banco}</span>
-                <span style={{ color: '#64748b', fontSize: '0.8rem' }}>{fmtData(l.createdAt)}</span>
+                <span style={{ color: '#64748b', fontSize: '0.8rem' }}>{fmtDate(l.createdAt)}</span>
                 <span>{l.totalLancamentos} lançamentos</span>
                 {l.arquivoNome && <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>{l.arquivoNome}</span>}
               </div>
@@ -490,7 +490,7 @@ export default function Conciliacao() {
             <div className={cStyles.conciliarInfo}>
               <div><span>Banco</span><strong>{modalConciliar.banco}</strong></div>
               <div><span>Valor</span><strong style={{ color: '#15803d' }}>{moeda(modalConciliar.valor)}</strong></div>
-              <div><span>Data</span><strong>{fmtData(modalConciliar.data)}</strong></div>
+              <div><span>Data</span><strong>{fmtDate(modalConciliar.data)}</strong></div>
               <div><span>Descrição</span><span style={{ fontSize: '0.85rem' }}>{modalConciliar.descricao}</span></div>
             </div>
             <label>Comprovante de pagamento (PDF, JPG, PNG)

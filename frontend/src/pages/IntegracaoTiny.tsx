@@ -9,11 +9,7 @@ import type { TinySync, TinyStatus, Pedido } from '../types'
 import { useAuth } from '../context/AuthContext'
 import styles from './Page.module.css'
 import tStyles from './IntegracaoTiny.module.css'
-
-function fmt(d?: string) {
-  if (!d) return '—'
-  return new Date(d).toLocaleString('pt-BR')
-}
+import { fmtDateTime } from '../utils/fmt'
 
 const STATUS_VARIANT: Record<string, 'success' | 'danger' | 'warning'> = {
   sincronizado: 'success',
@@ -107,7 +103,7 @@ export default function IntegracaoTiny() {
       key: 'status', header: 'Status',
       render: (r: TinySync) => <Badge label={r.status} variant={STATUS_VARIANT[r.status] ?? 'default'} />
     },
-    { key: 'ultimaSync', header: 'Última Sync', render: (r: TinySync) => fmt(r.ultimaSync) },
+    { key: 'ultimaSync', header: 'Última Sync', render: (r: TinySync) => fmtDateTime(r.ultimaSync) },
     {
       key: 'erro', header: 'Erro',
       render: (r: TinySync) => r.erro

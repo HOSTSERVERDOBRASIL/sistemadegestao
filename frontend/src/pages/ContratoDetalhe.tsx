@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
+import { fmtDate } from '../utils/fmt'
 import PageHeader from '../components/PageHeader'
 import Badge from '../components/Badge'
 import Table from '../components/Table'
@@ -11,9 +12,6 @@ import pageStyles from './Page.module.css'
 
 function moeda(v: number) {
   return v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
-}
-function fmt(d: string) {
-  return new Date(d).toLocaleDateString('pt-BR')
 }
 
 const TIPO_COLOR: Record<string, string> = {
@@ -29,7 +27,7 @@ const TIPO_BG: Record<string, string> = {
   'Prorrogação':            '#ede9fe',
 }
 
-function ContratoHistorico({ contrato, moeda, fmt }: { contrato: Contrato; moeda: (v: number) => string; fmt: (d: string) => string }) {
+function ContratoHistorico({ contrato, moeda }: { contrato: Contrato; moeda: (v: number) => string }) {
   const aditivos = contrato.aditivos ?? []
 
   // Monta eventos ordenados por data
@@ -52,7 +50,7 @@ function ContratoHistorico({ contrato, moeda, fmt }: { contrato: Contrato; moeda
     tipo: 'original',
     data: contrato.dataInicio,
     label: 'Contrato Original',
-    subLabel: `Início: ${fmt(contrato.dataInicio)}`,
+    subLabel: `Início: ${fmtDate(contrato.dataInicio)}`,
     valorAcumulado: acumulado,
     vigenciaAte: vigenciaOriginal,
   })
@@ -83,7 +81,7 @@ function ContratoHistorico({ contrato, moeda, fmt }: { contrato: Contrato; moeda
     tipo: 'atual',
     data: '',
     label: contrato.ativo ? 'Vigente' : 'Encerrado',
-    subLabel: `Vigência até ${fmt(vigenciaFinal)}`,
+    subLabel: `Vigência até ${fmtDate(vigenciaFinal)}`,
     valorAcumulado: acumulado,
     vigenciaAte: vigenciaFinal,
   })
@@ -119,7 +117,7 @@ function ContratoHistorico({ contrato, moeda, fmt }: { contrato: Contrato; moeda
               {eventos.filter(e => e.tipo !== 'atual').map((ev, i) => (
                 <tr key={i} style={{ borderBottom: '1px solid var(--border, #f1f5f9)', background: i % 2 === 0 ? 'transparent' : 'var(--row-alt, #fafbfc)' }}>
                   <td style={{ padding: '10px 12px', color: '#475569', whiteSpace: 'nowrap' }}>
-                    {ev.data ? fmt(ev.data) : '—'}
+                    {ev.data ? fmtDate(ev.data) : '—'}
                   </td>
                   <td style={{ padding: '10px 12px' }}>
                     <strong style={{ fontSize: '0.85rem' }}>{ev.label}</strong>
@@ -168,9 +166,9 @@ function ContratoHistorico({ contrato, moeda, fmt }: { contrato: Contrato; moeda
                   </td>
                   <td style={{ padding: '10px 12px', color: '#475569', fontSize: '0.8rem', whiteSpace: 'nowrap' }}>
                     {ev.tipo === 'original'
-                      ? `até ${fmt(contrato.dataFim)}`
+                      ? `até ${fmtDate(contrato.dataFim)}`
                       : ev.vigenciaAte
-                        ? <span style={{ color: '#7c3aed', fontWeight: 600 }}>↗ até {fmt(ev.vigenciaAte)}</span>
+                        ? <span style={{ color: '#7c3aed', fontWeight: 600 }}>↗ até {fmtDate(ev.vigenciaAte)}</span>
                         : 'sem alteração'
                     }
                   </td>
@@ -184,7 +182,7 @@ function ContratoHistorico({ contrato, moeda, fmt }: { contrato: Contrato; moeda
                   {moeda(acumulado)}
                 </td>
                 <td style={{ padding: '10px 12px', fontSize: '0.8rem', color: '#475569' }}>
-                  até {fmt(vigenciaFinal)}
+                  até {fmtDate(vigenciaFinal)}
                 </td>
               </tr>
             </tfoot>
@@ -221,7 +219,7 @@ function ContratoHistorico({ contrato, moeda, fmt }: { contrato: Contrato; moeda
                       }}>{ev.tipoAditivo}</span>
                     )}
                     {ev.data && (
-                      <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>{fmt(ev.data)}</span>
+                      <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>{fmtDate(ev.data)}</span>
                     )}
                   </div>
                   {ev.motivo && (
@@ -239,7 +237,7 @@ function ContratoHistorico({ contrato, moeda, fmt }: { contrato: Contrato; moeda
                   )}
                   <div style={{ fontWeight: 700, fontSize: '0.85rem', color: '#1e293b' }}>{moeda(ev.valorAcumulado)}</div>
                   {ev.vigenciaAte && ev.tipo === 'aditivo' && (
-                    <div style={{ fontSize: '0.72rem', color: '#7c3aed' }}>vigência ↗ {fmt(ev.vigenciaAte)}</div>
+                    <div style={{ fontSize: '0.72rem', color: '#7c3aed' }}>vigência ↗ {fmtDate(ev.vigenciaAte)}</div>
                   )}
                 </div>
               </div>
@@ -367,7 +365,7 @@ export default function ContratoDetalhe() {
       }
     },
     { key: 'status', header: 'Status', render: (r: OrdemFornecimento) => <Badge label={r.status} /> },
-    { key: 'dataFim', header: 'Vigência', render: (r: OrdemFornecimento) => r.dataFim ? `até ${fmt(r.dataFim)}` : 'Sem limite próprio' },
+    { key: 'dataFim', header: 'Vigência', render: (r: OrdemFornecimento) => r.dataFim ? `até ${fmtDate(r.dataFim)}` : 'Sem limite próprio' },
   ]
 
   const pedidoColumns = [
@@ -386,7 +384,7 @@ export default function ContratoDetalhe() {
     <div className={pageStyles.page}>
       <PageHeader
         title={`Contrato ${contrato.numero}`}
-        subtitle={`${fmt(contrato.dataInicio)} até ${fmt(contrato.dataFim)}`}
+        subtitle={`${fmtDate(contrato.dataInicio)} até ${fmtDate(contrato.dataFim)}`}
         action={
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
             <button className={pageStyles.btnSecondary} onClick={() => navigate(-1)}>← Voltar</button>
@@ -452,7 +450,7 @@ export default function ContratoDetalhe() {
                 <div key={i} className={styles.versaoItem}>
                   <div className={styles.versaoNum}>v{v.numeroVersao}</div>
                   <div className={styles.versaoMeta}>
-                    <span>{fmt(v.data)}</span>
+                    <span>{fmtDate(v.data)}</span>
                     {v.arquivoUrl && (
                       <a href={v.arquivoUrl} target="_blank" rel="noreferrer" className={styles.versaoLink}>
                         Baixar arquivo ↗
@@ -466,7 +464,7 @@ export default function ContratoDetalhe() {
         </div>
       </div>
 
-      <ContratoHistorico contrato={contrato} moeda={moeda} fmt={fmt} />
+      <ContratoHistorico contrato={contrato} moeda={moeda} />
 
       {/* Ordens de Fornecimento */}
       {contrato.modalidade === 'Por Ordem de Fornecimento' && (

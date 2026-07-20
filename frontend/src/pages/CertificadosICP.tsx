@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from 'react'
+import { fmtDate } from '../utils/fmt'
 import PageHeader from '../components/PageHeader'
 import Table from '../components/Table'
 import Badge from '../components/Badge'
@@ -9,11 +10,6 @@ import type { CertificadoICP, Cliente } from '../types'
 import styles from './Page.module.css'
 
 const LIMIT = 20
-
-function fmtDate(d?: string) {
-  if (!d) return '—'
-  return new Date(d).toLocaleDateString('pt-BR')
-}
 
 function isVencendoEm30(d?: string) {
   if (!d) return false

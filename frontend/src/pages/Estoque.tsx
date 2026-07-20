@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from 'react'
+import { fmtDateTime } from '../utils/fmt'
 import PageHeader from '../components/PageHeader'
 import Table from '../components/Table'
 import Badge from '../components/Badge'
@@ -97,10 +98,6 @@ function moeda(v: number, currency = 'BRL') {
   return v.toLocaleString('pt-BR', { style: 'currency', currency })
 }
 
-function fmtDate(d?: string) {
-  if (!d) return '—'
-  return new Date(d).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })
-}
 
 function authHeader(): Record<string, string> {
   const token = localStorage.getItem('token')
@@ -446,7 +443,7 @@ export default function Estoque() {
   const movColumns = [
     {
       key: 'dataMovimento', header: 'Data',
-      render: (r: MovimentoEstoque) => <span style={{ fontSize: '0.8rem', whiteSpace: 'nowrap' }}>{fmtDate(r.dataMovimento)}</span>,
+      render: (r: MovimentoEstoque) => <span style={{ fontSize: '0.8rem', whiteSpace: 'nowrap' }}>{fmtDateTime(r.dataMovimento)}</span>,
     },
     {
       key: 'itemId', header: 'Item',
@@ -854,7 +851,7 @@ export default function Estoque() {
                 <tbody>
                   {histRows.map(r => (
                     <tr key={r._id} style={{ borderBottom: '1px solid var(--surface-border)' }}>
-                      <td style={{ padding: '8px 10px', whiteSpace: 'nowrap', color: '#475569' }}>{fmtDate(r.dataMovimento)}</td>
+                      <td style={{ padding: '8px 10px', whiteSpace: 'nowrap', color: '#475569' }}>{fmtDateTime(r.dataMovimento)}</td>
                       <td style={{ padding: '8px 10px' }}><Badge label={TIPO_LABEL[r.tipo] ?? r.tipo} variant={movBadgeVariant(r.tipo)} /></td>
                       <td style={{ padding: '8px 10px', fontWeight: 700, color: r.tipo.startsWith('entrada') ? '#16a34a' : '#dc2626' }}>
                         {r.tipo.startsWith('entrada') || r.tipo === 'cancelamento_reserva' ? '+' : '-'}{r.quantidade}

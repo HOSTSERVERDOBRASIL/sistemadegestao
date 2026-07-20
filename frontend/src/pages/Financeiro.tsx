@@ -9,12 +9,10 @@ import { financeiro as api, exportar, clientes as clientesApi } from '../api'
 import type { NotaFiscal } from '../types'
 import styles from './Page.module.css'
 import fStyles from './Financeiro.module.css'
+import { fmtDate } from '../utils/fmt'
 
 function moeda(v: number) {
   return v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
-}
-function fmt(d: string) {
-  return new Date(d).toLocaleDateString('pt-BR')
 }
 
 type StatusFixo = 'Emitida' | 'Pendente' | 'Cancelada'
@@ -175,7 +173,7 @@ export default function Financeiro({ statusFixo }: { statusFixo?: StatusFixo }) 
       }
     },
     { key: 'status', header: 'Status', render: (r: NotaFiscal) => <Badge label={r.status} /> },
-    { key: 'createdAt', header: 'Data', render: (r: NotaFiscal) => fmt(r.createdAt) },
+    { key: 'createdAt', header: 'Data', render: (r: NotaFiscal) => fmtDate(r.createdAt) },
     {
       key: 'situacaoTiny', header: 'SEFAZ',
       render: (r: NotaFiscal) => {
