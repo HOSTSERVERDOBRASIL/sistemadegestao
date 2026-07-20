@@ -30,6 +30,7 @@ import PortalRevenda from './pages/PortalRevenda'
 import EmitirNF from './pages/EmitirNF'
 import CertificadosICP from './pages/CertificadosICP'
 import DashboardNF from './pages/DashboardNF'
+import PedidosSSL from './pages/PedidosSSL'
 
 function PrivateRoute({ children, adminOnly = false, revendaOnly = false }: { children: React.ReactNode; adminOnly?: boolean; revendaOnly?: boolean }) {
   const { user, loading } = useAuth()
@@ -88,6 +89,7 @@ function AppRoutes() {
         <Route path="integracao-clm" element={<PrivateRoute adminOnly><IntegracaoCLM /></PrivateRoute>} />
         <Route path="portal-revenda" element={<PrivateRoute revendaOnly><PortalRevenda /></PrivateRoute>} />
         <Route path="certificados-icp" element={<CertificadosICP />} />
+        <Route path="pedidos-ssl" element={<PedidosSSL />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

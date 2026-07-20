@@ -139,6 +139,11 @@ export interface Cliente {
     jurisdictionState?: string
     jurisdictionCountry?: string
   }
+  licitacoes?: Licitacao[]
+  financeiroClm?: {
+    entrada?: MovimentoFinanceiro[]
+    saida?: MovimentoFinanceiro[]
+  }
   createdAt: string
 }
 
@@ -743,4 +748,65 @@ export interface CertificadoSSL {
   price?: string
   user?: { email: string; name: string; doc: string }
   createdAt: string
+}
+
+export interface Licitacao {
+  _id?: string
+  contrato: string
+  contratoNum?: string
+  descricao?: string
+  dataInit: string
+  dataFin: string
+  valorTotal?: number
+  produtos?: Array<{ produtoId?: string; nome: string; quantidade: number; valorUnitario?: number }>
+  status?: 'Ativo' | 'Encerrado' | 'Suspenso'
+}
+
+export interface MovimentoFinanceiro {
+  _id?: string
+  tipo: string
+  valor: number
+  data: string
+  descricao?: string
+  numeroPedido?: string
+  nomeUser?: string
+  arquivo?: string
+}
+
+// Pedidos SSL
+export interface PedidoSSL {
+  _id: string
+  numero: string
+  clienteId: string | { _id: string; nome: string; documento: string }
+  parceiroId?: string | { _id: string; nome: string }
+  tipo: 'DV' | 'OV' | 'EV' | 'Wildcard' | 'MultiDominio' | 'EV-MultiDominio'
+  fornecedor: string
+  prazoAnos: 1 | 2 | 3 | 4 | 5
+  dominioPrincipal: string
+  dominiosAdicionais?: string[]
+  wildcard?: boolean
+  metodoDCV?: 'HTTP-01' | 'DNS-01' | 'Email'
+  dcvStatus?: 'Pendente' | 'Verificado' | 'Falhou'
+  dcvToken?: string
+  dcvVerificadoEm?: string
+  status: 'Rascunho' | 'Aguardando DCV' | 'Em Validacao' | 'Processando' | 'Emitido' | 'Renovado' | 'Cancelado' | 'Expirado'
+  sectigoIdOrder?: string
+  chaveAcesso?: string
+  linkAcesso?: string
+  inicioValidade?: string
+  fimValidade?: string
+  valorCusto: number
+  valorVenda: number
+  pedidoOriginalId?: string
+  dadosValidacao?: {
+    razaoSocial?: string
+    cnpj?: string
+    enderecoValidado?: string
+    telefoneValidado?: string
+    responsavel?: string
+    cargoResponsavel?: string
+  }
+  observacoes?: string
+  createdAt: string
+  updatedAt?: string
 }

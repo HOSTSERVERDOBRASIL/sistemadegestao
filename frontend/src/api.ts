@@ -126,6 +126,14 @@ export const clientes = {
     paymentMethod?: string; formaAPagar?: string; dataPagamento?: number;
     dataFechamento?: number; limiteCredito?: number; statusCadastro?: string
   }) => patch<Cliente>(`/clientes/${id}/financeiro`, body),
+  licitacao: (id: string, body: { contrato: string; contratoNum?: string; descricao?: string; dataInit?: string; dataFin?: string; valorTotal?: number; status?: string }) =>
+    patch<Cliente>(`/clientes/${id}/licitacoes`, body),
+  removerLicitacao: (id: string, licitacaoId: string) =>
+    del<Cliente>(`/clientes/${id}/licitacoes/${licitacaoId}`),
+  movimentoFinanceiro: (id: string, fluxo: 'entrada' | 'saida', body: { tipo: string; valor: number; data: string; descricao?: string; numeroPedido?: string; nomeUser?: string }) =>
+    post<Cliente>(`/clientes/${id}/financeiro-clm/${fluxo}`, body),
+  removerMovimento: (id: string, fluxo: 'entrada' | 'saida', movId: string) =>
+    del<Cliente>(`/clientes/${id}/financeiro-clm/${fluxo}/${movId}`),
 }
 
 // Certificados ICP-Brasil
@@ -522,6 +530,22 @@ export const admin = {
     get<LogStats>(`/admin/logs/stats${qs({ horas: horas ?? 24 })}`),
   limparLogs: (diasAtras?: number) =>
     del<{ message: string; deletedCount: number }>(`/admin/logs${qs({ diasAtras: diasAtras ?? 7 })}`),
+}
+
+// Pedidos SSL
+import type { PedidoSSL } from './types'
+export const pedidosSSL = {
+  list: (p?: { clienteId?: string; status?: string; tipo?: string; dominio?: string; page?: number; limit?: number }) =>
+    get<Page<PedidoSSL>>(`/pedidos-ssl${qs({ page: 1, limit: 20, ...p })}`),
+  get: (id: string) => get<PedidoSSL>(`/pedidos-ssl/${id}`),
+  create: (body: Partial<PedidoSSL>) => post<PedidoSSL>('/pedidos-ssl', body),
+  update: (id: string, body: Partial<PedidoSSL>) => put<PedidoSSL>(`/pedidos-ssl/${id}`, body),
+  atualizarStatus: (id: string, body: { status: string; evento?: string; responsavel?: string; fimValidade?: string }) =>
+    patch<PedidoSSL>(`/pedidos-ssl/${id}/status`, body),
+  atualizarDominios: (id: string, body: { adicionar?: string; remover?: string; dominioPrincipal?: string }) =>
+    patch<PedidoSSL>(`/pedidos-ssl/${id}/dominios`, body),
+  remove: (id: string) => del<{ message: string }>(`/pedidos-ssl/${id}`),
+  vencendo: (dias?: number) => get<PedidoSSL[]>(`/pedidos-ssl/alertas/vencendo${qs({ dias: dias ?? 30 })}`),
 }
 
 import type { AuditoriaEntry } from './types'
