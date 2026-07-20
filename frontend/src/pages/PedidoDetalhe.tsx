@@ -264,8 +264,22 @@ export default function PedidoDetalhe() {
               />
             </label>
             {!pedido.nfEmitida && pedido.status !== 'Cancelado' && (
-              <button className={styles.btnSuccess} onClick={handleEmitirNF} disabled={emitindo}>
-                {emitindo ? 'Emitindo...' : '⚡ Emitir NF'}
+              <button
+                className={styles.btnSuccess}
+                onClick={handleEmitirNF}
+                disabled={emitindo}
+                style={
+                  (pedido.etapaOperacional === 'Entrega' || pedido.etapaOperacional === 'Conclusao')
+                    ? { outline: '2px solid #16a34a', outlineOffset: 2, fontWeight: 700 }
+                    : undefined
+                }
+                title={
+                  (pedido.etapaOperacional === 'Entrega' || pedido.etapaOperacional === 'Conclusao')
+                    ? 'Pedido entregue — pronto para emitir NF'
+                    : 'Emitir Nota Fiscal'
+                }
+              >
+                {emitindo ? 'Emitindo...' : (pedido.etapaOperacional === 'Entrega' || pedido.etapaOperacional === 'Conclusao') ? '⚡ Emitir NF ✓' : '⚡ Emitir NF'}
               </button>
             )}
             <button className={styles.btnSecondary} onClick={handleGerarPix} disabled={gerandoPix}>
