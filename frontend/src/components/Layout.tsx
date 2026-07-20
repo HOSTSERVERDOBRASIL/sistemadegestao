@@ -5,7 +5,7 @@ import {
   Receipt, FileStack, Zap, Scale, Tag, BarChart2,
   Link2, RefreshCw, UserCog, Settings, ScrollText, ShieldCheck,
   Sun, Moon, LogOut, Bell, Wallet, FilePlus, CheckCircle, Clock, XCircle,
-  ChevronRight, AlertTriangle, History, Activity,
+  ChevronRight, AlertTriangle,
 } from 'lucide-react'
 
 import { useAuth } from '../context/AuthContext'
@@ -49,17 +49,7 @@ const NAV_GROUPS: NavGroup[] = [
   {
     label: 'Operações',
     entries: [
-      {
-        label: 'Pedidos',
-        Icon: ClipboardList,
-        items: [
-          { to: '/pedidos',             label: 'Todos os Pedidos', Icon: ClipboardList },
-          { to: '/pedidos?aba=ssl',     label: 'Pedidos SSL',      Icon: ShieldCheck },
-          { to: '/pedidos/em-processo', label: 'Em Andamento',     Icon: Activity },
-          { to: '/pedidos/faturados',   label: 'Aguard. Entrega',  Icon: Clock },
-          { to: '/pedidos/concluidos',  label: 'Histórico',        Icon: History },
-        ],
-      },
+      { to: '/pedidos', label: 'Pedidos', Icon: ClipboardList },
       { to: '/produtos', label: 'Produtos', Icon: Package },
       { to: '/certificados-icp', label: 'Certificados ICP', Icon: ShieldCheck },
     ],

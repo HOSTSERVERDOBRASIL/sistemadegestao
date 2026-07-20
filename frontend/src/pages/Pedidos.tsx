@@ -91,11 +91,13 @@ export default function Pedidos({ statusFixo }: { statusFixo?: PedidoStatus }) {
   const navigate = useNavigate()
   const [params, setSearchParams] = useSearchParams()
   const abaParam = params.get('aba')
-  const [aba, setAba] = useState<'operacional' | 'ssl'>(abaParam === 'ssl' ? 'ssl' : 'operacional')
+  const [aba, setAba] = useState<'servicos' | 'internacional' | 'icp'>(
+    abaParam === 'internacional' ? 'internacional' : abaParam === 'icp' ? 'icp' : 'servicos'
+  )
 
-  function trocarAba(a: 'operacional' | 'ssl') {
+  function trocarAba(a: 'servicos' | 'internacional' | 'icp') {
     setAba(a)
-    setSearchParams(a === 'ssl' ? { aba: 'ssl' } : {}, { replace: true })
+    setSearchParams(a !== 'servicos' ? { aba: a } : {}, { replace: true })
   }
 
   // ── estado aba operacional ─────────────────────────────────────────────────
@@ -147,7 +149,7 @@ export default function Pedidos({ statusFixo }: { statusFixo?: PedidoStatus }) {
       .finally(() => setOpLoading(false))
   }, [opPage, opBusca, opFiltroStatus, opFiltroEtapa, opFiltroVinculo, opFiltroNF])
 
-  useEffect(() => { if (aba === 'operacional') loadOp() }, [aba, loadOp])
+  useEffect(() => { if (aba === 'servicos') loadOp() }, [aba, loadOp])
 
   useEffect(() => {
     if (!showOpModal) return
@@ -302,7 +304,7 @@ export default function Pedidos({ statusFixo }: { statusFixo?: PedidoStatus }) {
       .finally(() => setSslLoading(false))
   }, [sslPage, sslBusca, sslFiltroStatus, sslFiltroTipo])
 
-  useEffect(() => { if (aba === 'ssl') loadSsl() }, [aba, loadSsl])
+  useEffect(() => { if (aba === 'internacional') loadSsl() }, [aba, loadSsl])
 
   async function openSslCreate() {
     setSslForm({ fornecedor: 'Sectigo', prazoAnos: 1 }); setSslError('')
@@ -383,19 +385,20 @@ export default function Pedidos({ statusFixo }: { statusFixo?: PedidoStatus }) {
     <div className={styles.page}>
       {/* ── header + tabs ── */}
       <PageHeader
-        title={aba === 'ssl' ? 'Pedidos SSL' : titleLabel}
-        subtitle={aba === 'ssl' ? sslSubtitle : `${opTotal} registro(s)`}
+        title="Pedidos"
+        subtitle={aba === 'servicos' ? `${opTotal} registro(s)` : aba === 'internacional' ? sslSubtitle : `${opTotal} registro(s)`}
         action={
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
             <div style={{ display: 'flex', gap: 4, background: 'var(--surface-2, #f1f5f9)', borderRadius: 24, padding: 4 }}>
-              <button style={tabStyle(aba === 'operacional')} onClick={() => trocarAba('operacional')}>Operacionais</button>
-              <button style={tabStyle(aba === 'ssl')}         onClick={() => trocarAba('ssl')}>SSL</button>
+              <button style={tabStyle(aba === 'servicos')}       onClick={() => trocarAba('servicos')}>Serviços</button>
+              <button style={tabStyle(aba === 'internacional')}  onClick={() => trocarAba('internacional')}>Internacional</button>
+              <button style={tabStyle(aba === 'icp')}            onClick={() => trocarAba('icp')}>ICP-Brasil</button>
             </div>
-            {aba === 'operacional' && <>
+            {aba === 'servicos' && <>
               <button className={styles.btnSecondary} onClick={handleExportar} disabled={exportando}>{exportando ? 'Exportando...' : '⬇ CSV'}</button>
               <button className={styles.btnPrimary} onClick={() => { setOpForm(blankForm()); setOpErrors({}); setOpError(''); setShowOpModal(true) }}>+ Novo Pedido</button>
             </>}
-            {aba === 'ssl' && (
+            {aba === 'internacional' && (
               <button className={styles.btnPrimary} onClick={openSslCreate}>+ Novo Pedido SSL</button>
             )}
           </div>
@@ -403,7 +406,7 @@ export default function Pedidos({ statusFixo }: { statusFixo?: PedidoStatus }) {
       />
 
       {/* ══ ABA OPERACIONAL ══ */}
-      {aba === 'operacional' && <>
+      {aba === 'servicos' && <>
         <div className={styles.filters}>
           <input className={styles.search} placeholder="Buscar por número..." value={opBusca} onChange={e => { setOpBusca(e.target.value); setOpPage(1) }} />
           <div className={styles.filtersGrid}>
@@ -438,7 +441,7 @@ export default function Pedidos({ statusFixo }: { statusFixo?: PedidoStatus }) {
       </>}
 
       {/* ══ ABA SSL ══ */}
-      {aba === 'ssl' && <>
+      {aba === 'internacional' && <>
         <div className={styles.filters}>
           <input className={styles.search} placeholder="Buscar por domínio..." value={sslBusca} onChange={e => { setSslBusca(e.target.value); setSslPage(1) }} />
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
@@ -459,6 +462,15 @@ export default function Pedidos({ statusFixo }: { statusFixo?: PedidoStatus }) {
         <Table<PedidoSSL> columns={sslColumns} rows={sslRows} loading={sslLoading} empty="Nenhum pedido SSL encontrado" />
         <Pagination page={sslPage} total={sslTotal} limit={20} onChange={setSslPage} />
       </>}
+
+      {/* ══ ABA ICP-BRASIL ══ */}
+      {aba === 'icp' && (
+        <div style={{ padding: '40px 0', textAlign: 'center', color: 'var(--text-secondary)' }}>
+          <div style={{ fontSize: '2rem', marginBottom: 12 }}>🔐</div>
+          <div style={{ fontWeight: 600, marginBottom: 6 }}>Pedidos ICP-Brasil</div>
+          <div style={{ fontSize: '0.85rem' }}>Em breve — Identificação, Equipamento, Aplicação/InfoConv e Bancário</div>
+        </div>
+      )}
 
       {/* ══ MODAL — NOVO PEDIDO OPERACIONAL ══ */}
       {showOpModal && <Modal title="Novo Pedido" onClose={() => setShowOpModal(false)} size="lg">
