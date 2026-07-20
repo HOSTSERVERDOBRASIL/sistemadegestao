@@ -17,7 +17,45 @@ import type {
 } from '../types'
 import { required, selectRequired, hasErrors } from '../utils/validate'
 import styles from './Page.module.css'
-import { fmtDate } from '../utils/fmt'
+import { fmtDate, fmtCurrency } from '../utils/fmt'
+
+// ─── tipos Compras ──────────────────────────────────────────────────────────
+interface ItemPedidoCompra {
+  estoqueItemId: string
+  estoqueItemCodigo: string
+  estoqueItemNome: string
+  quantidade: number
+  quantidadeRecebida: number
+  custoUnitario: number
+  custoTotal: number
+}
+
+interface PedidoCompra {
+  _id: string
+  numero: string
+  fornecedor: string
+  fornecedorCnpj?: string
+  itens: ItemPedidoCompra[]
+  valorTotal: number
+  status: string
+  dataPrevisaoEntrega?: string
+  notaFiscalFornecedor?: string
+  observacoes?: string
+  responsavelNome?: string
+  historico: Array<{ data: string; status: string; observacao?: string; usuarioNome?: string }>
+  createdAt: string
+}
+
+interface EstoqueItemSimples {
+  _id: string
+  codigo: string
+  nome: string
+  tipo: string
+  fabricante?: string
+  custoUnitario: number
+  quantidadeAtual: number
+  quantidadeReservada: number
+}
 
 // ─── tipos ICP ──────────────────────────────────────────────────────────────
 interface PedidoICP {
@@ -131,11 +169,11 @@ export default function Pedidos({ statusFixo }: { statusFixo?: PedidoStatus }) {
   const navigate = useNavigate()
   const [params, setSearchParams] = useSearchParams()
   const abaParam = params.get('aba')
-  const [aba, setAba] = useState<'servicos' | 'internacional' | 'icp'>(
-    abaParam === 'internacional' ? 'internacional' : abaParam === 'icp' ? 'icp' : 'servicos'
+  const [aba, setAba] = useState<'servicos' | 'internacional' | 'icp' | 'compras'>(
+    abaParam === 'internacional' ? 'internacional' : abaParam === 'icp' ? 'icp' : abaParam === 'compras' ? 'compras' : 'servicos'
   )
 
-  function trocarAba(a: 'servicos' | 'internacional' | 'icp') {
+  function trocarAba(a: 'servicos' | 'internacional' | 'icp' | 'compras') {
     setAba(a)
     setSearchParams(a !== 'servicos' ? { aba: a } : {}, { replace: true })
   }
@@ -394,6 +432,158 @@ export default function Pedidos({ statusFixo }: { statusFixo?: PedidoStatus }) {
   const [erroICP, setErroICP] = useState('')
   const [avisoICP, setAvisoICP] = useState('')
 
+  // ── estado aba Compras ──────────────────────────────────────────────────────
+  const [pedidosCompra, setPedidosCompra] = useState<PedidoCompra[]>([])
+  const [totalCompra, setTotalCompra] = useState(0)
+  const [pageCompra, setPageCompra] = useState(1)
+  const [statusFiltroCompra, setStatusFiltroCompra] = useState('')
+  const [loadingCompra, setLoadingCompra] = useState(false)
+  const [showModalCompra, setShowModalCompra] = useState(false)
+  const [showReceberModal, setShowReceberModal] = useState(false)
+  const [selectedCompra, setSelectedCompra] = useState<PedidoCompra | null>(null)
+  const [itensEstoque, setItensEstoque] = useState<EstoqueItemSimples[]>([])
+  const [formCompra, setFormCompra] = useState({
+    fornecedor: '', fornecedorCnpj: '', dataPrevisaoEntrega: '', observacoes: '',
+    itens: [{ estoqueItemId: '', quantidade: 1, custoUnitario: '' }] as Array<{ estoqueItemId: string; quantidade: number; custoUnitario: string }>
+  })
+  const [savingCompra, setSavingCompra] = useState(false)
+  const [erroCompra, setErroCompra] = useState('')
+  // Modal recebimento
+  const [receberForm, setReceberForm] = useState({
+    notaFiscal: '', observacao: '',
+    itens: [] as Array<{ estoqueItemId: string; estoqueItemNome: string; quantidadePedida: number; quantidadeRecebida: number; quantidadeAReceber: number; numerosSerie: string }>
+  })
+  const [savingReceber, setSavingReceber] = useState(false)
+  const [erroReceber, setErroReceber] = useState('')
+
+  const loadPedidosCompra = useCallback(async () => {
+    setLoadingCompra(true)
+    try {
+      const params = new URLSearchParams({ page: String(pageCompra), limit: '20' })
+      if (statusFiltroCompra) params.set('status', statusFiltroCompra)
+      const res = await fetch(`/api/pedidos-compra?${params}`, { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } })
+      const json = await res.json()
+      setPedidosCompra(json.data ?? [])
+      setTotalCompra(json.total ?? 0)
+    } finally { setLoadingCompra(false) }
+  }, [pageCompra, statusFiltroCompra])
+
+  const loadItensEstoque = useCallback(async () => {
+    const res = await fetch('/api/estoque/items?status=Ativo&limit=200', { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } })
+    const json = await res.json()
+    setItensEstoque(json.data ?? [])
+  }, [])
+
+  useEffect(() => { if (aba === 'compras') loadPedidosCompra() }, [aba, loadPedidosCompra])
+  useEffect(() => { if (showModalCompra) loadItensEstoque() }, [showModalCompra, loadItensEstoque])
+
+  const handleSaveCompra = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setSavingCompra(true); setErroCompra('')
+    try {
+      const body = {
+        fornecedor: formCompra.fornecedor,
+        fornecedorCnpj: formCompra.fornecedorCnpj || undefined,
+        dataPrevisaoEntrega: formCompra.dataPrevisaoEntrega || undefined,
+        observacoes: formCompra.observacoes || undefined,
+        itens: formCompra.itens
+          .filter(i => i.estoqueItemId)
+          .map(i => ({ estoqueItemId: i.estoqueItemId, quantidade: Number(i.quantidade), custoUnitario: i.custoUnitario ? Number(i.custoUnitario) : undefined })),
+      }
+      if (body.itens.length === 0) { setErroCompra('Adicione ao menos um item'); setSavingCompra(false); return }
+      const res = await fetch('/api/pedidos-compra', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
+        body: JSON.stringify(body),
+      })
+      const json = await res.json()
+      if (!res.ok) { setErroCompra(json.message ?? 'Erro ao criar'); return }
+      setShowModalCompra(false)
+      setFormCompra({ fornecedor: '', fornecedorCnpj: '', dataPrevisaoEntrega: '', observacoes: '', itens: [{ estoqueItemId: '', quantidade: 1, custoUnitario: '' }] })
+      loadPedidosCompra()
+    } finally { setSavingCompra(false) }
+  }
+
+  function openReceberModal(pedido: PedidoCompra) {
+    setSelectedCompra(pedido)
+    setReceberForm({
+      notaFiscal: pedido.notaFiscalFornecedor ?? '',
+      observacao: '',
+      itens: pedido.itens.map(i => ({
+        estoqueItemId: i.estoqueItemId,
+        estoqueItemNome: i.estoqueItemNome,
+        quantidadePedida: i.quantidade,
+        quantidadeRecebida: i.quantidadeRecebida,
+        quantidadeAReceber: i.quantidade - i.quantidadeRecebida,
+        numerosSerie: '',
+      })),
+    })
+    setErroReceber('')
+    setShowReceberModal(true)
+  }
+
+  const handleReceber = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!selectedCompra) return
+    setSavingReceber(true); setErroReceber('')
+    try {
+      const body = {
+        notaFiscalFornecedor: receberForm.notaFiscal || undefined,
+        observacao: receberForm.observacao || undefined,
+        itensRecebidos: receberForm.itens
+          .filter(i => i.quantidadeAReceber > 0)
+          .map(i => ({
+            estoqueItemId: i.estoqueItemId,
+            quantidadeRecebida: i.quantidadeAReceber,
+            numerosSerie: i.numerosSerie ? i.numerosSerie.split('\n').map(s => s.trim()).filter(Boolean) : undefined,
+          })),
+      }
+      if (body.itensRecebidos.length === 0) { setErroReceber('Informe ao menos uma quantidade a receber'); setSavingReceber(false); return }
+      const res = await fetch(`/api/pedidos-compra/${selectedCompra._id}/receber`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
+        body: JSON.stringify(body),
+      })
+      const json = await res.json()
+      if (!res.ok) { setErroReceber(json.message ?? 'Erro ao registrar recebimento'); return }
+      setShowReceberModal(false)
+      loadPedidosCompra()
+    } finally { setSavingReceber(false) }
+  }
+
+  const handleStatusCompra = async (pedido: PedidoCompra, novoStatus: string) => {
+    if (!confirm(`Confirmar: ${novoStatus}?`)) return
+    await fetch(`/api/pedidos-compra/${pedido._id}/status`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
+      body: JSON.stringify({ status: novoStatus }),
+    })
+    loadPedidosCompra()
+  }
+
+  function proximosStatusCompra(atual: string): string[] {
+    const mapa: Record<string, string[]> = {
+      'Rascunho': ['Aguardando Aprovação'],
+      'Aguardando Aprovação': ['Aprovado'],
+      'Aprovado': ['Pedido Enviado'],
+      'Pedido Enviado': [],
+      'Parcialmente Recebido': [],
+    }
+    const proximos = mapa[atual] ?? []
+    if (atual !== 'Recebido' && atual !== 'Cancelado') proximos.push('Cancelado')
+    return proximos
+  }
+
+  function compraStatusVariant(s: string): TipoBadge {
+    switch (s) {
+      case 'Recebido': return 'success'
+      case 'Cancelado': return 'danger'
+      case 'Aprovado': return 'info'
+      case 'Parcialmente Recebido': return 'warning'
+      default: return 'default'
+    }
+  }
+
   const loadPedidosICP = useCallback(async () => {
     setLoadingICP(true)
     try {
@@ -560,13 +750,14 @@ export default function Pedidos({ statusFixo }: { statusFixo?: PedidoStatus }) {
       {/* ── header + tabs ── */}
       <PageHeader
         title="Pedidos"
-        subtitle={aba === 'servicos' ? `${opTotal} registro(s)` : aba === 'internacional' ? sslSubtitle : `${totalICP} registro(s)`}
+        subtitle={aba === 'servicos' ? `${opTotal} registro(s)` : aba === 'internacional' ? sslSubtitle : aba === 'compras' ? `${totalCompra} registro(s)` : `${totalICP} registro(s)`}
         action={
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
             <div style={{ display: 'flex', gap: 4, background: 'var(--surface-2, #f1f5f9)', borderRadius: 24, padding: 4 }}>
               <button style={tabStyle(aba === 'servicos')}       onClick={() => trocarAba('servicos')}>Serviços</button>
               <button style={tabStyle(aba === 'internacional')}  onClick={() => trocarAba('internacional')}>Internacional</button>
               <button style={tabStyle(aba === 'icp')}            onClick={() => trocarAba('icp')}>ICP-Brasil</button>
+              <button style={tabStyle(aba === 'compras')}        onClick={() => trocarAba('compras')}>Compras</button>
             </div>
             {aba === 'servicos' && <>
               <button className={styles.btnSecondary} onClick={handleExportar} disabled={exportando}>{exportando ? 'Exportando...' : '⬇ CSV'}</button>
@@ -577,6 +768,9 @@ export default function Pedidos({ statusFixo }: { statusFixo?: PedidoStatus }) {
             )}
             {aba === 'icp' && (
               <button className={styles.btnPrimary} onClick={() => { setFormICP({ clienteId: '', clienteNome: '', tipoCert: 'e-CPF A3', midia: 'A3-Token', prazoAnos: 1, quantidade: 1, titularNome: '', titularCpfCnpj: '', titularEmail: '', titularTelefone: '', estoqueItemId: '', numeroSerie: '', valorUnitario: '', valorTotal: '', observacoes: '' }); setErroICP(''); setAvisoICP(''); setShowModalICP(true) }}>+ Novo Pedido ICP</button>
+            )}
+            {aba === 'compras' && (
+              <button className={styles.btnPrimary} onClick={() => setShowModalCompra(true)}>+ Nova Compra</button>
             )}
           </div>
         }
@@ -904,6 +1098,194 @@ export default function Pedidos({ statusFixo }: { statusFixo?: PedidoStatus }) {
             </div>
           )}
         </div>
+      </Modal>}
+
+      {/* ══ ABA COMPRAS ══ */}
+      {aba === 'compras' && <>
+        <div className={styles.filters}>
+          <select value={statusFiltroCompra} onChange={e => { setStatusFiltroCompra(e.target.value); setPageCompra(1) }}>
+            <option value="">Todos os status</option>
+            {['Rascunho', 'Aguardando Aprovação', 'Aprovado', 'Pedido Enviado', 'Parcialmente Recebido', 'Recebido', 'Cancelado'].map(s => <option key={s}>{s}</option>)}
+          </select>
+        </div>
+
+        {loadingCompra ? (
+          <div style={{ padding: '40px 0', textAlign: 'center', color: 'var(--text-secondary)' }}>Carregando...</div>
+        ) : pedidosCompra.length === 0 ? (
+          <div style={{ padding: '40px 0', textAlign: 'center', color: 'var(--text-secondary)', fontSize: '0.9rem' }}>Nenhum pedido de compra encontrado.</div>
+        ) : (
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
+              <thead>
+                <tr style={{ borderBottom: '2px solid var(--border, #e2e8f0)', background: 'var(--surface-2, #f8fafc)' }}>
+                  {['Número', 'Fornecedor', 'Itens', 'Valor Total', 'Previsão Entrega', 'Status', 'Ações'].map(h => (
+                    <th key={h} style={{ padding: '10px 14px', textAlign: 'left', fontWeight: 600, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {pedidosCompra.map(p => (
+                  <tr key={p._id} style={{ borderBottom: '1px solid var(--border, #e2e8f0)' }}>
+                    <td style={{ padding: '10px 14px', fontFamily: 'monospace', fontWeight: 700, whiteSpace: 'nowrap' }}>{p.numero}</td>
+                    <td style={{ padding: '10px 14px' }}>{p.fornecedor}</td>
+                    <td style={{ padding: '10px 14px', whiteSpace: 'nowrap' }}>{p.itens.length} item{p.itens.length !== 1 ? 'ns' : ''}</td>
+                    <td style={{ padding: '10px 14px', whiteSpace: 'nowrap' }}>{fmtCurrency(p.valorTotal)}</td>
+                    <td style={{ padding: '10px 14px', whiteSpace: 'nowrap' }}>{fmtDate(p.dataPrevisaoEntrega)}</td>
+                    <td style={{ padding: '10px 14px' }}><Badge label={p.status} variant={compraStatusVariant(p.status)} /></td>
+                    <td style={{ padding: '10px 14px', whiteSpace: 'nowrap' }}>
+                      <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                        {p.status !== 'Recebido' && p.status !== 'Cancelado' && (
+                          <button
+                            className={styles.btnSecondary}
+                            style={{ fontSize: '0.78rem', padding: '3px 10px' }}
+                            onClick={() => openReceberModal(p)}
+                          >Receber</button>
+                        )}
+                        {proximosStatusCompra(p.status).length > 0 && (
+                          <select
+                            defaultValue=""
+                            onChange={e => { if (e.target.value) handleStatusCompra(p, e.target.value) }}
+                            style={{ fontSize: '0.78rem', padding: '3px 6px', borderRadius: 6, border: '1px solid var(--border, #e2e8f0)', background: 'var(--surface, #fff)', cursor: 'pointer' }}
+                          >
+                            <option value="">Avançar...</option>
+                            {proximosStatusCompra(p.status).map(s => <option key={s} value={s}>{s}</option>)}
+                          </select>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+        <Pagination page={pageCompra} total={totalCompra} limit={20} onChange={setPageCompra} />
+      </>}
+
+      {/* ══ MODAL — NOVA COMPRA ══ */}
+      {showModalCompra && <Modal title="Nova Compra" onClose={() => setShowModalCompra(false)} size="lg">
+        <form onSubmit={handleSaveCompra} noValidate className={styles.form}>
+          <div className={styles.formGrid2}>
+            <label>Fornecedor *<input value={formCompra.fornecedor} onChange={e => setFormCompra(f => ({ ...f, fornecedor: e.target.value }))} placeholder="Nome do fornecedor" required /></label>
+            <label>CNPJ do Fornecedor<input value={formCompra.fornecedorCnpj} onChange={e => setFormCompra(f => ({ ...f, fornecedorCnpj: e.target.value }))} placeholder="00.000.000/0000-00" /></label>
+            <label>Previsão de Entrega<input type="date" value={formCompra.dataPrevisaoEntrega} onChange={e => setFormCompra(f => ({ ...f, dataPrevisaoEntrega: e.target.value }))} /></label>
+            <label style={{ gridColumn: 'span 2' }}>Observações<textarea rows={2} value={formCompra.observacoes} onChange={e => setFormCompra(f => ({ ...f, observacoes: e.target.value }))} /></label>
+          </div>
+
+          <div style={{ marginTop: 18, padding: 14, border: '1px solid var(--border, #e2e8f0)', borderRadius: 10 }}>
+            <strong style={{ fontSize: '0.9rem' }}>Itens do Pedido</strong>
+            {formCompra.itens.map((item, idx) => {
+              const itemEstoque = itensEstoque.find(i => i._id === item.estoqueItemId)
+              return (
+                <div key={idx} style={{ display: 'grid', gridTemplateColumns: '1fr 100px 120px 36px', gap: 8, alignItems: 'end', marginTop: 10 }}>
+                  <label style={{ margin: 0 }}>
+                    <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>Item de estoque</span>
+                    <select
+                      value={item.estoqueItemId}
+                      onChange={e => {
+                        const sel = itensEstoque.find(i => i._id === e.target.value)
+                        setFormCompra(f => {
+                          const itens = [...f.itens]
+                          itens[idx] = { ...itens[idx], estoqueItemId: e.target.value, custoUnitario: sel ? String(sel.custoUnitario) : itens[idx].custoUnitario }
+                          return { ...f, itens }
+                        })
+                      }}
+                    >
+                      <option value="">Selecione...</option>
+                      {itensEstoque.map(i => <option key={i._id} value={i._id}>{i.codigo} — {i.nome} ({i.tipo})</option>)}
+                    </select>
+                  </label>
+                  <label style={{ margin: 0 }}>
+                    <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>Quantidade</span>
+                    <input type="number" min="1" step="1" value={item.quantidade} onChange={e => setFormCompra(f => { const itens = [...f.itens]; itens[idx] = { ...itens[idx], quantidade: Number(e.target.value) }; return { ...f, itens } })} />
+                  </label>
+                  <label style={{ margin: 0 }}>
+                    <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>Custo unitário</span>
+                    <input type="number" min="0" step="0.01" value={item.custoUnitario} placeholder={itemEstoque ? String(itemEstoque.custoUnitario) : '0,00'} onChange={e => setFormCompra(f => { const itens = [...f.itens]; itens[idx] = { ...itens[idx], custoUnitario: e.target.value }; return { ...f, itens } })} />
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => setFormCompra(f => ({ ...f, itens: f.itens.filter((_, i) => i !== idx) }))}
+                    style={{ height: 36, border: '1px solid var(--border, #e2e8f0)', borderRadius: 6, background: 'var(--surface, #fff)', cursor: 'pointer', fontWeight: 700, color: '#b91c1c' }}
+                    disabled={formCompra.itens.length === 1}
+                  >✕</button>
+                </div>
+              )
+            })}
+            <button
+              type="button"
+              className={styles.btnSecondary}
+              style={{ marginTop: 10, fontSize: '0.82rem' }}
+              onClick={() => setFormCompra(f => ({ ...f, itens: [...f.itens, { estoqueItemId: '', quantidade: 1, custoUnitario: '' }] }))}
+            >+ Adicionar Item</button>
+            <div style={{ textAlign: 'right', marginTop: 10, fontWeight: 600 }}>
+              Total: {fmtCurrency(formCompra.itens.reduce((s, i) => s + (i.custoUnitario ? Number(i.custoUnitario) : 0) * Number(i.quantidade), 0))}
+            </div>
+          </div>
+
+          {erroCompra && <p className={styles.error}>{erroCompra}</p>}
+          <div className={styles.formActions}>
+            <button type="button" className={styles.btnSecondary} onClick={() => setShowModalCompra(false)}>Cancelar</button>
+            <button type="submit" className={styles.btnPrimary} disabled={savingCompra}>{savingCompra ? 'Salvando...' : 'Criar Pedido de Compra'}</button>
+          </div>
+        </form>
+      </Modal>}
+
+      {/* ══ MODAL — REGISTRAR RECEBIMENTO ══ */}
+      {showReceberModal && selectedCompra && <Modal title={`Receber: ${selectedCompra.numero}`} onClose={() => setShowReceberModal(false)} size="lg">
+        <form onSubmit={handleReceber} noValidate className={styles.form}>
+          <div className={styles.formGrid2}>
+            <label>NF do Fornecedor<input value={receberForm.notaFiscal} onChange={e => setReceberForm(f => ({ ...f, notaFiscal: e.target.value }))} placeholder="Número da nota fiscal" /></label>
+            <label>Observação<input value={receberForm.observacao} onChange={e => setReceberForm(f => ({ ...f, observacao: e.target.value }))} /></label>
+          </div>
+
+          <div style={{ marginTop: 16 }}>
+            {receberForm.itens.map((item, idx) => {
+              const restante = item.quantidadePedida - item.quantidadeRecebida
+              return (
+                <div key={idx} style={{ padding: '12px 0', borderBottom: '1px solid var(--border, #e2e8f0)' }}>
+                  <div style={{ fontWeight: 600, marginBottom: 6, fontSize: '0.88rem' }}>{item.estoqueItemNome}</div>
+                  <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: 8 }}>
+                    Pedido: {item.quantidadePedida} &nbsp;|&nbsp; Já recebido: {item.quantidadeRecebida} &nbsp;|&nbsp; Restante: {restante}
+                  </div>
+                  <div className={styles.formGrid2}>
+                    <label>
+                      Qtd a receber
+                      <input
+                        type="number" min="0" max={restante} step="1"
+                        value={item.quantidadeAReceber}
+                        onChange={e => setReceberForm(f => {
+                          const itens = [...f.itens]
+                          itens[idx] = { ...itens[idx], quantidadeAReceber: Math.min(Number(e.target.value), restante) }
+                          return { ...f, itens }
+                        })}
+                      />
+                    </label>
+                    <label>
+                      Números de série (um por linha, opcional)
+                      <textarea
+                        rows={2}
+                        value={item.numerosSerie}
+                        placeholder="Serial 1&#10;Serial 2"
+                        onChange={e => setReceberForm(f => {
+                          const itens = [...f.itens]
+                          itens[idx] = { ...itens[idx], numerosSerie: e.target.value }
+                          return { ...f, itens }
+                        })}
+                      />
+                    </label>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+
+          {erroReceber && <p className={styles.error}>{erroReceber}</p>}
+          <div className={styles.formActions}>
+            <button type="button" className={styles.btnSecondary} onClick={() => setShowReceberModal(false)}>Cancelar</button>
+            <button type="submit" className={styles.btnPrimary} disabled={savingReceber}>{savingReceber ? 'Registrando...' : 'Confirmar Recebimento'}</button>
+          </div>
+        </form>
       </Modal>}
 
       {/* ══ MODAL — NOVO PEDIDO SSL ══ */}
