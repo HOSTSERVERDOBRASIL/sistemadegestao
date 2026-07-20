@@ -3,7 +3,7 @@ import { NavLink, Link, Outlet, useNavigate, useLocation } from 'react-router-do
 import {
   LayoutDashboard, Users, FileText, Handshake, ClipboardList, Package,
   Receipt, FileStack, Zap, Scale, Tag, BarChart2,
-  Link2, RefreshCw, UserCog, Settings, ScrollText, ShieldCheck, Globe,
+  Link2, RefreshCw, UserCog, Settings, ScrollText, ShieldCheck,
   Sun, Moon, LogOut, Bell, Wallet, FilePlus, CheckCircle, Clock, XCircle,
   ChevronRight, AlertTriangle, History, Activity, PlusCircle,
 } from 'lucide-react'
@@ -54,6 +54,7 @@ const NAV_GROUPS: NavGroup[] = [
         Icon: ClipboardList,
         items: [
           { to: '/pedidos',             label: 'Todos os Pedidos', Icon: ClipboardList },
+          { to: '/pedidos?aba=ssl',     label: 'Pedidos SSL',      Icon: ShieldCheck },
           { to: '/pedidos/em-processo', label: 'Em Andamento',     Icon: Activity },
           { to: '/pedidos/faturados',   label: 'Aguard. Entrega',  Icon: Clock },
           { to: '/pedidos/concluidos',  label: 'Histórico',        Icon: History },
@@ -61,7 +62,6 @@ const NAV_GROUPS: NavGroup[] = [
       },
       { to: '/produtos', label: 'Produtos', Icon: Package },
       { to: '/certificados-icp', label: 'Certificados ICP', Icon: ShieldCheck },
-      { to: '/pedidos-ssl', label: 'Pedidos SSL', Icon: Globe },
     ],
   },
   {
@@ -139,7 +139,7 @@ const ROUTE_LABELS: Record<string, string> = {
   '/pedidos/cancelados': 'Pedidos — Cancelados',
   '/produtos': 'Produtos',
   '/certificados-icp': 'Certificados ICP',
-  '/pedidos-ssl': 'Pedidos SSL',
+
   '/produtos/ativos': 'Produtos Ativos',
   '/produtos/inativos': 'Produtos Inativos',
   '/financeiro/dashboard': 'Dashboard NF',
