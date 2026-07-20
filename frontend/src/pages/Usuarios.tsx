@@ -93,8 +93,8 @@ export default function Usuarios() {
     load()
   }
 
-  const ROLE_LABELS: Record<Role, string> = { admin: 'Admin', operador: 'Operador', financeiro: 'Financeiro', cliente: 'Cliente' }
-  const ROLE_VARIANTS: Record<Role, 'danger' | 'warning' | 'info' | 'default'> = { admin: 'danger', operador: 'info', financeiro: 'warning', cliente: 'default' }
+  const ROLE_LABELS: Record<Role, string> = { admin: 'Admin', operador: 'Operador', financeiro: 'Financeiro', cliente: 'Cliente', revenda: 'Revenda' }
+  const ROLE_VARIANTS: Record<Role, 'danger' | 'warning' | 'info' | 'default'> = { admin: 'danger', operador: 'info', financeiro: 'warning', cliente: 'default', revenda: 'default' }
 
   const columns = [
     { key: 'nome', header: 'Nome', render: (r: User) => <strong>{r.nome}</strong> },

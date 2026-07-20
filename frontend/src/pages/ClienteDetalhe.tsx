@@ -540,7 +540,7 @@ export default function ClienteDetalhe() {
     certificadosICP: certICPLoaded ? certICPTotal : undefined,
     licitacoes: cliente ? (cliente.licitacoes?.length ?? 0) : undefined,
     financeiroClm: cliente
-      ? ((cliente.financeiroClm?.entradas?.length ?? 0) + (cliente.financeiroClm?.saidas?.length ?? 0))
+      ? ((cliente.financeiroClm?.entrada?.length ?? 0) + (cliente.financeiroClm?.saida?.length ?? 0))
       : undefined,
   }
 
@@ -1128,7 +1128,7 @@ export default function ClienteDetalhe() {
                         <td style={{ padding: '10px 12px', color: 'var(--text-secondary)' }}>{fmtMoney(lic.valorTotal)}</td>
                         <td style={{ padding: '10px 12px' }}>
                           <Badge
-                            label={lic.status}
+                            label={lic.status ?? '—'}
                             variant={
                               lic.status === 'Ativo' ? 'success'
                               : lic.status === 'Encerrado' ? 'default'
@@ -1168,10 +1168,10 @@ export default function ClienteDetalhe() {
           <>
             {/* KPIs */}
             {(() => {
-              const entradas = cliente.financeiroClm?.entradas ?? []
-              const saidas = cliente.financeiroClm?.saidas ?? []
-              const totalEntradas = entradas.reduce((acc, m) => acc + (m.valor ?? 0), 0)
-              const totalSaidas = saidas.reduce((acc, m) => acc + (m.valor ?? 0), 0)
+              const entradas = cliente.financeiroClm?.entrada ?? []
+              const saidas = cliente.financeiroClm?.saida ?? []
+              const totalEntradas = entradas.reduce((acc: number, m) => acc + (m.valor ?? 0), 0)
+              const totalSaidas = saidas.reduce((acc: number, m) => acc + (m.valor ?? 0), 0)
               const saldo = totalEntradas - totalSaidas
               return (
                 <div style={{ display: 'flex', gap: 16, marginBottom: 24, flexWrap: 'wrap' }}>
@@ -1203,7 +1203,7 @@ export default function ClienteDetalhe() {
                     + Entrada
                   </button>
                 </div>
-                {(cliente.financeiroClm?.entradas?.length ?? 0) === 0 ? (
+                {(cliente.financeiroClm?.entrada?.length ?? 0) === 0 ? (
                   <div className={styles.empty}>Nenhuma entrada registrada</div>
                 ) : (
                   <div style={{ overflowX: 'auto' }}>
@@ -1216,7 +1216,7 @@ export default function ClienteDetalhe() {
                         </tr>
                       </thead>
                       <tbody>
-                        {cliente.financeiroClm!.entradas!.map((mov, i) => (
+                        {(cliente.financeiroClm?.entrada ?? []).map((mov, i) => (
                           <tr key={mov._id ?? i} style={{ borderBottom: '1px solid var(--surface-border)' }}>
                             <td style={{ padding: '8px 10px', color: 'var(--text-secondary)' }}>{mov.tipo || '—'}</td>
                             <td style={{ padding: '8px 10px', fontWeight: 600, color: 'var(--success)' }}>{fmtMoney(mov.valor)}</td>
@@ -1261,7 +1261,7 @@ export default function ClienteDetalhe() {
                     + Saída
                   </button>
                 </div>
-                {(cliente.financeiroClm?.saidas?.length ?? 0) === 0 ? (
+                {(cliente.financeiroClm?.saida?.length ?? 0) === 0 ? (
                   <div className={styles.empty}>Nenhuma saída registrada</div>
                 ) : (
                   <div style={{ overflowX: 'auto' }}>
@@ -1274,7 +1274,7 @@ export default function ClienteDetalhe() {
                         </tr>
                       </thead>
                       <tbody>
-                        {cliente.financeiroClm!.saidas!.map((mov, i) => (
+                        {(cliente.financeiroClm?.saida ?? []).map((mov, i) => (
                           <tr key={mov._id ?? i} style={{ borderBottom: '1px solid var(--surface-border)' }}>
                             <td style={{ padding: '8px 10px', color: 'var(--text-secondary)' }}>{mov.tipo || '—'}</td>
                             <td style={{ padding: '8px 10px', fontWeight: 600, color: 'var(--danger)' }}>{fmtMoney(mov.valor)}</td>
@@ -1398,7 +1398,7 @@ export default function ClienteDetalhe() {
               }
               setSavingLicit(true)
               try {
-                const updated = await clientesApi.licitacao(id, licitForm)
+                const updated = await clientesApi.licitacao(id, { ...licitForm, valorTotal: licitForm.valorTotal ? Number(licitForm.valorTotal) : undefined })
                 setCliente(updated)
                 setShowLicitModal(false)
               } catch (err) {
@@ -1499,7 +1499,7 @@ export default function ClienteDetalhe() {
               }
               setSavingMov(true)
               try {
-                const updated = await clientesApi.movimentoFinanceiro(id, movFluxo, movForm)
+                const updated = await clientesApi.movimentoFinanceiro(id, movFluxo, { ...movForm, valor: Number(movForm.valor) })
                 setCliente(updated)
                 setShowMovModal(false)
               } catch (err) {

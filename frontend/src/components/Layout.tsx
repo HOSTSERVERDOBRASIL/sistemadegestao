@@ -5,7 +5,7 @@ import {
   Receipt, FileStack, Zap, Scale, Tag, BarChart2,
   Link2, RefreshCw, UserCog, Settings, ScrollText, ShieldCheck,
   Sun, Moon, LogOut, Bell, Wallet, FilePlus, CheckCircle, Clock, XCircle,
-  ChevronRight, AlertTriangle, History, Activity, PlusCircle,
+  ChevronRight, AlertTriangle, History, Activity,
 } from 'lucide-react'
 
 import { useAuth } from '../context/AuthContext'

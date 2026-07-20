@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import PageHeader from '../components/PageHeader'
-import StatCard from '../components/StatCard'
+
 import Badge from '../components/Badge'
 import { financeiro as api } from '../api'
 import styles from './DashboardNF.module.css'

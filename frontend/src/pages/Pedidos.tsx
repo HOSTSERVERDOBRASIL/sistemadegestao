@@ -579,7 +579,7 @@ export default function Pedidos({ statusFixo }: { statusFixo?: PedidoStatus }) {
               </select>
             </label>
             <label>Método DCV
-              <select value={sslForm.metodoDCV ?? ''} onChange={e => setSslForm(f => ({ ...f, metodoDCV: e.target.value }))}>
+              <select value={sslForm.metodoDCV ?? ''} onChange={e => setSslForm(f => ({ ...f, metodoDCV: (e.target.value || undefined) as PedidoSSL['metodoDCV'] }))}>
                 <option value="">Selecione...</option>
                 {DCV_OPTIONS.map(d => <option key={d} value={d}>{d}</option>)}
               </select>
