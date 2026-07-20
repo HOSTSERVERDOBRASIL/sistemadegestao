@@ -291,4 +291,176 @@ router.get('/resumo', authenticate, authorize('admin', 'financeiro'), async (req
   }
 });
 
+router.get('/dashboard-nf', authenticate, authorize('admin', 'financeiro'), async (req, res, next) => {
+  try {
+    const agora = new Date();
+    const inicioMesAtual = new Date(agora.getFullYear(), agora.getMonth(), 1);
+    const inicioMesAnterior = new Date(agora.getFullYear(), agora.getMonth() - 1, 1);
+    const fimMesAnterior = new Date(agora.getFullYear(), agora.getMonth(), 0, 23, 59, 59, 999);
+    const inicio12Meses = new Date(agora.getFullYear(), agora.getMonth() - 11, 1);
+
+    const [
+      kpiMesAtual,
+      kpiMesAnterior,
+      porSituacaoSefaz,
+      porTipoFaturamento,
+      porEmissor,
+      porMes12,
+      filaAtencao,
+      topClientes,
+    ] = await Promise.all([
+      // KPI mês atual
+      NotaFiscalModel.aggregate([
+        { $match: { createdAt: { $gte: inicioMesAtual } } },
+        {
+          $group: {
+            _id: '$status',
+            total: { $sum: '$valor' },
+            quantidade: { $sum: 1 },
+          },
+        },
+      ]),
+      // KPI mês anterior
+      NotaFiscalModel.aggregate([
+        { $match: { createdAt: { $gte: inicioMesAnterior, $lte: fimMesAnterior } } },
+        {
+          $group: {
+            _id: '$status',
+            total: { $sum: '$valor' },
+            quantidade: { $sum: 1 },
+          },
+        },
+      ]),
+      // Por situação SEFAZ (NFs Emitidas + Pendentes - exceto Canceladas no status)
+      NotaFiscalModel.aggregate([
+        { $match: { status: { $ne: 'Cancelada' } } },
+        {
+          $group: {
+            _id: { $ifNull: ['$situacaoTiny', 'SemIntegracao'] },
+            total: { $sum: '$valor' },
+            quantidade: { $sum: 1 },
+          },
+        },
+        { $sort: { quantidade: -1 } },
+      ]),
+      // Por tipo de faturamento (apenas Emitidas)
+      NotaFiscalModel.aggregate([
+        { $match: { status: 'Emitida' } },
+        {
+          $group: {
+            _id: { $ifNull: ['$tipoFaturamento', 'Avulsa'] },
+            total: { $sum: '$valor' },
+            quantidade: { $sum: 1 },
+          },
+        },
+        { $sort: { total: -1 } },
+      ]),
+      // Por emissor (últimos 12 meses, apenas Emitidas)
+      NotaFiscalModel.aggregate([
+        { $match: { status: 'Emitida', createdAt: { $gte: inicio12Meses } } },
+        {
+          $group: {
+            _id: '$emissor',
+            total: { $sum: '$valor' },
+            quantidade: { $sum: 1 },
+          },
+        },
+        { $sort: { total: -1 } },
+      ]),
+      // Evolução mensal 12 meses (apenas Emitidas)
+      NotaFiscalModel.aggregate([
+        { $match: { status: 'Emitida', createdAt: { $gte: inicio12Meses } } },
+        {
+          $group: {
+            _id: { ano: { $year: '$createdAt' }, mes: { $month: '$createdAt' } },
+            total: { $sum: '$valor' },
+            quantidade: { $sum: 1 },
+          },
+        },
+        { $sort: { '_id.ano': 1, '_id.mes': 1 } },
+      ]),
+      // Fila de atenção: Pendentes + Erro (últimas 50, mais recentes primeiro)
+      NotaFiscalModel.find({
+        $or: [
+          { status: 'Pendente' },
+          { situacaoTiny: 'Erro' },
+        ],
+      })
+        .populate('clienteId', 'nome documento')
+        .populate('pedidoId', 'numero')
+        .sort({ createdAt: -1 })
+        .limit(50)
+        .lean(),
+      // Top 10 clientes (últimos 12 meses, Emitidas, clienteId populado)
+      NotaFiscalModel.aggregate([
+        {
+          $match: {
+            status: 'Emitida',
+            clienteId: { $exists: true, $ne: null },
+            createdAt: { $gte: inicio12Meses },
+          },
+        },
+        {
+          $group: {
+            _id: '$clienteId',
+            totalFaturado: { $sum: '$valor' },
+            quantidade: { $sum: 1 },
+          },
+        },
+        { $sort: { totalFaturado: -1 } },
+        { $limit: 10 },
+        {
+          $lookup: {
+            from: 'clientes',
+            localField: '_id',
+            foreignField: '_id',
+            as: 'cliente',
+          },
+        },
+        { $unwind: { path: '$cliente', preserveNullAndEmpty: true } },
+        {
+          $project: {
+            _id: 1,
+            totalFaturado: 1,
+            quantidade: 1,
+            nomeCliente: '$cliente.nome',
+            documentoCliente: '$cliente.documento',
+          },
+        },
+      ]),
+    ]);
+
+    // Monta KPI consolidado (mês atual vs anterior)
+    const makeKpi = (arr: { _id: string; total: number; quantidade: number }[]) =>
+      Object.fromEntries(arr.map(r => [r._id, { total: r.total, quantidade: r.quantidade }]));
+
+    const kpiAtual = makeKpi(kpiMesAtual);
+    const kpiAnterior = makeKpi(kpiMesAnterior);
+
+    res.json({
+      kpi: {
+        mesAtual: {
+          emitidas: kpiAtual['Emitida']?.quantidade ?? 0,
+          totalEmitido: kpiAtual['Emitida']?.total ?? 0,
+          pendentes: kpiAtual['Pendente']?.quantidade ?? 0,
+          canceladas: kpiAtual['Cancelada']?.quantidade ?? 0,
+        },
+        mesAnterior: {
+          emitidas: kpiAnterior['Emitida']?.quantidade ?? 0,
+          totalEmitido: kpiAnterior['Emitida']?.total ?? 0,
+          pendentes: kpiAnterior['Pendente']?.quantidade ?? 0,
+        },
+      },
+      porSituacaoSefaz,
+      porTipoFaturamento,
+      porEmissor,
+      porMes12,
+      filaAtencao,
+      topClientes,
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
 export { router as financeiroRouter };

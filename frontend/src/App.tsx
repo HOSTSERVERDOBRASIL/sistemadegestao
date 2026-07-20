@@ -29,6 +29,7 @@ import ParceiroDetalhe from './pages/ParceiroDetalhe'
 import PortalRevenda from './pages/PortalRevenda'
 import EmitirNF from './pages/EmitirNF'
 import CertificadosICP from './pages/CertificadosICP'
+import DashboardNF from './pages/DashboardNF'
 
 function PrivateRoute({ children, adminOnly = false, revendaOnly = false }: { children: React.ReactNode; adminOnly?: boolean; revendaOnly?: boolean }) {
   const { user, loading } = useAuth()
@@ -68,6 +69,7 @@ function AppRoutes() {
         <Route path="parceiros/ativos" element={<Parceiros ativoFixo="ativos" />} />
         <Route path="parceiros/inativos" element={<Parceiros ativoFixo="inativos" />} />
         <Route path="parceiros/:id" element={<ParceiroDetalhe />} />
+        <Route path="financeiro/dashboard" element={<DashboardNF />} />
         <Route path="financeiro" element={<Financeiro />} />
         <Route path="financeiro/emitidas" element={<Financeiro statusFixo="Emitida" />} />
         <Route path="financeiro/pendentes" element={<Financeiro statusFixo="Pendente" />} />

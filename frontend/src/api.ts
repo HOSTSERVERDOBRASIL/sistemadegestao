@@ -258,6 +258,24 @@ export const financeiro = {
     descricao?: string; observacoes?: string; pedidoId?: string;
   }) =>
     post<NotaFiscal>('/financeiro/notas/avulsa', body),
+  dashboardNF: () =>
+    get<{
+      kpi: {
+        mesAtual: { emitidas: number; totalEmitido: number; pendentes: number; canceladas: number }
+        mesAnterior: { emitidas: number; totalEmitido: number; pendentes: number }
+      }
+      porSituacaoSefaz: { _id: string; total: number; quantidade: number }[]
+      porTipoFaturamento: { _id: string; total: number; quantidade: number }[]
+      porEmissor: { _id: string; total: number; quantidade: number }[]
+      porMes12: { _id: { ano: number; mes: number }; total: number; quantidade: number }[]
+      filaAtencao: {
+        _id: string; numero: string; valor: number; status: string; situacaoTiny?: string
+        erroEmissao?: string; createdAt: string
+        clienteId?: { nome: string; documento: string } | string
+        pedidoId?: { numero: string } | string
+      }[]
+      topClientes: { _id: string; totalFaturado: number; quantidade: number; nomeCliente?: string; documentoCliente?: string }[]
+    }>('/financeiro/dashboard-nf'),
 }
 
 // Relatórios

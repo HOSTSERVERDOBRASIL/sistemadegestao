@@ -70,6 +70,7 @@ const NAV_GROUPS: NavGroup[] = [
         label: 'Notas Fiscais',
         Icon: Receipt,
         items: [
+          { to: '/financeiro/dashboard',  label: 'Dashboard NF',     Icon: LayoutDashboard },
           { to: '/financeiro/emitir',     label: 'Emitir NF',        Icon: FilePlus },
           { to: '/financeiro/pendentes',  label: 'Pendentes',        Icon: Clock },
           { to: '/financeiro',            label: 'Todas as NFs',     Icon: Receipt },
@@ -139,6 +140,7 @@ const ROUTE_LABELS: Record<string, string> = {
   '/certificados-icp': 'Certificados ICP',
   '/produtos/ativos': 'Produtos Ativos',
   '/produtos/inativos': 'Produtos Inativos',
+  '/financeiro/dashboard': 'Dashboard NF',
   '/financeiro': 'Notas Fiscais',
   '/financeiro/emitidas': 'Notas Emitidas',
   '/financeiro/pendentes': 'Notas Pendentes',
