@@ -2,6 +2,35 @@ import mongoose, { Schema, Document, Model } from 'mongoose';
 
 export type TipoSolicitacaoLgpd = 'Acesso' | 'Correcao' | 'Exclusao' | 'Portabilidade';
 
+export interface ILicitacao {
+  _id?: mongoose.Types.ObjectId;
+  contrato: string;           // número do contrato licitatório
+  contratoNum?: string;       // número do contrato de empenho
+  descricao?: string;
+  dataInit: Date;
+  dataFin: Date;
+  valorTotal?: number;
+  produtos?: Array<{
+    produtoId?: mongoose.Types.ObjectId;
+    nome: string;
+    quantidade: number;
+    valorUnitario?: number;
+  }>;
+  status?: 'Ativo' | 'Encerrado' | 'Suspenso';
+}
+
+export interface IMovimentoFinanceiro {
+  _id?: mongoose.Types.ObjectId;
+  tipo: string;          // ex: 'NF', 'Pagamento', 'Estorno', 'Credito'
+  valor: number;
+  data: Date;
+  descricao?: string;
+  numeroPedido?: string;
+  userId?: mongoose.Types.ObjectId;
+  nomeUser?: string;
+  arquivo?: string;      // URL do comprovante
+}
+
 export interface ICliente extends Document {
   nome: string;
   email: string;
@@ -122,6 +151,12 @@ export interface ICliente extends Document {
 
   // Observações internas
   observacoes?: string;
+
+  licitacoes?: ILicitacao[];
+  financeiroClm?: {
+    entrada?: IMovimentoFinanceiro[];   // recebimentos do cliente
+    saida?: IMovimentoFinanceiro[];     // pagamentos ao cliente
+  };
 }
 
 const clienteSchema = new Schema<ICliente>({
@@ -247,6 +282,29 @@ const clienteSchema = new Schema<ICliente>({
 
   // Observações internas
   observacoes: { type: String },
+
+  licitacoes: [{
+    contrato: { type: String, required: true },
+    contratoNum: String,
+    descricao: String,
+    dataInit: { type: Date, required: true },
+    dataFin: { type: Date, required: true },
+    valorTotal: Number,
+    produtos: [{ produtoId: { type: Schema.Types.ObjectId, ref: 'Produto' }, nome: String, quantidade: Number, valorUnitario: Number }],
+    status: { type: String, enum: ['Ativo', 'Encerrado', 'Suspenso'], default: 'Ativo' },
+  }],
+  financeiroClm: {
+    entrada: [{
+      tipo: String, valor: { type: Number, required: true }, data: { type: Date, required: true },
+      descricao: String, numeroPedido: String,
+      userId: { type: Schema.Types.ObjectId, ref: 'User' }, nomeUser: String, arquivo: String,
+    }],
+    saida: [{
+      tipo: String, valor: { type: Number, required: true }, data: { type: Date, required: true },
+      descricao: String, numeroPedido: String,
+      userId: { type: Schema.Types.ObjectId, ref: 'User' }, nomeUser: String, arquivo: String,
+    }],
+  },
 }, { timestamps: true });
 
 clienteSchema.index({ nome: 1 });

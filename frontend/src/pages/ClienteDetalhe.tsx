@@ -20,7 +20,7 @@ import {
 import styles from './ClienteDetalhe.module.css'
 
 // ── Types ──────────────────────────────────────────────────
-type TabKey = 'dados' | 'pedidos' | 'comprasDiretas' | 'contratos' | 'financeiro' | 'portfolio' | 'equipe' | 'certificadosICP'
+type TabKey = 'dados' | 'pedidos' | 'comprasDiretas' | 'contratos' | 'financeiro' | 'portfolio' | 'equipe' | 'certificadosICP' | 'licitacoes' | 'financeiroClm'
 type Errs = FieldErrors<ClientePayload>
 
 const BLANK: ClientePayload = {
@@ -110,6 +110,16 @@ export default function ClienteDetalhe() {
   })
   const [savingEquipe, setSavingEquipe] = useState(false)
   const [equipeError, setEquipeError] = useState('')
+
+  // Licitação
+  const [showLicitModal, setShowLicitModal] = useState(false)
+  const [licitForm, setLicitForm] = useState({ contrato: '', contratoNum: '', descricao: '', dataInit: '', dataFin: '', valorTotal: '', status: 'Ativo' as const })
+  const [savingLicit, setSavingLicit] = useState(false)
+  // Financeiro CLM
+  const [showMovModal, setShowMovModal] = useState(false)
+  const [movFluxo, setMovFluxo] = useState<'entrada'|'saida'>('entrada')
+  const [movForm, setMovForm] = useState({ tipo: '', valor: '', data: '', descricao: '', numeroPedido: '' })
+  const [savingMov, setSavingMov] = useState(false)
 
   // Revalidar
   const [revalidando, setRevalidando] = useState(false)
@@ -528,6 +538,10 @@ export default function ClienteDetalhe() {
       : undefined,
     equipe: cliente ? (cliente.equipe?.length ?? 0) : undefined,
     certificadosICP: certICPLoaded ? certICPTotal : undefined,
+    licitacoes: cliente ? (cliente.licitacoes?.length ?? 0) : undefined,
+    financeiroClm: cliente
+      ? ((cliente.financeiroClm?.entradas?.length ?? 0) + (cliente.financeiroClm?.saidas?.length ?? 0))
+      : undefined,
   }
 
   const tabs: { key: TabKey; label: string }[] = [
@@ -539,6 +553,8 @@ export default function ClienteDetalhe() {
     { key: 'portfolio', label: 'Portfólio' },
     { key: 'equipe', label: 'Equipe' },
     { key: 'certificadosICP', label: 'Certificados ICP' },
+    { key: 'licitacoes', label: 'Licitações' },
+    { key: 'financeiroClm', label: 'Financeiro CLM' },
   ]
 
   return (
@@ -1075,6 +1091,225 @@ export default function ClienteDetalhe() {
           </>
         )}
 
+        {/* ── Licitações ── */}
+        {activeTab === 'licitacoes' && (
+          <>
+            <div className={styles.actionsRow}>
+              <button
+                className={styles.btnPrimary}
+                onClick={() => {
+                  setLicitForm({ contrato: '', contratoNum: '', descricao: '', dataInit: '', dataFin: '', valorTotal: '', status: 'Ativo' })
+                  setShowLicitModal(true)
+                }}
+              >
+                Nova Licitação
+              </button>
+            </div>
+            {(cliente.licitacoes?.length ?? 0) === 0 ? (
+              <div className={styles.empty}>Nenhuma licitação cadastrada</div>
+            ) : (
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
+                  <thead>
+                    <tr style={{ borderBottom: '2px solid var(--surface-border)' }}>
+                      {['Contrato', 'Contrato Num', 'Descrição', 'Início', 'Fim', 'Valor Total', 'Status', 'Ações'].map(h => (
+                        <th key={h} style={{ padding: '8px 12px', textAlign: 'left', fontSize: '0.73rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', whiteSpace: 'nowrap' }}>{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {cliente.licitacoes!.map((lic, i) => (
+                      <tr key={lic._id ?? i} style={{ borderBottom: '1px solid var(--surface-border)' }}>
+                        <td style={{ padding: '10px 12px', fontWeight: 600, color: 'var(--text-primary)' }}>{lic.contrato || '—'}</td>
+                        <td style={{ padding: '10px 12px', color: 'var(--text-secondary)' }}>{lic.contratoNum || '—'}</td>
+                        <td style={{ padding: '10px 12px', color: 'var(--text-secondary)' }}>{lic.descricao || '—'}</td>
+                        <td style={{ padding: '10px 12px', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>{fmtDate(lic.dataInit)}</td>
+                        <td style={{ padding: '10px 12px', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>{fmtDate(lic.dataFin)}</td>
+                        <td style={{ padding: '10px 12px', color: 'var(--text-secondary)' }}>{fmtMoney(lic.valorTotal)}</td>
+                        <td style={{ padding: '10px 12px' }}>
+                          <Badge
+                            label={lic.status}
+                            variant={
+                              lic.status === 'Ativo' ? 'success'
+                              : lic.status === 'Encerrado' ? 'default'
+                              : 'warning'
+                            }
+                          />
+                        </td>
+                        <td style={{ padding: '10px 12px' }}>
+                          <button
+                            className={styles.btnLink}
+                            style={{ color: 'var(--danger)' }}
+                            onClick={async () => {
+                              if (!id || !lic._id) return
+                              if (!confirm('Remover esta licitação?')) return
+                              try {
+                                const updated = await clientesApi.removerLicitacao(id, lic._id)
+                                setCliente(updated)
+                              } catch (err) {
+                                alert(err instanceof Error ? err.message : 'Erro ao remover')
+                              }
+                            }}
+                          >
+                            Remover
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </>
+        )}
+
+        {/* ── Financeiro CLM ── */}
+        {activeTab === 'financeiroClm' && (
+          <>
+            {/* KPIs */}
+            {(() => {
+              const entradas = cliente.financeiroClm?.entradas ?? []
+              const saidas = cliente.financeiroClm?.saidas ?? []
+              const totalEntradas = entradas.reduce((acc, m) => acc + (m.valor ?? 0), 0)
+              const totalSaidas = saidas.reduce((acc, m) => acc + (m.valor ?? 0), 0)
+              const saldo = totalEntradas - totalSaidas
+              return (
+                <div style={{ display: 'flex', gap: 16, marginBottom: 24, flexWrap: 'wrap' }}>
+                  {[
+                    { label: 'Total Entradas', value: fmtMoney(totalEntradas), color: 'var(--success)' },
+                    { label: 'Total Saídas', value: fmtMoney(totalSaidas), color: 'var(--danger)' },
+                    { label: 'Saldo', value: fmtMoney(saldo), color: saldo >= 0 ? 'var(--success)' : 'var(--danger)' },
+                  ].map(kpi => (
+                    <div key={kpi.label} style={{ flex: '1 1 180px', background: 'var(--surface-secondary)', borderRadius: 8, padding: '14px 20px', minWidth: 160 }}>
+                      <div style={{ fontSize: '0.73rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6 }}>{kpi.label}</div>
+                      <div style={{ fontSize: '1.25rem', fontWeight: 700, color: kpi.color }}>{kpi.value}</div>
+                    </div>
+                  ))}
+                </div>
+              )
+            })()}
+
+            {/* Painéis lado a lado */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24 }}>
+              {/* Entradas */}
+              <div className={styles.panel}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                  <span className={styles.panelTitle}>Entradas</span>
+                  <button
+                    className={styles.btnPrimary}
+                    style={{ fontSize: '0.8rem', padding: '5px 12px' }}
+                    onClick={() => { setMovFluxo('entrada'); setMovForm({ tipo: '', valor: '', data: '', descricao: '', numeroPedido: '' }); setShowMovModal(true) }}
+                  >
+                    + Entrada
+                  </button>
+                </div>
+                {(cliente.financeiroClm?.entradas?.length ?? 0) === 0 ? (
+                  <div className={styles.empty}>Nenhuma entrada registrada</div>
+                ) : (
+                  <div style={{ overflowX: 'auto' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.83rem' }}>
+                      <thead>
+                        <tr style={{ borderBottom: '2px solid var(--surface-border)' }}>
+                          {['Tipo', 'Valor', 'Data', 'Descrição', 'Pedido', ''].map(h => (
+                            <th key={h} style={{ padding: '6px 10px', textAlign: 'left', fontSize: '0.7rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', whiteSpace: 'nowrap' }}>{h}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {cliente.financeiroClm!.entradas!.map((mov, i) => (
+                          <tr key={mov._id ?? i} style={{ borderBottom: '1px solid var(--surface-border)' }}>
+                            <td style={{ padding: '8px 10px', color: 'var(--text-secondary)' }}>{mov.tipo || '—'}</td>
+                            <td style={{ padding: '8px 10px', fontWeight: 600, color: 'var(--success)' }}>{fmtMoney(mov.valor)}</td>
+                            <td style={{ padding: '8px 10px', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>{fmtDate(mov.data)}</td>
+                            <td style={{ padding: '8px 10px', color: 'var(--text-secondary)' }}>{mov.descricao || '—'}</td>
+                            <td style={{ padding: '8px 10px', color: 'var(--text-muted)', fontSize: '0.78rem' }}>{mov.numeroPedido || '—'}</td>
+                            <td style={{ padding: '8px 10px' }}>
+                              <button
+                                className={styles.btnLink}
+                                style={{ color: 'var(--danger)' }}
+                                onClick={async () => {
+                                  if (!id || !mov._id) return
+                                  if (!confirm('Remover este movimento?')) return
+                                  try {
+                                    const updated = await clientesApi.removerMovimento(id, 'entrada', mov._id)
+                                    setCliente(updated)
+                                  } catch (err) {
+                                    alert(err instanceof Error ? err.message : 'Erro ao remover')
+                                  }
+                                }}
+                              >
+                                Remover
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+
+              {/* Saídas */}
+              <div className={styles.panel}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                  <span className={styles.panelTitle}>Saídas</span>
+                  <button
+                    className={styles.btnPrimary}
+                    style={{ fontSize: '0.8rem', padding: '5px 12px' }}
+                    onClick={() => { setMovFluxo('saida'); setMovForm({ tipo: '', valor: '', data: '', descricao: '', numeroPedido: '' }); setShowMovModal(true) }}
+                  >
+                    + Saída
+                  </button>
+                </div>
+                {(cliente.financeiroClm?.saidas?.length ?? 0) === 0 ? (
+                  <div className={styles.empty}>Nenhuma saída registrada</div>
+                ) : (
+                  <div style={{ overflowX: 'auto' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.83rem' }}>
+                      <thead>
+                        <tr style={{ borderBottom: '2px solid var(--surface-border)' }}>
+                          {['Tipo', 'Valor', 'Data', 'Descrição', 'Pedido', ''].map(h => (
+                            <th key={h} style={{ padding: '6px 10px', textAlign: 'left', fontSize: '0.7rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', whiteSpace: 'nowrap' }}>{h}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {cliente.financeiroClm!.saidas!.map((mov, i) => (
+                          <tr key={mov._id ?? i} style={{ borderBottom: '1px solid var(--surface-border)' }}>
+                            <td style={{ padding: '8px 10px', color: 'var(--text-secondary)' }}>{mov.tipo || '—'}</td>
+                            <td style={{ padding: '8px 10px', fontWeight: 600, color: 'var(--danger)' }}>{fmtMoney(mov.valor)}</td>
+                            <td style={{ padding: '8px 10px', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>{fmtDate(mov.data)}</td>
+                            <td style={{ padding: '8px 10px', color: 'var(--text-secondary)' }}>{mov.descricao || '—'}</td>
+                            <td style={{ padding: '8px 10px', color: 'var(--text-muted)', fontSize: '0.78rem' }}>{mov.numeroPedido || '—'}</td>
+                            <td style={{ padding: '8px 10px' }}>
+                              <button
+                                className={styles.btnLink}
+                                style={{ color: 'var(--danger)' }}
+                                onClick={async () => {
+                                  if (!id || !mov._id) return
+                                  if (!confirm('Remover este movimento?')) return
+                                  try {
+                                    const updated = await clientesApi.removerMovimento(id, 'saida', mov._id)
+                                    setCliente(updated)
+                                  } catch (err) {
+                                    alert(err instanceof Error ? err.message : 'Erro ao remover')
+                                  }
+                                }}
+                              >
+                                Remover
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            </div>
+          </>
+        )}
+
         {/* ── Certificados ICP ── */}
         {activeTab === 'certificadosICP' && (
           <>
@@ -1147,6 +1382,186 @@ export default function ClienteDetalhe() {
           </>
         )}
       </div>
+
+      {/* ── Licitação Modal ── */}
+      {showLicitModal && (
+        <Modal title="Nova Licitação" onClose={() => setShowLicitModal(false)} size="md">
+          <form
+            noValidate
+            className={styles.form}
+            onSubmit={async e => {
+              e.preventDefault()
+              if (!id) return
+              if (!licitForm.contrato.trim() || !licitForm.dataInit || !licitForm.dataFin) {
+                alert('Contrato, data de início e data de fim são obrigatórios.')
+                return
+              }
+              setSavingLicit(true)
+              try {
+                const updated = await clientesApi.licitacao(id, licitForm)
+                setCliente(updated)
+                setShowLicitModal(false)
+              } catch (err) {
+                alert(err instanceof Error ? err.message : 'Erro ao salvar licitação')
+              } finally {
+                setSavingLicit(false)
+              }
+            }}
+          >
+            <div className={styles.formGrid2}>
+              <label>
+                Contrato *
+                <input
+                  value={licitForm.contrato}
+                  onChange={e => setLicitForm(f => ({ ...f, contrato: e.target.value }))}
+                />
+              </label>
+              <label>
+                Número do Contrato
+                <input
+                  value={licitForm.contratoNum}
+                  onChange={e => setLicitForm(f => ({ ...f, contratoNum: e.target.value }))}
+                />
+              </label>
+              <label style={{ gridColumn: 'span 2' }}>
+                Descrição
+                <input
+                  value={licitForm.descricao}
+                  onChange={e => setLicitForm(f => ({ ...f, descricao: e.target.value }))}
+                />
+              </label>
+              <label>
+                Data de Início *
+                <input
+                  type="date"
+                  value={licitForm.dataInit}
+                  onChange={e => setLicitForm(f => ({ ...f, dataInit: e.target.value }))}
+                />
+              </label>
+              <label>
+                Data de Fim *
+                <input
+                  type="date"
+                  value={licitForm.dataFin}
+                  onChange={e => setLicitForm(f => ({ ...f, dataFin: e.target.value }))}
+                />
+              </label>
+              <label>
+                Valor Total
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={licitForm.valorTotal}
+                  onChange={e => setLicitForm(f => ({ ...f, valorTotal: e.target.value }))}
+                />
+              </label>
+              <label>
+                Status
+                <select
+                  value={licitForm.status}
+                  onChange={e => setLicitForm(f => ({ ...f, status: e.target.value as typeof licitForm.status }))}
+                >
+                  <option value="Ativo">Ativo</option>
+                  <option value="Encerrado">Encerrado</option>
+                  <option value="Suspenso">Suspenso</option>
+                </select>
+              </label>
+            </div>
+            <div className={styles.formActions}>
+              <button type="button" className={styles.btnSecondary} onClick={() => setShowLicitModal(false)}>
+                Cancelar
+              </button>
+              <button type="submit" className={styles.btnPrimary} disabled={savingLicit}>
+                {savingLicit ? 'Salvando...' : 'Salvar'}
+              </button>
+            </div>
+          </form>
+        </Modal>
+      )}
+
+      {/* ── Movimento Financeiro CLM Modal ── */}
+      {showMovModal && (
+        <Modal
+          title={movFluxo === 'entrada' ? 'Nova Entrada' : 'Nova Saída'}
+          onClose={() => setShowMovModal(false)}
+          size="md"
+        >
+          <form
+            noValidate
+            className={styles.form}
+            onSubmit={async e => {
+              e.preventDefault()
+              if (!id) return
+              if (!movForm.tipo.trim() || !movForm.valor || !movForm.data) {
+                alert('Tipo, valor e data são obrigatórios.')
+                return
+              }
+              setSavingMov(true)
+              try {
+                const updated = await clientesApi.movimentoFinanceiro(id, movFluxo, movForm)
+                setCliente(updated)
+                setShowMovModal(false)
+              } catch (err) {
+                alert(err instanceof Error ? err.message : 'Erro ao salvar movimento')
+              } finally {
+                setSavingMov(false)
+              }
+            }}
+          >
+            <div className={styles.formGrid2}>
+              <label>
+                Tipo *
+                <input
+                  value={movForm.tipo}
+                  onChange={e => setMovForm(f => ({ ...f, tipo: e.target.value }))}
+                  placeholder="Ex: Recebimento, Reembolso..."
+                />
+              </label>
+              <label>
+                Valor *
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={movForm.valor}
+                  onChange={e => setMovForm(f => ({ ...f, valor: e.target.value }))}
+                />
+              </label>
+              <label>
+                Data *
+                <input
+                  type="date"
+                  value={movForm.data}
+                  onChange={e => setMovForm(f => ({ ...f, data: e.target.value }))}
+                />
+              </label>
+              <label>
+                Número do Pedido
+                <input
+                  value={movForm.numeroPedido}
+                  onChange={e => setMovForm(f => ({ ...f, numeroPedido: e.target.value }))}
+                />
+              </label>
+              <label style={{ gridColumn: 'span 2' }}>
+                Descrição
+                <input
+                  value={movForm.descricao}
+                  onChange={e => setMovForm(f => ({ ...f, descricao: e.target.value }))}
+                />
+              </label>
+            </div>
+            <div className={styles.formActions}>
+              <button type="button" className={styles.btnSecondary} onClick={() => setShowMovModal(false)}>
+                Cancelar
+              </button>
+              <button type="submit" className={styles.btnPrimary} disabled={savingMov}>
+                {savingMov ? 'Salvando...' : 'Salvar'}
+              </button>
+            </div>
+          </form>
+        </Modal>
+      )}
 
       {/* ── Equipe Modal ── */}
       {showEquipeModal && (

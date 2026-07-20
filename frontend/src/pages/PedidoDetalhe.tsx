@@ -283,6 +283,11 @@ export default function PedidoDetalhe() {
   const notaEmpenho = typeof pedido.notaEmpenhoId === 'object' ? pedido.notaEmpenhoId : null
   const indiceAtual = ETAPAS.indexOf(pedido.etapaOperacional)
 
+  const codigoProduto = typeof pedido.produtoId === 'object' ? (pedido.produtoId as { codigo?: string }).codigo ?? '' : ''
+  const isICP = /^(ICP-|BANC-|INFOCONV-|EQUIP-)/i.test(codigoProduto)
+  const maxAnos = isICP ? 3 : 5
+  const prazoOpcoes = [1, 2, 3, 4, 5].filter(a => a <= maxAnos) as (1|2|3|4|5)[]
+
   return (
     <div className={styles.page}>
       <PageHeader
@@ -576,7 +581,7 @@ export default function PedidoDetalhe() {
           Período de validade contratado para os certificados deste pedido.
         </p>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-          {([1, 2, 3, 4, 5] as const).map(anos => (
+          {prazoOpcoes.map(anos => (
             <button
               key={anos}
               disabled={salvandoPrazo || pedido.status === 'Cancelado'}
@@ -603,6 +608,11 @@ export default function PedidoDetalhe() {
             </span>
           )}
         </div>
+        <p style={{ fontSize: '0.73rem', color: '#94a3b8', margin: '8px 0 0' }}>
+          {isICP
+            ? 'Certificados ICP-Brasil, Bancários, InfoConv e Equipamento: prazo máximo de 3 anos.'
+            : 'Certificados SSL: prazo de 1 a 5 anos.'}
+        </p>
       </div>
 
       {/* ── Domínios por Item ───────────────────────────────────── */}

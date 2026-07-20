@@ -398,4 +398,81 @@ router.get('/:id/pedidos', authenticate, authorize('admin', 'operador', 'finance
   }
 });
 
+// PATCH /clientes/:id/licitacoes — upsert de licitação pelo número de contrato
+router.patch('/:id/licitacoes', authenticate, authorize('admin', 'operador'), async (req, res, next) => {
+  try {
+    const cliente = await ClienteModel.findById(req.params.id);
+    if (!cliente) return res.status(404).json({ message: 'Cliente não encontrado' });
+    const { contrato, ...rest } = req.body;
+    if (!contrato) return res.status(400).json({ message: 'contrato obrigatório' });
+    const licitacoes = (cliente as any).licitacoes as any[] ?? [];
+    const idx = licitacoes.findIndex((l: any) => l.contrato === contrato);
+    if (idx >= 0) {
+      Object.assign(licitacoes[idx], rest);
+    } else {
+      licitacoes.push({ contrato, ...rest });
+    }
+    (cliente as any).licitacoes = licitacoes;
+    await cliente.save();
+    res.json(cliente);
+  } catch (e) { next(e); }
+});
+
+// DELETE /clientes/:id/licitacoes/:licitacaoId
+router.delete('/:id/licitacoes/:licitacaoId', authenticate, authorize('admin', 'operador'), async (req, res, next) => {
+  try {
+    const cliente = await ClienteModel.findByIdAndUpdate(
+      req.params.id,
+      { $pull: { licitacoes: { _id: req.params.licitacaoId } } },
+      { new: true }
+    );
+    if (!cliente) return res.status(404).json({ message: 'Cliente não encontrado' });
+    res.json(cliente);
+  } catch (e) { next(e); }
+});
+
+// POST /clientes/:id/financeiro-clm/entrada — registrar recebimento
+router.post('/:id/financeiro-clm/entrada', authenticate, authorize('admin', 'financeiro'), async (req, res, next) => {
+  try {
+    const { tipo, valor, data, descricao, numeroPedido, nomeUser, arquivo } = req.body;
+    if (!tipo || !valor || !data) return res.status(400).json({ message: 'tipo, valor e data são obrigatórios' });
+    const cliente = await ClienteModel.findByIdAndUpdate(
+      req.params.id,
+      { $push: { 'financeiroClm.entrada': { tipo, valor: Number(valor), data: new Date(data), descricao, numeroPedido, userId: (req as any).user?.id, nomeUser, arquivo } } },
+      { new: true }
+    );
+    if (!cliente) return res.status(404).json({ message: 'Cliente não encontrado' });
+    res.json(cliente);
+  } catch (e) { next(e); }
+});
+
+// POST /clientes/:id/financeiro-clm/saida — registrar pagamento
+router.post('/:id/financeiro-clm/saida', authenticate, authorize('admin', 'financeiro'), async (req, res, next) => {
+  try {
+    const { tipo, valor, data, descricao, numeroPedido, nomeUser, arquivo } = req.body;
+    if (!tipo || !valor || !data) return res.status(400).json({ message: 'tipo, valor e data são obrigatórios' });
+    const cliente = await ClienteModel.findByIdAndUpdate(
+      req.params.id,
+      { $push: { 'financeiroClm.saida': { tipo, valor: Number(valor), data: new Date(data), descricao, numeroPedido, userId: (req as any).user?.id, nomeUser, arquivo } } },
+      { new: true }
+    );
+    if (!cliente) return res.status(404).json({ message: 'Cliente não encontrado' });
+    res.json(cliente);
+  } catch (e) { next(e); }
+});
+
+// DELETE /clientes/:id/financeiro-clm/:fluxo/:movId — remover movimento
+router.delete('/:id/financeiro-clm/:fluxo/:movId', authenticate, authorize('admin', 'financeiro'), async (req, res, next) => {
+  try {
+    const { fluxo, movId } = req.params;
+    const fluxoStr = Array.isArray(fluxo) ? fluxo[0] : fluxo;
+    if (!['entrada', 'saida'].includes(fluxoStr)) return res.status(400).json({ message: 'fluxo deve ser entrada ou saida' });
+    const field = `financeiroClm.${fluxoStr}` as 'financeiroClm.entrada' | 'financeiroClm.saida';
+    const update = { $pull: { [field]: { _id: movId } } };
+    const cliente = await ClienteModel.findByIdAndUpdate(req.params.id, update, { new: true });
+    if (!cliente) return res.status(404).json({ message: 'Cliente não encontrado' });
+    res.json(cliente);
+  } catch (e) { next(e); }
+});
+
 export { router as clientesRouter };

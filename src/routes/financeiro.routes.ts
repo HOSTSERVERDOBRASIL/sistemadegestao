@@ -417,7 +417,7 @@ router.get('/dashboard-nf', authenticate, authorize('admin', 'financeiro'), asyn
             as: 'cliente',
           },
         },
-        { $unwind: { path: '$cliente', preserveNullAndEmpty: true } },
+        { $unwind: { path: '$cliente', preserveNullAndEmptyArrays: true } },
         {
           $project: {
             _id: 1,

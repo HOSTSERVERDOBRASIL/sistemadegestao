@@ -512,8 +512,14 @@ router.post('/:id/emitir-nf', authenticate, authorize('admin', 'financeiro'), as
 router.patch('/:id/prazo', authenticate, authorize('admin', 'operador'), async (req, res, next) => {
   try {
     const prazo = Number(req.body.prazoAnos);
-    if (![1, 2, 3, 4, 5].includes(prazo)) {
-      return res.status(400).json({ message: 'prazoAnos deve ser 1, 2, 3, 4 ou 5' });
+    const pedidoParaPrazo = await PedidoModel.findById(req.params.id).populate('produtoId', 'codigo');
+    if (!pedidoParaPrazo) return res.status(404).json({ message: 'Pedido não encontrado' });
+    const codigoProduto = typeof pedidoParaPrazo.produtoId === 'object'
+      ? (pedidoParaPrazo.produtoId as { codigo?: string }).codigo ?? ''
+      : '';
+    const maxAnos = /^(ICP-|BANC-|INFOCONV-|EQUIP-)/i.test(codigoProduto) ? 3 : 5;
+    if (![1, 2, 3, 4, 5].includes(prazo) || prazo > maxAnos) {
+      return res.status(400).json({ message: `prazoAnos deve ser entre 1 e ${maxAnos} para este produto`, maxAnos });
     }
     const pedido = await PedidoModel.findByIdAndUpdate(
       req.params.id,
