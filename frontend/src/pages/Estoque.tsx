@@ -137,14 +137,16 @@ interface MovForm {
   pedidoNumero: string
   clienteNome: string
   custoUnitario: string
+  precoVenda: string
   nfFornecedor: string
   observacoes: string
+  _isVendaAvulsa?: boolean
 }
 
 function blankMov(): MovForm {
   return {
     tipo: '', quantidade: 1, numerosSerie: '', lote: '', pedidoNumero: '',
-    clienteNome: '', custoUnitario: '', nfFornecedor: '', observacoes: '',
+    clienteNome: '', custoUnitario: '', precoVenda: '', nfFornecedor: '', observacoes: '',
   }
 }
 
@@ -277,11 +279,14 @@ export default function Estoque() {
     if (movForm.quantidade < 1) { setMovError('Quantidade deve ser maior que zero'); return }
     setMovSaving(true); setMovError('')
     try {
+      const obsVenda = movForm._isVendaAvulsa && movForm.precoVenda
+        ? `Venda avulsa${movForm.clienteNome ? ` para ${movForm.clienteNome}` : ''} — preço unitário: R$ ${Number(movForm.precoVenda).toFixed(2)}`
+        : undefined
       const payload: Record<string, unknown> = {
         itemId: movItem?._id,
         tipo: movForm.tipo,
         quantidade: movForm.quantidade,
-        observacoes: movForm.observacoes || undefined,
+        observacoes: movForm.observacoes || obsVenda || undefined,
         pedidoNumero: movForm.pedidoNumero || undefined,
         clienteNome: movForm.clienteNome || undefined,
         lote: movForm.lote || undefined,
@@ -321,9 +326,14 @@ export default function Estoque() {
   }
 
   // ─── abrir modal movimento ────────────────────────────────────────────────────
-  function openMov(item: EstoqueItem, tipoInicial = '') {
+  function openMov(item: EstoqueItem, tipoInicial = '', vendaAvulsa = false) {
     setMovItem(item)
-    setMovForm({ ...blankMov(), tipo: tipoInicial })
+    setMovForm({
+      ...blankMov(),
+      tipo: tipoInicial,
+      precoVenda: vendaAvulsa && item.precoVenda ? String(item.precoVenda) : '',
+      _isVendaAvulsa: vendaAvulsa,
+    })
     setMovError('')
     setShowMovModal(true)
   }
@@ -420,12 +430,12 @@ export default function Estoque() {
       },
     },
     {
-      key: '_actions', header: '', width: '220px',
+      key: '_actions', header: '', width: '260px',
       render: (r: EstoqueItem) => (
         <div className={styles.rowActions}>
-          <button className={styles.btnLink} style={{ color: '#16a34a' }} title="Entrada" onClick={e => { e.stopPropagation(); openMov(r, 'entrada_compra') }}>Entrada</button>
-          <button className={styles.btnLink} style={{ color: '#dc2626' }} title="Saída" onClick={e => { e.stopPropagation(); openMov(r, 'saida_pedido') }}>Saída</button>
-          <button className={styles.btnLink} style={{ color: '#d97706' }} title="Reservar" onClick={e => { e.stopPropagation(); openMov(r, 'reserva') }}>Reservar</button>
+          <button className={styles.btnLink} style={{ color: '#16a34a' }} title="Registrar entrada" onClick={e => { e.stopPropagation(); openMov(r, 'entrada_compra') }}>Entrada</button>
+          <button className={styles.btnLink} style={{ color: '#7c3aed', fontWeight: 700 }} title="Venda avulsa — debita estoque" onClick={e => { e.stopPropagation(); openMov(r, 'saida_pedido', true) }}>Vender</button>
+          <button className={styles.btnLink} style={{ color: '#dc2626' }} title="Saída / ajuste" onClick={e => { e.stopPropagation(); openMov(r, 'saida_ajuste') }}>Saída</button>
           <button className={styles.btnLink} onClick={e => { e.stopPropagation(); openHist(r) }}>Histórico</button>
         </div>
       ),
@@ -724,7 +734,7 @@ export default function Estoque() {
 
       {/* ══ MODAL — REGISTRAR MOVIMENTO ══ */}
       {showMovModal && movItem && (
-        <Modal title={`Movimentar: ${movItem.nome}`} onClose={() => setShowMovModal(false)} size="lg">
+        <Modal title={movForm._isVendaAvulsa ? `Vender: ${movItem.nome}` : `Movimentar: ${movItem.nome}`} onClose={() => setShowMovModal(false)} size="lg">
           <form onSubmit={handleSaveMov} noValidate className={styles.form}>
             {/* saldo atual */}
             <div style={{ display: 'flex', gap: 16, padding: '10px 14px', background: 'var(--surface-2, #f8fafc)', borderRadius: 8, fontSize: '0.83rem', flexWrap: 'wrap' }}>
@@ -780,6 +790,16 @@ export default function Estoque() {
               {isEntradaMov && (
                 <label>Custo Unitário (entrada)
                   <input type="number" min="0" step="0.01" value={movForm.custoUnitario} onChange={e => setMovForm(f => ({ ...f, custoUnitario: e.target.value }))} placeholder="0,00" />
+                </label>
+              )}
+
+              {movForm._isVendaAvulsa && (
+                <label style={{ gridColumn: 'span 2' }}>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    Preço de Venda (R$)
+                    {movItem?.precoVenda && <span style={{ fontSize: '0.75rem', color: '#64748b' }}>Sugerido: {moeda(movItem.precoVenda)}</span>}
+                  </span>
+                  <input type="number" min="0" step="0.01" value={movForm.precoVenda} onChange={e => setMovForm(f => ({ ...f, precoVenda: e.target.value }))} placeholder="0,00" />
                 </label>
               )}
 
