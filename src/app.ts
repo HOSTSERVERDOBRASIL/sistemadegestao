@@ -132,14 +132,18 @@ app.use(`${apiPrefix}/atendimento-ar`, atendimentoARRouter);
 app.use('/uploads', express.static(path.resolve(env.UPLOAD_DIR)));
 
 // ─── Frontend estático em produção ───────────────────────────────────────────
-if (env.isProd) {
-  const frontendDist = path.resolve('frontend/dist');
-  app.use(express.static(frontendDist));
-  // SPA fallback — todas as rotas não-API devolvem o index.html
-  app.get('*', (_req, res) => {
-    res.sendFile(path.join(frontendDist, 'index.html'));
-  });
-}
+// Servir arquivos estáticos do frontend ANTES do SPA fallback
+const frontendDistPath = path.join(process.cwd(), 'frontend/dist');
+app.use(express.static(frontendDistPath, {
+  maxAge: '1d',
+  etag: false,
+}));
+
+// SPA fallback — todas as rotas não-API devolvem o index.html (ÚLTIMA rota)
+app.get('*', (_req: Request, res: Response) => {
+  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+  res.sendFile(path.join(frontendDistPath, 'index.html'));
+});
 
 // ─── Error handler ───────────────────────────────────────────────────────────
 app.use(errorHandler);
@@ -149,3 +153,4 @@ setInterval(() => verificarCertificadosVencendo().catch(console.error), 4 * 60 *
 verificarCertificadosVencendo().catch(console.error);
 
 export { app };
+
