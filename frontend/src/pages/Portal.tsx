@@ -1,4 +1,5 @@
-import { useEffect, useState, useRef, ChangeEvent, DragEvent } from 'react'
+import { useEffect, useState, useRef } from 'react'
+import type { ChangeEvent, DragEvent } from 'react'
 import { useParams } from 'react-router-dom'
 import AtlasLogo from '../components/AtlasLogo'
 import { fmtDate, fmtDateTime } from '../utils/fmt'

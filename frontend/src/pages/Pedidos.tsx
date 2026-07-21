@@ -741,19 +741,6 @@ export default function Pedidos({ statusFixo }: { statusFixo?: PedidoStatus }) {
     color: active ? '#fff' : 'var(--text-secondary, #64748b)',
   })
 
-  const titleLabel = statusFixo
-    ? ({
-        Rascunho: 'Pedidos — Rascunho',
-        Aprovado: 'Pedidos — Aprovados',
-        'Aguardando aprovação': 'Pedidos — Aguardando Aprovação',
-        'Aguardando pagamento': 'Pedidos — Aguardando Pagamento',
-        'Em processo': 'Pedidos — Em Processo',
-        Faturado: 'Pedidos — Faturados',
-        Concluido: 'Pedidos — Concluídos',
-        Cancelado: 'Pedidos — Cancelados',
-      } as Record<PedidoStatus, string>)[statusFixo]
-    : 'Pedidos'
-
   return (
     <div className={styles.page}>
       {/* ── header + tabs ── */}
