@@ -5,7 +5,8 @@ import {
   Receipt, FileStack, Zap, Scale, Tag, BarChart2,
   Link2, RefreshCw, UserCog, Settings, ScrollText, ShieldCheck,
   Sun, Moon, LogOut, Bell, Wallet, FilePlus, CheckCircle, Clock, XCircle,
-  ChevronRight, AlertTriangle,
+  ChevronRight, AlertTriangle, Briefcase, FileSignature, CreditCard,
+  Activity, TrendingDown,
 } from 'lucide-react'
 
 import { useAuth } from '../context/AuthContext'
@@ -44,15 +45,34 @@ const NAV_GROUPS: NavGroup[] = [
         ],
       },
       { to: '/parceiros', label: 'Parceiros / Revendas', Icon: Handshake },
+      {
+        label: 'CRM',
+        Icon: Briefcase,
+        items: [
+          { to: '/crm/oportunidades', label: 'Oportunidades', Icon: Activity },
+          { to: '/crm/propostas',     label: 'Propostas',     Icon: FileSignature },
+        ],
+      },
     ],
   },
   {
     label: 'Operações',
     entries: [
-      { to: '/pedidos', label: 'Pedidos', Icon: ClipboardList },
-      { to: '/produtos', label: 'Produtos', Icon: Package },
-      { to: '/certificados-icp', label: 'Certificados ICP', Icon: ShieldCheck },
-      { to: '/estoque', label: 'Estoque', Icon: Package },
+      {
+        label: 'Pedidos',
+        Icon: ClipboardList,
+        items: [
+          { to: '/pedidos',                     label: 'Todos',                Icon: ClipboardList },
+          { to: '/pedidos/aguardando-aprovacao', label: 'Aguard. Aprovação',   Icon: Clock },
+          { to: '/pedidos/aguardando-pagamento', label: 'Aguard. Pagamento',   Icon: CreditCard },
+          { to: '/pedidos/em-processo',          label: 'Em Processo',         Icon: Activity },
+          { to: '/pedidos/concluidos',           label: 'Concluídos',          Icon: CheckCircle },
+          { to: '/pedidos/cancelados',           label: 'Cancelados',          Icon: XCircle },
+        ],
+      },
+      { to: '/produtos',        label: 'Produtos',        Icon: Package },
+      { to: '/certificados-icp',label: 'Certificados ICP',Icon: ShieldCheck },
+      { to: '/estoque',         label: 'Estoque',         Icon: Package },
     ],
   },
   {
@@ -70,10 +90,11 @@ const NAV_GROUPS: NavGroup[] = [
           { to: '/financeiro/canceladas', label: 'Canceladas',       Icon: XCircle },
         ],
       },
-      { to: '/notas-empenho', label: 'Notas de Empenho', Icon: FileStack },
-      { to: '/cobrancas',     label: 'Cobranças',        Icon: Zap },
-      { to: '/conciliacao',   label: 'Conciliação',      Icon: Scale, adminOnly: true },
-      { to: '/cupons',        label: 'Cupons',           Icon: Tag,   adminOnly: true },
+      { to: '/notas-empenho',   label: 'Notas de Empenho', Icon: FileStack },
+      { to: '/cobrancas',       label: 'Cobranças',        Icon: Zap },
+      { to: '/contas-pagar',    label: 'Contas a Pagar',   Icon: TrendingDown },
+      { to: '/conciliacao',     label: 'Conciliação',      Icon: Scale,  adminOnly: true },
+      { to: '/cupons',          label: 'Cupons',           Icon: Tag,    adminOnly: true },
     ],
   },
   {
@@ -104,9 +125,9 @@ const NAV_GROUPS_REVENDA: NavGroup[] = [
   {
     label: 'Minha Conta',
     entries: [
-      { to: '/portal-revenda?aba=visao-geral', label: 'Visão Geral',         Icon: LayoutDashboard },
-      { to: '/portal-revenda?aba=carteira',    label: 'Carteira',            Icon: Wallet },
-      { to: '/portal-revenda?aba=pedidos',     label: 'Meus Pedidos',        Icon: ClipboardList },
+      { to: '/portal-revenda?aba=visao-geral', label: 'Visão Geral',          Icon: LayoutDashboard },
+      { to: '/portal-revenda?aba=carteira',    label: 'Carteira',             Icon: Wallet },
+      { to: '/portal-revenda?aba=pedidos',     label: 'Meus Pedidos',         Icon: ClipboardList },
       { to: '/portal-revenda?aba=relatorio',   label: 'Relatório de Consumo', Icon: BarChart2 },
     ],
   },
@@ -124,6 +145,8 @@ const ROUTE_LABELS: Record<string, string> = {
   '/pedidos': 'Pedidos',
   '/pedidos/rascunho': 'Pedidos — Rascunho',
   '/pedidos/aprovados': 'Pedidos — Aprovados',
+  '/pedidos/aguardando-aprovacao': 'Pedidos — Aguardando Aprovação',
+  '/pedidos/aguardando-pagamento': 'Pedidos — Aguardando Pagamento',
   '/pedidos/em-processo': 'Pedidos — Em Processo',
   '/pedidos/faturados': 'Pedidos — Faturados',
   '/pedidos/concluidos': 'Pedidos — Concluídos',
@@ -131,7 +154,6 @@ const ROUTE_LABELS: Record<string, string> = {
   '/produtos': 'Produtos',
   '/certificados-icp': 'Certificados ICP',
   '/estoque': 'Estoque',
-
   '/produtos/ativos': 'Produtos Ativos',
   '/produtos/inativos': 'Produtos Inativos',
   '/financeiro/dashboard': 'Dashboard NF',
@@ -142,6 +164,7 @@ const ROUTE_LABELS: Record<string, string> = {
   '/financeiro/emitir': 'Emitir Nota Fiscal',
   '/notas-empenho': 'Notas de Empenho',
   '/cobrancas': 'Cobranças',
+  '/contas-pagar': 'Contas a Pagar',
   '/conciliacao': 'Conciliação',
   '/cupons': 'Cupons',
   '/relatorios': 'Relatórios',
@@ -151,6 +174,8 @@ const ROUTE_LABELS: Record<string, string> = {
   '/usuarios': 'Usuários',
   '/configuracoes': 'Configurações',
   '/logs': 'Logs',
+  '/crm/oportunidades': 'Oportunidades',
+  '/crm/propostas': 'Propostas',
 }
 
 function NavItemLink({ to, label, Icon, sub = false }: NavItem & { sub?: boolean }) {
@@ -228,8 +253,8 @@ export default function Layout() {
 
   const pathKey = ROUTE_LABELS[location.pathname]
     ? location.pathname
-    : '/' + location.pathname.split('/')[1]
-  const pageLabel = ROUTE_LABELS[pathKey] ?? ''
+    : '/' + location.pathname.split('/').slice(1, 3).join('/')
+  const pageLabel = ROUTE_LABELS[pathKey] ?? ROUTE_LABELS['/' + location.pathname.split('/')[1]] ?? ''
   const isDetail = location.pathname.split('/').length > 2 && !ROUTE_LABELS[location.pathname]
 
   return (

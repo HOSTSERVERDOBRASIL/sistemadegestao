@@ -32,6 +32,9 @@ import CertificadosICP from './pages/CertificadosICP'
 import DashboardNF from './pages/DashboardNF'
 import Estoque from './pages/Estoque'
 import Portal from './pages/Portal'
+import CrmOportunidades from './pages/CrmOportunidades'
+import CrmPropostas from './pages/CrmPropostas'
+import ContasPagar from './pages/ContasPagar'
 
 
 function PrivateRoute({ children, adminOnly = false, revendaOnly = false }: { children: React.ReactNode; adminOnly?: boolean; revendaOnly?: boolean }) {
@@ -55,6 +58,8 @@ function AppRoutes() {
         <Route path="pedidos" element={<Pedidos />} />
         <Route path="pedidos/rascunho" element={<Pedidos statusFixo="Rascunho" />} />
         <Route path="pedidos/aprovados" element={<Pedidos statusFixo="Aprovado" />} />
+        <Route path="pedidos/aguardando-aprovacao" element={<Pedidos statusFixo="Aguardando aprovação" />} />
+        <Route path="pedidos/aguardando-pagamento" element={<Pedidos statusFixo="Aguardando pagamento" />} />
         <Route path="pedidos/em-processo" element={<Pedidos statusFixo="Em processo" />} />
         <Route path="pedidos/faturados" element={<Pedidos statusFixo="Faturado" />} />
         <Route path="pedidos/concluidos" element={<Pedidos statusFixo="Concluido" />} />
@@ -92,9 +97,12 @@ function AppRoutes() {
         <Route path="portal-revenda" element={<PrivateRoute revendaOnly><PortalRevenda /></PrivateRoute>} />
         <Route path="certificados-icp" element={<CertificadosICP />} />
         <Route path="estoque" element={<Estoque />} />
-
+        <Route path="crm/oportunidades" element={<CrmOportunidades />} />
+        <Route path="crm/propostas" element={<CrmPropostas />} />
+        <Route path="contas-pagar" element={<ContasPagar />} />
       </Route>
       <Route path="/portal/:token" element={<Portal />} />
+      <Route path="/proposta-aceite/:token" element={<Portal />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   )

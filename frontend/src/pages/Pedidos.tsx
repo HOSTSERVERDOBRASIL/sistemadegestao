@@ -162,7 +162,7 @@ function validate(f: PedidoPayload): Errors {
   }
 }
 
-type PedidoStatus = 'Rascunho' | 'Aprovado' | 'Em processo' | 'Faturado' | 'Concluido' | 'Cancelado'
+type PedidoStatus = 'Rascunho' | 'Aprovado' | 'Aguardando aprovação' | 'Aguardando pagamento' | 'Em processo' | 'Faturado' | 'Concluido' | 'Cancelado'
 
 // ─── componente principal ───────────────────────────────────────────────────
 export default function Pedidos({ statusFixo }: { statusFixo?: PedidoStatus }) {
@@ -742,7 +742,16 @@ export default function Pedidos({ statusFixo }: { statusFixo?: PedidoStatus }) {
   })
 
   const titleLabel = statusFixo
-    ? { Rascunho: 'Pedidos — Rascunho', Aprovado: 'Pedidos — Aprovados', 'Em processo': 'Pedidos — Em Processo', Faturado: 'Pedidos — Faturados', Concluido: 'Pedidos — Concluídos', Cancelado: 'Pedidos — Cancelados' }[statusFixo]
+    ? ({
+        Rascunho: 'Pedidos — Rascunho',
+        Aprovado: 'Pedidos — Aprovados',
+        'Aguardando aprovação': 'Pedidos — Aguardando Aprovação',
+        'Aguardando pagamento': 'Pedidos — Aguardando Pagamento',
+        'Em processo': 'Pedidos — Em Processo',
+        Faturado: 'Pedidos — Faturados',
+        Concluido: 'Pedidos — Concluídos',
+        Cancelado: 'Pedidos — Cancelados',
+      } as Record<PedidoStatus, string>)[statusFixo]
     : 'Pedidos'
 
   return (
