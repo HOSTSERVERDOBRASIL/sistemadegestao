@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { ContratoModel } from '../models/contrato.model.js';
+import { ProdutoModel } from '../models/produto.model.js';
 import { OrdemFornecimentoModel } from '../models/ordem-fornecimento.model.js';
 import { PedidoModel } from '../models/pedido.model.js';
 import { authenticate, authorize } from '../middleware/auth.middleware.js';
@@ -219,6 +220,108 @@ router.get('/:id/pedidos', authenticate, authorize('admin', 'operador', 'finance
       .populate('produtoId', 'codigo nome')
       .sort({ createdAt: -1 });
     res.json(pedidos);
+  } catch (error) {
+    next(error);
+  }
+});
+
+// ─── Itens Contratados ────────────────────────────────────────────────────────
+
+router.get('/:id/itens', authenticate, authorize('admin', 'operador', 'financeiro'), async (req, res, next) => {
+  try {
+    const contrato = await ContratoModel.findById(req.params.id).select('itens');
+    if (!contrato) return res.status(404).json({ message: 'Contrato não encontrado' });
+    res.json(contrato.itens);
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.post('/:id/itens', authenticate, authorize('admin', 'operador'), async (req, res, next) => {
+  try {
+    const contrato = await ContratoModel.findById(req.params.id);
+    if (!contrato) return res.status(404).json({ message: 'Contrato não encontrado' });
+
+    const produtoId = String(req.body.produtoId ?? '').trim();
+    const quantidade = Number(req.body.quantidade);
+    const precoUnitario = Number(req.body.precoUnitario);
+    const unidade = req.body.unidade ? String(req.body.unidade).trim() : undefined;
+
+    if (!produtoId) return res.status(400).json({ message: 'produtoId é obrigatório' });
+    if (!Number.isFinite(quantidade) || quantidade <= 0)
+      return res.status(400).json({ message: 'quantidade deve ser maior que zero' });
+    if (!Number.isFinite(precoUnitario) || precoUnitario < 0)
+      return res.status(400).json({ message: 'precoUnitario inválido' });
+
+    const produto = await ProdutoModel.findById(produtoId);
+    if (!produto) return res.status(404).json({ message: 'Produto não encontrado' });
+
+    const subtotal = quantidade * precoUnitario;
+    contrato.itens.push({
+      produtoId: produto._id as any,
+      codigo: produto.codigo,
+      nome: produto.nome,
+      quantidade,
+      quantidadeExecutada: 0,
+      precoUnitario,
+      subtotal,
+      unidade,
+    });
+    await contrato.save();
+    res.status(201).json(contrato.itens.at(-1));
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.put('/:id/itens/:itemId', authenticate, authorize('admin', 'operador'), async (req, res, next) => {
+  try {
+    const contrato = await ContratoModel.findById(req.params.id);
+    if (!contrato) return res.status(404).json({ message: 'Contrato não encontrado' });
+
+    const item = contrato.itens.find(i => String((i as any)._id) === req.params.itemId);
+    if (!item) return res.status(404).json({ message: 'Item não encontrado' });
+
+    if (req.body.quantidade !== undefined) {
+      const quantidade = Number(req.body.quantidade);
+      if (!Number.isFinite(quantidade) || quantidade <= 0)
+        return res.status(400).json({ message: 'quantidade deve ser maior que zero' });
+      item.quantidade = quantidade;
+    }
+    if (req.body.precoUnitario !== undefined) {
+      const preco = Number(req.body.precoUnitario);
+      if (!Number.isFinite(preco) || preco < 0)
+        return res.status(400).json({ message: 'precoUnitario inválido' });
+      item.precoUnitario = preco;
+    }
+    if (req.body.quantidadeExecutada !== undefined) {
+      const exec = Number(req.body.quantidadeExecutada);
+      if (!Number.isFinite(exec) || exec < 0)
+        return res.status(400).json({ message: 'quantidadeExecutada inválida' });
+      item.quantidadeExecutada = exec;
+    }
+    if (req.body.unidade !== undefined) {
+      item.unidade = req.body.unidade ? String(req.body.unidade).trim() : undefined;
+    }
+    item.subtotal = item.quantidade * item.precoUnitario;
+    await contrato.save();
+    res.json(item);
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.delete('/:id/itens/:itemId', authenticate, authorize('admin', 'operador'), async (req, res, next) => {
+  try {
+    const contrato = await ContratoModel.findById(req.params.id);
+    if (!contrato) return res.status(404).json({ message: 'Contrato não encontrado' });
+
+    const idx = contrato.itens.findIndex(i => String((i as any)._id) === req.params.itemId);
+    if (idx === -1) return res.status(404).json({ message: 'Item não encontrado' });
+
+    contrato.itens.splice(idx, 1);
+    await contrato.save();
+    res.json({ message: 'Item removido' });
   } catch (error) {
     next(error);
   }

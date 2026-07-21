@@ -6,7 +6,7 @@ import {
   Link2, RefreshCw, UserCog, Settings, ScrollText, ShieldCheck,
   Sun, Moon, LogOut, Bell, Wallet, FilePlus, CheckCircle, Clock, XCircle,
   ChevronRight, AlertTriangle, Briefcase, FileSignature, CreditCard,
-  Activity, TrendingDown,
+  Activity, TrendingDown, Layers,
 } from 'lucide-react'
 
 import { useAuth } from '../context/AuthContext'
@@ -58,6 +58,7 @@ const NAV_GROUPS: NavGroup[] = [
   {
     label: 'Operações',
     entries: [
+      { to: '/dashboard-operacional', label: 'Dashboard Operacional', Icon: Layers },
       {
         label: 'Pedidos',
         Icon: ClipboardList,
@@ -70,9 +71,10 @@ const NAV_GROUPS: NavGroup[] = [
           { to: '/pedidos/cancelados',           label: 'Cancelados',          Icon: XCircle },
         ],
       },
-      { to: '/produtos',        label: 'Produtos',        Icon: Package },
-      { to: '/certificados-icp',label: 'Certificados ICP',Icon: ShieldCheck },
-      { to: '/estoque',         label: 'Estoque',         Icon: Package },
+      { to: '/produtos',         label: 'Produtos',        Icon: Package },
+      { to: '/certificados-icp', label: 'Certificados ICP', Icon: ShieldCheck },
+      { to: '/atendimento-ar',   label: 'Atendimento AR',   Icon: UserCog },
+      { to: '/estoque',          label: 'Estoque',          Icon: Package },
     ],
   },
   {
@@ -100,8 +102,9 @@ const NAV_GROUPS: NavGroup[] = [
   {
     label: 'Análise',
     entries: [
-      { to: '/relatorios', label: 'Relatórios', Icon: BarChart2 },
-      { to: '/auditoria',  label: 'Auditoria',  Icon: ShieldCheck, roles: ['admin', 'financeiro'] },
+      { to: '/relatorios', label: 'Relatórios',            Icon: BarChart2 },
+      { to: '/dre',        label: 'DRE / Fluxo de Caixa', Icon: Layers,    roles: ['admin', 'financeiro'] },
+      { to: '/auditoria',  label: 'Auditoria',             Icon: ShieldCheck, roles: ['admin', 'financeiro'] },
     ],
   },
   {
@@ -153,7 +156,9 @@ const ROUTE_LABELS: Record<string, string> = {
   '/pedidos/cancelados': 'Pedidos — Cancelados',
   '/produtos': 'Produtos',
   '/certificados-icp': 'Certificados ICP',
+  '/atendimento-ar': 'Atendimento AR',
   '/estoque': 'Estoque',
+  '/dashboard-operacional': 'Dashboard Operacional',
   '/produtos/ativos': 'Produtos Ativos',
   '/produtos/inativos': 'Produtos Inativos',
   '/financeiro/dashboard': 'Dashboard NF',
@@ -168,6 +173,7 @@ const ROUTE_LABELS: Record<string, string> = {
   '/conciliacao': 'Conciliação',
   '/cupons': 'Cupons',
   '/relatorios': 'Relatórios',
+  '/dre': 'DRE / Fluxo de Caixa',
   '/auditoria': 'Auditoria',
   '/integracao-tiny': 'Tiny / Olist',
   '/integracao-clm': 'CLM',

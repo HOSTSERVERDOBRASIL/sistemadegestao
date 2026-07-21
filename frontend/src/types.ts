@@ -225,6 +225,18 @@ export interface RelatorioRevenda {
 export type ModalidadeContrato = 'Total' | 'Parcial' | 'Por Ordem de Fornecimento'
 export type VinculoTipo = 'Contrato' | 'EmpenhoSF' | 'CompraDireta' | 'Revenda'
 
+export interface IItemContrato {
+  _id: string
+  produtoId: string
+  codigo: string
+  nome: string
+  quantidade: number
+  quantidadeExecutada: number
+  precoUnitario: number
+  subtotal: number
+  unidade?: string
+}
+
 export interface Contrato {
   _id: string
   numero: string
@@ -239,6 +251,7 @@ export interface Contrato {
   assinantes: string[]
   versoes: { numeroVersao: number; arquivoUrl?: string; data: string }[]
   aditivos: { numero: string; valor: number; vigenciaAte?: string; motivo: string; dataAssinatura: string; tipo?: 'Reequilíbrio Econômico' | 'Acréscimo' | 'Supressão' | 'Prorrogação' }[]
+  itens: IItemContrato[]
   createdAt: string
 }
 

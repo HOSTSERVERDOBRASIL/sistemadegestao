@@ -1,0 +1,274 @@
+/* ── Tabs ─────────────────────────────────────────────────────────────────── */
+.tabs {
+  display: flex;
+  gap: 4px;
+  border-bottom: 2px solid var(--surface-border);
+  margin-bottom: 24px;
+}
+
+.tab {
+  background: none;
+  border: none;
+  padding: 8px 20px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -2px;
+  transition: color 0.15s, border-color 0.15s;
+  border-radius: 4px 4px 0 0;
+}
+
+.tab:hover { color: var(--text-primary); background: var(--surface-2); }
+
+.tabActive {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+
+.tabContent { min-height: 300px; }
+
+/* ── Controls ─────────────────────────────────────────────────────────────── */
+.controls {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+
+.anoControls {
+  margin-bottom: 16px;
+}
+
+.select {
+  padding: 8px 10px;
+  border: 1px solid var(--input-border);
+  border-radius: 8px;
+  font-size: 0.875rem;
+  color: var(--text-primary);
+  background: var(--input-bg);
+  outline: none;
+  cursor: pointer;
+  transition: border-color 0.15s;
+}
+
+.select:focus { border-color: var(--input-focus); }
+
+/* ── KPI Row ──────────────────────────────────────────────────────────────── */
+.kpiRow {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 14px;
+  margin-bottom: 24px;
+}
+
+/* ── Table ────────────────────────────────────────────────────────────────── */
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+
+.table th {
+  text-align: left;
+  font-size: 0.73rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--surface-border);
+}
+
+.table td {
+  padding: 9px 10px;
+  color: var(--text-primary);
+  border-bottom: 1px solid var(--surface-border);
+}
+
+.table tbody tr:last-child td { border-bottom: none; }
+
+.table tbody tr:hover td { background: var(--surface-2); }
+
+.right { text-align: right; }
+
+.centroCell {
+  text-transform: capitalize;
+  font-weight: 500;
+}
+
+.tableFooter td {
+  border-top: 2px solid var(--surface-border);
+  border-bottom: none !important;
+  padding-top: 10px;
+}
+
+/* ── Progress bar ─────────────────────────────────────────────────────────── */
+.progressBg {
+  height: 8px;
+  background: var(--surface-2);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.progressBar {
+  height: 100%;
+  background: var(--danger);
+  border-radius: 4px;
+  transition: width 0.3s ease;
+  min-width: 2px;
+}
+
+/* ── Bar chart ────────────────────────────────────────────────────────────── */
+.barChart {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  height: 180px;
+  padding-bottom: 28px;
+  position: relative;
+  overflow: hidden;
+}
+
+.barGroup {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+}
+
+.barPair {
+  display: flex;
+  gap: 3px;
+  align-items: flex-end;
+  flex: 1;
+  width: 100%;
+  justify-content: center;
+}
+
+.barRec {
+  background: var(--success);
+  border-radius: 3px 3px 0 0;
+  width: 45%;
+  min-height: 2px;
+  opacity: 0.85;
+  transition: height 0.3s ease;
+}
+
+.barDesp {
+  background: var(--danger);
+  border-radius: 3px 3px 0 0;
+  width: 45%;
+  min-height: 2px;
+  opacity: 0.75;
+  transition: height 0.3s ease;
+}
+
+.barLabel {
+  font-size: 0.65rem;
+  color: var(--text-muted);
+  text-align: center;
+  margin-top: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+.barLegend {
+  position: absolute;
+  bottom: 2px;
+  right: 0;
+  display: flex;
+  gap: 14px;
+  font-size: 0.72rem;
+}
+
+.legendRec::before {
+  content: '';
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  background: var(--success);
+  border-radius: 2px;
+  margin-right: 4px;
+  vertical-align: middle;
+}
+
+.legendDesp::before {
+  content: '';
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  background: var(--danger);
+  border-radius: 2px;
+  margin-right: 4px;
+  vertical-align: middle;
+}
+
+.legendRec, .legendDesp { color: var(--text-secondary); }
+
+/* ── Saldo card ───────────────────────────────────────────────────────────── */
+.saldoCard {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 28px 24px;
+  background: var(--surface);
+  border: 1px solid var(--surface-border);
+  border-radius: 14px;
+  margin-bottom: 24px;
+  text-align: center;
+}
+
+.saldoLabel {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 8px;
+}
+
+.saldoValue {
+  font-size: 2.2rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+  margin-bottom: 6px;
+}
+
+.saldoSub {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.positive { color: var(--success); }
+.negative { color: var(--danger); }
+
+/* ── Colours ──────────────────────────────────────────────────────────────── */
+.textSuccess { color: var(--success); font-weight: 600; }
+.textDanger  { color: var(--danger);  font-weight: 600; }
+
+/* ── Projection first row marker ────────────────────────────────────────────*/
+.projecaoFirst td {
+  border-top: 2px dashed var(--accent);
+}
+
+/* ── Misc ─────────────────────────────────────────────────────────────────── */
+.empty {
+  color: var(--text-muted);
+  font-size: 0.875rem;
+  text-align: center;
+  padding: 20px 0;
+}
+
+.loading {
+  color: var(--text-muted);
+  font-size: 0.875rem;
+  padding: 12px 0;
+}

@@ -4,6 +4,18 @@ export type ModalidadeContrato = 'Total' | 'Parcial' | 'Por Ordem de Forneciment
 export type VinculoTipo = 'Contrato' | 'EmpenhoSF' | 'CompraDireta' | 'Revenda';
 export type TipoDocumentoContrato = 'Contrato' | 'Edital' | 'Termo de Referência' | 'Ata de Registro de Preços' | 'Aditivo' | 'Garantia' | 'Outro';
 
+export interface IItemContrato {
+  _id?: Types.ObjectId;
+  produtoId: Types.ObjectId;
+  codigo: string;
+  nome: string;
+  quantidade: number;
+  quantidadeExecutada: number;
+  precoUnitario: number;
+  subtotal: number;
+  unidade?: string;
+}
+
 export interface IDocumentoContrato {
   tipo: TipoDocumentoContrato;
   descricao?: string;
@@ -36,6 +48,7 @@ export interface IContrato extends Document {
   versoes: Array<{ numeroVersao: number; arquivoUrl?: string; data: Date }>;
   documentos: IDocumentoContrato[];
   aditivos: IAditivoContrato[];
+  itens: IItemContrato[];
 }
 
 const contratoSchema = new Schema<IContrato>({
@@ -65,7 +78,17 @@ const contratoSchema = new Schema<IContrato>({
     motivo: { type: String, required: true },
     dataAssinatura: { type: Date, required: true },
     tipo: { type: String, enum: ['Reequilíbrio Econômico', 'Acréscimo', 'Supressão', 'Prorrogação'] },
-  }]
+  }],
+  itens: [{
+    produtoId: { type: Schema.Types.ObjectId, ref: 'Produto', required: true },
+    codigo: { type: String, required: true },
+    nome: { type: String, required: true },
+    quantidade: { type: Number, required: true, min: 0 },
+    quantidadeExecutada: { type: Number, default: 0, min: 0 },
+    precoUnitario: { type: Number, required: true, min: 0 },
+    subtotal: { type: Number, required: true, min: 0 },
+    unidade: { type: String },
+  }],
 }, { timestamps: true });
 
 contratoSchema.index({ clienteId: 1 });

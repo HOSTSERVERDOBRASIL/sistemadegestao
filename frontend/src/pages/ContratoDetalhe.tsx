@@ -6,7 +6,7 @@ import Badge from '../components/Badge'
 import Table from '../components/Table'
 import Modal from '../components/Modal'
 import { contratos as api, uploads, exportar } from '../api'
-import type { Contrato, OrdemFornecimento, Pedido, ResumoFinanceiroContrato } from '../types'
+import type { Contrato, IItemContrato, OrdemFornecimento, Pedido, Produto, ResumoFinanceiroContrato } from '../types'
 import styles from './ContratoDetalhe.module.css'
 import pageStyles from './Page.module.css'
 
@@ -274,6 +274,11 @@ export default function ContratoDetalhe() {
   const [uploadingDoc, setUploadingDoc] = useState(false)
   const versaoFileRef = useRef<HTMLInputElement>(null)
   const docFileRef = useRef<HTMLInputElement>(null)
+  const [showItemModal, setShowItemModal] = useState(false)
+  const [itemForm, setItemForm] = useState({ produtoId: '', quantidade: 1, precoUnitario: 0, unidade: '' })
+  const [savingItem, setSavingItem] = useState(false)
+  const [itemError, setItemError] = useState('')
+  const [produtosList, setProdutosList] = useState<Produto[]>([])
 
   function load() {
     if (!id) return
@@ -380,6 +385,72 @@ export default function ContratoDetalhe() {
       load()
     } catch (err) { setError(err instanceof Error ? err.message : 'Erro ao criar aditivo') }
     finally { setSaving(false) }
+  }
+
+  async function handleAbrirItemModal() {
+    setItemError('')
+    setItemForm({ produtoId: '', quantidade: 1, precoUnitario: 0, unidade: '' })
+    if (produtosList.length === 0) {
+      try {
+        const res = await fetch('/api/produtos?limit=200&ativo=true', {
+          headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+        })
+        const json = await res.json()
+        setProdutosList(json.data ?? [])
+      } catch {
+        setProdutosList([])
+      }
+    }
+    setShowItemModal(true)
+  }
+
+  async function handleAdicionarItem(e: React.FormEvent) {
+    e.preventDefault()
+    if (!id) return
+    setSavingItem(true)
+    setItemError('')
+    try {
+      const res = await fetch(`/api/contratos/${id}/itens`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${localStorage.getItem('token')}`,
+        },
+        body: JSON.stringify({
+          produtoId: itemForm.produtoId,
+          quantidade: itemForm.quantidade,
+          precoUnitario: itemForm.precoUnitario,
+          unidade: itemForm.unidade || undefined,
+        }),
+      })
+      if (!res.ok) {
+        const err = await res.json()
+        throw new Error(err.message ?? 'Erro ao adicionar item')
+      }
+      setShowItemModal(false)
+      load()
+    } catch (err) {
+      setItemError(err instanceof Error ? err.message : 'Erro ao adicionar item')
+    } finally {
+      setSavingItem(false)
+    }
+  }
+
+  async function handleRemoverItem(itemId: string) {
+    if (!id || !confirm('Remover este item do contrato?')) return
+    try {
+      const res = await fetch(`/api/contratos/${id}/itens/${itemId}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+      })
+      if (!res.ok) {
+        const err = await res.json()
+        throw new Error(err.message ?? 'Erro ao remover item')
+      }
+      load()
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Erro ao remover item')
+    }
   }
 
   if (loading) return <div className={pageStyles.page}><p style={{ color: '#94a3b8', padding: 40 }}>Carregando...</p></div>
@@ -506,6 +577,91 @@ export default function ContratoDetalhe() {
       </div>
 
       <ContratoHistorico contrato={contrato} moeda={moeda} />
+
+      {/* Itens Contratados */}
+      {(() => {
+        const itens: IItemContrato[] = (contrato as any).itens ?? []
+        const totalItens = itens.reduce((s, it) => s + it.subtotal, 0)
+        const totalExecutado = itens.reduce((s, it) => {
+          const perc = it.quantidade > 0 ? it.quantidadeExecutada / it.quantidade : 0
+          return s + it.subtotal * perc
+        }, 0)
+        return (
+          <div className={pageStyles.panel}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+              <h3 className={pageStyles.panelTitle} style={{ margin: 0 }}>
+                Itens Contratados ({itens.length})
+              </h3>
+              {contrato.ativo && (
+                <button className={pageStyles.btnPrimary} onClick={handleAbrirItemModal}>
+                  + Adicionar Item
+                </button>
+              )}
+            </div>
+            {itens.length === 0 ? (
+              <p style={{ color: '#94a3b8', fontSize: '0.85rem', margin: 0 }}>Nenhum item contratado registrado.</p>
+            ) : (
+              <>
+                <div style={{ overflowX: 'auto' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
+                    <thead>
+                      <tr style={{ borderBottom: '2px solid var(--surface-border)', background: 'var(--surface-2)' }}>
+                        {['Cód.', 'Produto', 'Unidade', 'Qtd Contratada', 'Qtd Executada', 'Preço Unit.', 'Subtotal', 'Progresso', 'Ações'].map(h => (
+                          <th key={h} style={{ padding: '8px 12px', textAlign: h === 'Subtotal' || h === 'Preço Unit.' || h === 'Qtd Contratada' || h === 'Qtd Executada' ? 'right' : 'left', fontWeight: 700, fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em', whiteSpace: 'nowrap' }}>{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {itens.map((item, idx) => {
+                        const perc = item.quantidade > 0 ? Math.min(100, (item.quantidadeExecutada / item.quantidade) * 100) : 0
+                        const percColor = perc >= 100 ? '#15803d' : perc >= 50 ? '#0284c7' : '#94a3b8'
+                        return (
+                          <tr key={item._id} style={{ borderBottom: '1px solid var(--surface-border)', background: idx % 2 === 0 ? 'transparent' : 'var(--row-alt, #fafbfc)' }}>
+                            <td style={{ padding: '8px 12px', fontFamily: 'monospace', fontSize: '0.8rem', color: '#64748b', whiteSpace: 'nowrap' }}>{item.codigo}</td>
+                            <td style={{ padding: '8px 12px' }}><strong style={{ fontSize: '0.85rem' }}>{item.nome}</strong></td>
+                            <td style={{ padding: '8px 12px', color: '#64748b' }}>{item.unidade ?? '—'}</td>
+                            <td style={{ padding: '8px 12px', textAlign: 'right' }}>{item.quantidade.toLocaleString('pt-BR')}</td>
+                            <td style={{ padding: '8px 12px', textAlign: 'right' }}>{item.quantidadeExecutada.toLocaleString('pt-BR')}</td>
+                            <td style={{ padding: '8px 12px', textAlign: 'right', whiteSpace: 'nowrap' }}>{moeda(item.precoUnitario)}</td>
+                            <td style={{ padding: '8px 12px', textAlign: 'right', whiteSpace: 'nowrap', fontWeight: 600 }}>{moeda(item.subtotal)}</td>
+                            <td style={{ padding: '8px 12px', minWidth: 110 }}>
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                                <div style={{ width: '100%', height: 6, background: 'var(--border, #e2e8f0)', borderRadius: 999, overflow: 'hidden' }}>
+                                  <div style={{ width: `${perc}%`, height: '100%', background: percColor, borderRadius: 999, transition: 'width 0.3s' }} />
+                                </div>
+                                <span style={{ fontSize: '0.72rem', color: percColor, fontWeight: 600 }}>{perc.toFixed(0)}%</span>
+                              </div>
+                            </td>
+                            <td style={{ padding: '8px 12px' }}>
+                              {contrato.ativo && (
+                                <button
+                                  onClick={() => handleRemoverItem(item._id)}
+                                  style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', fontSize: '0.78rem', padding: 0 }}
+                                >
+                                  Remover
+                                </button>
+                              )}
+                            </td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                    <tfoot>
+                      <tr style={{ borderTop: '2px solid var(--surface-border)', background: 'var(--sidebar-bg-subtle, #f8fafc)' }}>
+                        <td colSpan={6} style={{ padding: '10px 12px', fontWeight: 700, fontSize: '0.82rem', color: '#374151' }}>Totais</td>
+                        <td style={{ padding: '10px 12px', textAlign: 'right', fontWeight: 800, fontSize: '0.9rem', whiteSpace: 'nowrap' }}>{moeda(totalItens)}</td>
+                        <td colSpan={2} style={{ padding: '10px 12px', fontSize: '0.8rem', color: '#64748b' }}>
+                          Executado: <strong style={{ color: '#0284c7' }}>{moeda(totalExecutado)}</strong>
+                        </td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+              </>
+            )}
+          </div>
+        )
+      })()}
 
       {/* Ordens de Fornecimento */}
       {contrato.modalidade === 'Por Ordem de Fornecimento' && (
@@ -739,6 +895,74 @@ export default function ContratoDetalhe() {
           <div className={pageStyles.formActions}><button type="button" className={pageStyles.btnSecondary} onClick={() => setShowAditivoModal(false)}>Cancelar</button><button type="submit" className={pageStyles.btnPrimary} disabled={saving}>{saving ? 'Salvando...' : 'Criar Aditivo'}</button></div>
         </form>
       </Modal>}
+
+      {showItemModal && (
+        <Modal title="Adicionar Item Contratado" onClose={() => setShowItemModal(false)} size="sm">
+          <form onSubmit={handleAdicionarItem} className={pageStyles.form}>
+            <label>Produto *
+              <select
+                required
+                value={itemForm.produtoId}
+                onChange={e => {
+                  const prod = produtosList.find(p => p._id === e.target.value)
+                  setItemForm({
+                    ...itemForm,
+                    produtoId: e.target.value,
+                    precoUnitario: prod?.precoTabela ?? prod?.preco ?? 0,
+                  })
+                }}
+              >
+                <option value="">Selecione o produto</option>
+                {produtosList.map(p => (
+                  <option key={p._id} value={p._id}>{p.codigo} — {p.nome}</option>
+                ))}
+              </select>
+            </label>
+            <label>Unidade
+              <select value={itemForm.unidade} onChange={e => setItemForm({ ...itemForm, unidade: e.target.value })}>
+                <option value="">Selecione (opcional)</option>
+                <option value="un">un</option>
+                <option value="licença">licença</option>
+                <option value="mês">mês</option>
+                <option value="hora">hora</option>
+                <option value="ano">ano</option>
+              </select>
+            </label>
+            <label>Quantidade *
+              <input
+                required
+                type="number"
+                min="1"
+                step="1"
+                value={itemForm.quantidade}
+                onChange={e => setItemForm({ ...itemForm, quantidade: Number(e.target.value) })}
+              />
+            </label>
+            <label>Preço Unitário *
+              <input
+                required
+                type="number"
+                min="0"
+                step="0.01"
+                value={itemForm.precoUnitario}
+                onChange={e => setItemForm({ ...itemForm, precoUnitario: Number(e.target.value) })}
+              />
+            </label>
+            {itemForm.quantidade > 0 && itemForm.precoUnitario > 0 && (
+              <p style={{ fontSize: '0.82rem', color: '#475569', margin: '4px 0 0' }}>
+                Subtotal: <strong>{moeda(itemForm.quantidade * itemForm.precoUnitario)}</strong>
+              </p>
+            )}
+            {itemError && <p className={pageStyles.error}>{itemError}</p>}
+            <div className={pageStyles.formActions}>
+              <button type="button" className={pageStyles.btnSecondary} onClick={() => setShowItemModal(false)}>Cancelar</button>
+              <button type="submit" className={pageStyles.btnPrimary} disabled={savingItem || !itemForm.produtoId}>
+                {savingItem ? 'Adicionando...' : 'Adicionar'}
+              </button>
+            </div>
+          </form>
+        </Modal>
+      )}
     </div>
   )
 }

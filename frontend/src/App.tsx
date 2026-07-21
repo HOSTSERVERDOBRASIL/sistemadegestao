@@ -32,9 +32,13 @@ import CertificadosICP from './pages/CertificadosICP'
 import DashboardNF from './pages/DashboardNF'
 import Estoque from './pages/Estoque'
 import Portal from './pages/Portal'
+import PortalCliente from './pages/PortalCliente'
 import CrmOportunidades from './pages/CrmOportunidades'
 import CrmPropostas from './pages/CrmPropostas'
 import ContasPagar from './pages/ContasPagar'
+import DRE from './pages/DRE'
+import DashboardOperacional from './pages/DashboardOperacional'
+import AtendimentoAR from './pages/AtendimentoAR'
 
 
 function PrivateRoute({ children, adminOnly = false, revendaOnly = false }: { children: React.ReactNode; adminOnly?: boolean; revendaOnly?: boolean }) {
@@ -100,9 +104,13 @@ function AppRoutes() {
         <Route path="crm/oportunidades" element={<CrmOportunidades />} />
         <Route path="crm/propostas" element={<CrmPropostas />} />
         <Route path="contas-pagar" element={<ContasPagar />} />
+        <Route path="dre" element={<DRE />} />
+        <Route path="dashboard-operacional" element={<DashboardOperacional />} />
+        <Route path="atendimento-ar" element={<AtendimentoAR />} />
       </Route>
       <Route path="/portal/:token" element={<Portal />} />
       <Route path="/proposta-aceite/:token" element={<Portal />} />
+      <Route path="/portal-cliente" element={<PortalCliente />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   )

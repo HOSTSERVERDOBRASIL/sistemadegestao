@@ -35,9 +35,12 @@ import { estoqueRouter } from './routes/estoque.routes.js';
 import { pedidosICPRouter } from './routes/pedidos-icp.routes.js';
 import { pedidosCompraRouter } from './routes/pedidos-compra.routes.js';
 import { contasPagarRouter } from './routes/contas-pagar.routes.js';
+import { dreRouter } from './routes/dre.routes.js';
 import { portalRouter } from './routes/portal.routes.js';
 import { portalAdminRouter } from './routes/portal-admin.routes.js';
 import { crmRouter } from './routes/crm.routes.js';
+import { portalClienteRouter } from './routes/portal-cliente.routes.js';
+import { atendimentoARRouter } from './routes/atendimento-ar.routes.js';
 import { errorHandler } from './middleware/error.middleware.js';
 import { verificarCertificadosVencendo } from './services/alertas-vencimento.service.js';
 
@@ -119,9 +122,12 @@ app.use(`${apiPrefix}/estoque`, estoqueRouter);
 app.use(`${apiPrefix}/pedidos-icp`, pedidosICPRouter);
 app.use(`${apiPrefix}/pedidos-compra`, pedidosCompraRouter);
 app.use(`${apiPrefix}/contas-pagar`, contasPagarRouter);
+app.use(`${apiPrefix}/dre`, dreRouter);
 app.use(`${apiPrefix}/portal`, portalRouter);
 app.use(`${apiPrefix}/portal-admin`, portalAdminRouter);
+app.use(`${apiPrefix}/portal-cliente`, portalClienteRouter);
 app.use(`${apiPrefix}/crm`, crmRouter);
+app.use(`${apiPrefix}/atendimento-ar`, atendimentoARRouter);
 // uploads públicos (sem prefixo /api)
 app.use('/uploads', express.static(path.resolve(env.UPLOAD_DIR)));
 
